@@ -1,6 +1,8 @@
 import { ITreeItem } from '@/assets/type';
 import { message } from '@ctzhian/ui';
 import { ResolvingMetadata } from 'next';
+import { MESSAGES } from '@/i18n/messages';
+import { DEFAULT_LOCALE, resolveLanguage } from '@/i18n/locale';
 export { getBasePath } from './getBasePath';
 export { getImagePath } from './getImagePath';
 
@@ -28,17 +30,22 @@ export function addOpacityToColor(color: string, opacity: number) {
 }
 
 export const copyText = (text: string, callback?: () => void) => {
+  const locale =
+    typeof document !== 'undefined'
+      ? resolveLanguage(document.documentElement.lang || DEFAULT_LOCALE)
+      : DEFAULT_LOCALE;
+  const messages = MESSAGES[locale] || MESSAGES[DEFAULT_LOCALE];
   const isNotHttps = !/^https:\/\//.test(window.location.origin);
 
   if (isNotHttps) {
-    message.error('非 https 协议下不支持复制，请使用 https 协议');
+    message.error(messages['common.copyNotSupported']);
     return;
   }
 
   try {
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text);
-      message.success('复制成功');
+      message.success(messages['common.copySuccess']);
       callback?.();
     } else {
       const textArea = document.createElement('textarea');
@@ -53,20 +60,20 @@ export const copyText = (text: string, callback?: () => void) => {
       try {
         const successful = document.execCommand('copy');
         if (successful) {
-          message.success('复制成功');
+          message.success(messages['common.copySuccess']);
           callback?.();
         } else {
-          message.error('复制失败，请手动复制');
+          message.error(messages['common.copyFailed']);
         }
       } catch (err) {
         console.error(err);
-        message.error('复制失败，请手动复制');
+        message.error(messages['common.copyFailed']);
       }
       document.body.removeChild(textArea);
     }
   } catch (err) {
     console.error(err);
-    message.error('复制失败，请手动复制');
+    message.error(messages['common.copyFailed']);
   }
 };
 

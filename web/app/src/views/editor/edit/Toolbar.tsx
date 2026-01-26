@@ -5,6 +5,7 @@ import {
   EditorToolbar,
   UseTiptapReturn,
 } from '@ctzhian/tiptap';
+import { useI18n } from '@/i18n/useI18n';
 
 interface ToolbarProps {
   editorRef: UseTiptapReturn;
@@ -12,6 +13,7 @@ interface ToolbarProps {
 }
 
 const Toolbar = ({ editorRef, handleAiGenerate }: ToolbarProps) => {
+  const { t } = useI18n();
   return (
     <Box
       sx={{
@@ -30,7 +32,7 @@ const Toolbar = ({ editorRef, handleAiGenerate }: ToolbarProps) => {
           menuInToolbarMore={[
             {
               id: 'ai',
-              label: '文本润色',
+              label: t('editor.textPolish'),
               icon: <AiGenerate2Icon sx={{ fontSize: '1rem' }} />,
               onClick: handleAiGenerate,
             },

@@ -20,6 +20,7 @@ import zh from '../emoji/emoji-data/zh.json';
 import { useTheme } from '@mui/material/styles';
 import React, { useRef, useState } from 'react';
 import { useBasePath } from '@/hooks';
+import { useI18n } from '@/i18n/useI18n';
 
 export interface ImageItem {
   id: string;
@@ -53,7 +54,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
       value,
       onChange,
       onImagesChange,
-      placeholder = '请输入评论',
+      placeholder = '',
       error,
       helperText,
       onFocus,
@@ -65,12 +66,14 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
   ) => {
     const theme = useTheme();
     const basePath = useBasePath();
+    const { t, locale } = useI18n();
     const [images, setImages] = useState<ImageItem[]>([]);
     const [uploading, setUploading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [emojiAnchorEl, setEmojiAnchorEl] =
       useState<HTMLButtonElement | null>(null);
+    const resolvedPlaceholder = placeholder || t('node.commentPlaceholder');
 
     // 添加本地图片预览（不上传到服务器）
     const handleImageSelect = async (files: FileList | null) => {
@@ -78,7 +81,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
 
       const remainingSlots = maxImages - images.length;
       if (remainingSlots <= 0) {
-        message.warning(`最多只能上传 ${maxImages} 张图片`);
+        message.warning(t('comment.maxImages', { count: maxImages }));
         return;
       }
 
@@ -91,13 +94,13 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
           // 验证文件类型（只允许 jpg、jpeg、png、webp）
           const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
           if (!allowedTypes.includes(file.type)) {
-            message.error('只支持上传 jpg、jpeg、png、webp 格式的图片');
+            message.error(t('comment.imageTypeError'));
             continue;
           }
 
           // 验证文件大小 (10MB)
           if (file.size > 10 * 1024 * 1024) {
-            message.error('图片大小不能超过 10MB');
+            message.error(t('comment.imageSizeError'));
             continue;
           }
 
@@ -116,7 +119,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
         setImages(updatedImages);
         onImagesChange?.(updatedImages);
       } catch (error: any) {
-        message.error(error.message || '图片选择失败');
+        message.error(error.message || t('comment.imagePickFailed'));
       }
     };
 
@@ -143,7 +146,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
               const solution = await cap.solve();
               token = solution.token;
             } catch (error) {
-              message.error('验证失败');
+              message.error(t('comment.validationFailed'));
               console.log(error, 'error---------');
               setUploading(false);
               return Promise.reject(error);
@@ -164,7 +167,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
 
         return uploadedUrls;
       } catch (error: any) {
-        message.error(error.message || '图片上传失败');
+        message.error(error.message || t('comment.imageUploadFailed'));
         throw error;
       } finally {
         setUploading(false);
@@ -282,7 +285,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
           onFocus={onFocus}
           onBlur={onBlur}
           onPaste={handlePaste}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           fullWidth
           multiline
           minRows={2}
@@ -429,8 +432,8 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
             data={data}
             set='native'
             theme={theme.palette.mode === 'dark' ? 'dark' : 'light'}
-            locale='zh'
-            i18n={zh}
+            locale={locale === 'zh-CN' ? 'zh' : 'en'}
+            i18n={locale === 'zh-CN' ? zh : undefined}
             onEmojiSelect={handleEmojiSelect}
             previewPosition='none'
             searchPosition='sticky'

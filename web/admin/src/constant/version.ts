@@ -11,6 +11,13 @@ export const PROFESSION_VERSION_PERMISSION = [
   ConstsLicenseEdition.LicenseEditionEnterprise,
 ];
 
+export const ALL_VERSION_PERMISSION = [
+  ConstsLicenseEdition.LicenseEditionFree,
+  ConstsLicenseEdition.LicenseEditionProfession,
+  ConstsLicenseEdition.LicenseEditionBusiness,
+  ConstsLicenseEdition.LicenseEditionEnterprise,
+];
+
 export const BUSINESS_VERSION_PERMISSION = [
   ConstsLicenseEdition.LicenseEditionBusiness,
   ConstsLicenseEdition.LicenseEditionEnterprise,
@@ -130,7 +137,7 @@ export const VERSION_INFO: Record<ConstsLicenseEdition, VersionInfo> = {
     label: '开源版',
     features: {
       wikiCount: 1,
-      docCountPerWiki: 300,
+      docCountPerWiki: Infinity,
       adminCount: 1,
       adminPermissionControl: FeatureStatus.NOT_SUPPORTED,
       seoConfig: FeatureStatus.BASIC,
@@ -158,7 +165,7 @@ export const VERSION_INFO: Record<ConstsLicenseEdition, VersionInfo> = {
     label: '专业版',
     features: {
       wikiCount: 10,
-      docCountPerWiki: 10000,
+      docCountPerWiki: Infinity,
       adminCount: 20,
       adminPermissionControl: FeatureStatus.SUPPORTED,
       seoConfig: FeatureStatus.ADVANCED,
@@ -186,7 +193,7 @@ export const VERSION_INFO: Record<ConstsLicenseEdition, VersionInfo> = {
     label: '商业版',
     features: {
       wikiCount: 20,
-      docCountPerWiki: 10000,
+      docCountPerWiki: Infinity,
       adminCount: 50,
       adminPermissionControl: FeatureStatus.SUPPORTED,
       seoConfig: FeatureStatus.ADVANCED,
@@ -245,7 +252,6 @@ export const VERSION_INFO: Record<ConstsLicenseEdition, VersionInfo> = {
  */
 export const FEATURE_LABELS: Record<string, string> = {
   wikiCount: 'Wiki 站点数量',
-  docCountPerWiki: '每个 Wiki 的文档数量',
   adminCount: '管理员数量',
   adminPermissionControl: '管理员分权控制',
   seoConfig: 'SEO 配置',

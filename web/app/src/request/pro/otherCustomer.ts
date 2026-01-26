@@ -1,10 +1,20 @@
 
 
-import {  RequestParams } from "./httpClient";
+import { RequestParams } from "./httpClient";
 import {
   GithubComChaitinPandaWikiProApiShareV1FileUploadResp,
   PostShareProV1FileUploadPayload,
 } from "./types";
+import { DEFAULT_LOCALE, resolveLanguage } from '@/i18n/locale';
+import { MESSAGES } from '@/i18n/messages';
+
+const getMessages = () => {
+  if (typeof document === 'undefined') {
+    return MESSAGES[DEFAULT_LOCALE];
+  }
+  const locale = resolveLanguage(document.documentElement.lang || DEFAULT_LOCALE);
+  return MESSAGES[locale] || MESSAGES[DEFAULT_LOCALE];
+};
 
 
 
@@ -20,6 +30,7 @@ export const postShareProV1FileUploadWithProgress = (
 ): Promise<GithubComChaitinPandaWikiProApiShareV1FileUploadResp> => {
   return new Promise((resolve, reject) => {
     const { onprogress, abortSignal, ...requestParams } = params;
+    const messages = getMessages();
     
     // 创建 FormData
     const formData = new FormData();
@@ -50,10 +61,10 @@ export const postShareProV1FileUploadWithProgress = (
           if (response.code === 0 || response.code === undefined) {
             resolve(response.data);
           } else {
-            reject(new Error(response.message || '上传失败'));
+            reject(new Error(response.message || messages['upload.failed']));
           }
         } catch (error) {
-          reject(new Error('响应解析失败'));
+          reject(new Error(messages['upload.parseFailed']));
         }
       } else {
         reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
@@ -62,12 +73,12 @@ export const postShareProV1FileUploadWithProgress = (
 
     // 设置错误处理
     xhr.addEventListener('error', () => {
-      reject(new Error('网络错误'));
+      reject(new Error(messages['upload.networkError']));
     });
 
     // 设置中止处理
     xhr.addEventListener('abort', () => {
-      reject(new Error('请求被中止'));
+      reject(new Error(messages['upload.aborted']));
     });
 
     // 监听中止信号

@@ -16,6 +16,7 @@ import { IconJinsousuo, IconZhinengwenda } from '@panda-wiki/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AiQaContent from './AiQaContent';
 import SearchDocContent from './SearchDocContent';
+import { useI18n } from '@/i18n/useI18n';
 
 const StyledTabs = styled(Tabs)(({ theme }) => ({
   minHeight: 'auto',
@@ -61,6 +62,7 @@ const StyledTab = styled(Tab)(({ theme }) => ({
 
 const Widget = () => {
   const { widget, mobile } = useStore();
+  const { t } = useI18n();
 
   const defaultSearchMode = useMemo(() => {
     return widget?.settings?.widget_bot_settings?.search_mode || 'all';
@@ -73,8 +75,11 @@ const Widget = () => {
   const aiQaInputRef = useRef<HTMLInputElement>(null);
 
   const placeholder = useMemo(() => {
-    return widget?.settings?.widget_bot_settings?.placeholder || '搜索...';
-  }, [widget]);
+    return (
+      widget?.settings?.widget_bot_settings?.placeholder ||
+      t('common.searchPlaceholder')
+    );
+  }, [widget, t]);
 
   const hotSearch = useMemo(() => {
     return widget?.settings?.widget_bot_settings?.recommend_questions || [];
@@ -131,7 +136,7 @@ const Widget = () => {
               label={
                 <Stack direction='row' gap={0.5} alignItems='center'>
                   <IconZhinengwenda sx={{ fontSize: 16 }} />
-                  {!mobile && <span>智能问答</span>}
+                  {!mobile && <span>{t('qa.chatTab')}</span>}
                 </Stack>
               }
               value='qa'
@@ -140,7 +145,7 @@ const Widget = () => {
               label={
                 <Stack direction='row' gap={0.5} alignItems='center'>
                   <IconJinsousuo sx={{ fontSize: 16 }} />
-                  {!mobile && <span>仅搜索文档</span>}
+                  {!mobile && <span>{t('qa.searchTab')}</span>}
                 </Stack>
               }
               value='doc'
@@ -213,7 +218,7 @@ const Widget = () => {
           >
             <Box>
               {widget?.settings?.widget_bot_settings?.copyright_info ||
-                '本网站由 PandaWiki 提供技术支持'}
+                t('brand.defaultCopyright')}
             </Box>
           </Typography>
         </Box>

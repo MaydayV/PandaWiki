@@ -37,11 +37,10 @@ import {
   IconXingxing,
 } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatLoading from '../../views/chat/ChatLoading';
 import {
@@ -75,6 +74,7 @@ import {
 import { handleThinkingContent } from './utils';
 import { useBasePath } from '@/hooks';
 import { getImagePath } from '@/utils/getImagePath';
+import { useI18n } from '@/i18n/useI18n';
 
 export interface ConversationItem {
   q: string;
@@ -89,19 +89,15 @@ export interface ConversationItem {
 }
 
 dayjs.extend(relativeTime);
-dayjs.locale('zh-cn');
 
-const AnswerStatus = {
-  1: '正在搜索结果...',
-  2: '思考中...',
-  3: '正在回答',
-  4: '',
-};
+type ThinkingStatus = 1 | 2 | 3 | 4;
 
 const LoadingContent = ({
   thinking,
+  statusText,
 }: {
-  thinking: keyof typeof AnswerStatus;
+  thinking: ThinkingStatus;
+  statusText: Record<ThinkingStatus, string>;
 }) => {
   if (thinking === 4 || thinking === 2) return null;
   return (
@@ -114,7 +110,7 @@ const LoadingContent = ({
           color: alpha(theme.palette.text.primary, 0.5),
         })}
       >
-        {AnswerStatus[thinking]}
+        {statusText[thinking]}
       </Typography>
     </Stack>
   );
@@ -126,6 +122,16 @@ const AiQaContent: React.FC<{
   inputRef: React.RefObject<HTMLInputElement | null>;
 }> = ({ hotSearch, placeholder, inputRef }) => {
   const { widget } = useStore();
+  const { t } = useI18n();
+  const statusText = useMemo<Record<ThinkingStatus, string>>(
+    () => ({
+      1: t('chat.searching'),
+      2: t('chat.thinking'),
+      3: t('chat.answering'),
+      4: '',
+    }),
+    [t],
+  );
   const sseClientRef = useRef<SSEClient<{
     type: string;
     content: string;
@@ -136,7 +142,7 @@ const AiQaContent: React.FC<{
   const [fullAnswer, setFullAnswer] = useState<string>('');
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [thinking, setThinking] = useState<keyof typeof AnswerStatus>(4);
+  const [thinking, setThinking] = useState<ThinkingStatus>(4);
   const [nonce, setNonce] = useState('');
   const [conversationId, setConversationId] = useState('');
   const [input, setInput] = useState('');
@@ -208,7 +214,7 @@ const AiQaContent: React.FC<{
     const maxImages = 9; // 最多9张图片
     const remainingSlots = maxImages - uploadedImages.length;
     if (remainingSlots <= 0) {
-      message.warning(`最多只能上传 ${maxImages} 张图片`);
+      message.warning(t('widget.maxImages', { count: maxImages }));
       return;
     }
 
@@ -224,13 +230,13 @@ const AiQaContent: React.FC<{
       for (const file of filesToAdd) {
         // 验证文件类型
         if (!file.type.startsWith('image/')) {
-          message.error('只支持上传图片文件');
+          message.error(t('widget.imageTypeError'));
           continue;
         }
 
         // 验证文件大小 (10MB)
         if (file.size > 10 * 1024 * 1024) {
-          message.error('图片大小不能超过 10MB');
+          message.error(t('widget.imageSizeError'));
           continue;
         }
 
@@ -247,7 +253,7 @@ const AiQaContent: React.FC<{
       const updatedImages = [...uploadedImages, ...newImages];
       setUploadedImages(updatedImages);
     } catch (error: any) {
-      message.error(error.message || '图片选择失败');
+      message.error(error.message || t('widget.imagePickFailed'));
     }
   };
 
@@ -385,7 +391,7 @@ const AiQaContent: React.FC<{
       const solution = await cap.solve();
       token = solution.token;
     } catch (error) {
-      message.error('验证失败');
+      message.error(t('widget.validationFailed'));
       console.log(error, 'error---------');
       return;
     }
@@ -421,8 +427,8 @@ const AiQaContent: React.FC<{
                 lastConversation.a =
                   lastConversation.a +
                   (content
-                    ? `\n\n回答出现错误：<error>${content}</error>`
-                    : '\n\n回答出现错误，请重试');
+                    ? `\n\n${t('widget.answerError')}: <error>${content}</error>`
+                    : `\n\n${t('widget.answerRetry')}`);
               }
               return newConversation;
             });
@@ -549,7 +555,7 @@ const AiQaContent: React.FC<{
     if (type) data.type = type;
     if (content) data.feedback_content = content;
     await postShareV1ChatFeedback(data);
-    message.success('反馈成功');
+    message.success(t('chat.feedbackSuccess'));
     setConversation(
       conversation.map(item => {
         return item.message_id === message_id ? { ...item, score } : item;
@@ -734,7 +740,7 @@ const AiQaContent: React.FC<{
                   }}
                 >
                   <IconXingxing sx={{ fontSize: 14 }} />
-                  大家都在搜什么?
+                  {t('widget.hotSearchTitle')}
                 </Typography>
               </Box>
 
@@ -803,7 +809,9 @@ const AiQaContent: React.FC<{
                           color: alpha(theme.palette.text.primary, 0.5),
                         })}
                       >
-                        共找到 {item.chunk_result.length} 个结果
+                        {t('widget.resultCount', {
+                          count: item.chunk_result.length,
+                        })}
                       </Typography>
                     </StyledChunkAccordionSummary>
 
@@ -836,7 +844,7 @@ const AiQaContent: React.FC<{
 
                 {/* 加载状态 */}
                 {index === conversation.length - 1 && loading && (
-                  <LoadingContent thinking={thinking} />
+                  <LoadingContent thinking={thinking} statusText={statusText} />
                 )}
 
                 {/* 思考过程 */}
@@ -864,8 +872,8 @@ const AiQaContent: React.FC<{
                           })}
                         >
                           {thinking === 2 && index === conversation.length - 1
-                            ? '思考中...'
-                            : '已思考'}
+                            ? t('chat.thinking')
+                            : t('chat.thought')}
                         </Typography>
                       </Stack>
                     </StyledThinkingAccordionSummary>
@@ -893,7 +901,11 @@ const AiQaContent: React.FC<{
                     gap={mobile ? 1 : 3}
                   >
                     <Stack direction='row' gap={3} alignItems='center'>
-                      <span>生成于 {dayjs(item.update_time).fromNow()}</span>
+                      <span>
+                        {t('widget.generatedAt', {
+                          time: dayjs(item.update_time).fromNow(),
+                        })}
+                      </span>
 
                       <IconCopy
                         sx={{ cursor: 'pointer' }}
@@ -937,7 +949,7 @@ const AiQaContent: React.FC<{
                     </Stack>
                     <Box>
                       {widget?.settings?.widget_bot_settings?.disclaimer ||
-                        '本回答由 PandaWiki AI 自动生成，仅供参考。'}
+                        t('widget.disclaimer')}
                     </Box>
                   </StyledActionStack>
                 )}
@@ -972,7 +984,7 @@ const AiQaContent: React.FC<{
           onClick={onReset}
         >
           <IconXinduihua sx={{ fontSize: 14 }} />
-          新会话
+          {t('widget.newSession')}
         </Button>
       )}
 
@@ -1043,18 +1055,20 @@ const AiQaContent: React.FC<{
               style={{ display: 'none' }}
               onChange={handleImageUpload}
             />
-            <Tooltip title='敬请期待'>
-              <IconButton
-                size='small'
-                // onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-                sx={{
-                  flexShrink: 0,
-                }}
-              >
-                <IconTupian sx={{ fontSize: 20, color: 'text.secondary' }} />
-              </IconButton>
-            </Tooltip>
+            {/*
+              <Tooltip title={t('widget.comingSoon')}>
+                <IconButton
+                  size='small'
+                  // onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                  sx={{
+                    flexShrink: 0,
+                  }}
+                >
+                  <IconTupian sx={{ fontSize: 20, color: 'text.secondary' }} />
+                </IconButton>
+              </Tooltip>
+            */}
 
             <Box
               sx={{

@@ -9,9 +9,11 @@ import CatalogH5 from '@/views/node/CatalogH5';
 import { Box, Stack } from '@mui/material';
 import noDocImage from '@/assets/images/no-doc.png';
 import Image from 'next/image';
+import { useI18n } from '@/i18n/useI18n';
 
 const PCLayout = ({ children }: { children: React.ReactNode }) => {
   const { tree } = useStore();
+  const { t } = useI18n();
 
   return (
     <Stack sx={{ height: '100vh', overflow: 'auto' }} id='scroll-container'>
@@ -25,9 +27,9 @@ const PCLayout = ({ children }: { children: React.ReactNode }) => {
             gap: 2,
           }}
         >
-          <Image src={noDocImage} alt='暂无文档' width={380} />
+          <Image src={noDocImage} alt={t('doc.emptyTitle')} width={380} />
           <Box sx={{ fontSize: 14, color: 'text.tertiary' }}>
-            暂无文档, 请前往管理后台创建新文档
+            {t('doc.emptyDesc')}
           </Box>
         </Stack>
       ) : (
@@ -61,6 +63,7 @@ const MobileLayout = ({
   footerSetting?: FooterSetting | null;
 }) => {
   const { tree } = useStore();
+  const { t } = useI18n();
   return (
     <Stack
       sx={{
@@ -84,9 +87,9 @@ const MobileLayout = ({
               flex: 1,
             }}
           >
-            <Image src={noDocImage} alt='暂无文档' width={280} />
+            <Image src={noDocImage} alt={t('doc.emptyTitle')} width={280} />
             <Box sx={{ fontSize: 14, color: 'text.tertiary' }}>
-              暂无文档, 请前往管理后台创建新文档
+              {t('doc.emptyDesc')}
             </Box>
           </Stack>
         ) : (

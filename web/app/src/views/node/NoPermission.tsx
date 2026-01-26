@@ -4,9 +4,11 @@ import Image from 'next/image';
 
 import NoPermissionImg from '@/assets/images/no-permission.png';
 import { useStore } from '@/provider';
+import { useI18n } from '@/i18n/useI18n';
 
 const NoPermission = ({ catalogShow }: { catalogShow: boolean }) => {
   const { catalogWidth, mobile } = useStore();
+  const { t } = useI18n();
   return (
     <Stack
       style={{
@@ -37,7 +39,7 @@ const NoPermission = ({ catalogShow }: { catalogShow: boolean }) => {
         alignItems='center'
         sx={{ color: 'text.tertiary', fontSize: 14, mt: 3 }}
       >
-        无权限访问
+        {t('error.noPermission')}
       </Stack>
     </Stack>
   );

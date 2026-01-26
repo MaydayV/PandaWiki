@@ -4,6 +4,7 @@ import { Modal, message } from '@ctzhian/ui';
 import { Box, TextField, Typography, styled, FormLabel } from '@mui/material';
 import { IconCorrection } from '@panda-wiki/icons';
 import { useBasePath } from '@/hooks';
+import { useI18n } from '@/i18n/useI18n';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -62,6 +63,7 @@ export const StyledFormLabel = styled(FormLabel)(({ theme }) => ({
 
 const ConfirmModal = ({ open, onCancel, onOk }: ConfirmModalProps) => {
   const basePath = useBasePath();
+  const { t } = useI18n();
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState(false);
 
@@ -84,7 +86,7 @@ const ConfirmModal = ({ open, onCancel, onOk }: ConfirmModalProps) => {
       const solution = await cap.solve();
       token = solution.token;
     } catch (error) {
-      message.error('验证失败');
+      message.error(t('chat.validationFailed'));
       console.log(error, 'error---------');
       return;
     }
@@ -95,8 +97,8 @@ const ConfirmModal = ({ open, onCancel, onOk }: ConfirmModalProps) => {
     <Modal
       open={open}
       onCancel={onCancel}
-      title='确认提交'
-      okText='提交'
+      title={t('editor.submitConfirmTitle')}
+      okText={t('feedback.submit')}
       onOk={handleOk}
     >
       <StyledInfoBox>
@@ -104,21 +106,23 @@ const ConfirmModal = ({ open, onCancel, onOk }: ConfirmModalProps) => {
           <IconCorrection sx={{ fontSize: 20 }} />
         </StyledIconBox>
         <StyledContentBox>
-          <Typography className='title'>文档贡献流程</Typography>
+          <Typography className='title'>
+            {t('editor.contributionTitle')}
+          </Typography>
           <Typography className='description'>
-            文档提交后将进入审核流程，你提交的内容在审核通过后会立即在前台展示，感谢你的贡献。
+            {t('editor.contributionDescription')}
           </Typography>
         </StyledContentBox>
       </StyledInfoBox>
 
-      <StyledFormLabel required>更新说明</StyledFormLabel>
+      <StyledFormLabel required>{t('editor.updateNote')}</StyledFormLabel>
       <TextField
         fullWidth
         multiline
         rows={3}
-        placeholder='请输入更新说明，帮助审核人员更好地理解您的修改...'
+        placeholder={t('editor.updateNotePlaceholder')}
         value={reason}
-        helperText={reasonError ? '请输入更新说明' : ''}
+        helperText={reasonError ? t('editor.updateNoteRequired') : ''}
         error={reasonError}
         onChange={e => setReason(e.target.value)}
         sx={{

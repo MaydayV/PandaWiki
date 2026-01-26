@@ -19,6 +19,7 @@ import { clearImageBlobCache, createImageRenderer } from './imageRenderer';
 import { incrementalRender } from './incrementalRenderer';
 import { createMermaidRenderer } from './mermaidRenderer';
 import { getImagePath } from '@/utils/getImagePath';
+import { useI18n } from '@/i18n/useI18n';
 import {
   processThinkingContent,
   useThinkingRenderer,
@@ -73,6 +74,7 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
   content,
   autoScroll = true,
 }) => {
+  const { t } = useI18n();
   const theme = useTheme();
   const themeMode = theme.palette.mode;
 
@@ -417,10 +419,10 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
     } catch (error) {
       console.error('Markdown 渲染错误:', error);
       if (containerRef.current) {
-        containerRef.current.innerHTML = '<div>Markdown 渲染错误</div>';
+        containerRef.current.innerHTML = `<div>${t('markdown.renderError')}</div>`;
       }
     }
-  }, [content, customizeRenderer, scrollToBottom]);
+  }, [content, customizeRenderer, scrollToBottom, t]);
 
   // 添加代码块点击复制和图片点击预览功能（事件代理）
   useEffect(() => {

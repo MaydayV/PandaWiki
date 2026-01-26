@@ -19,16 +19,15 @@ import { Image, message } from '@ctzhian/ui';
 import { Box, Button, Divider, Stack, TextField, alpha } from '@mui/material';
 import { IconMianbaoxie, IconWenjian, IconWenjianjia } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import FolderList from './folderList';
+import { useI18n } from '@/i18n/useI18n';
 
 dayjs.extend(relativeTime);
-dayjs.locale('zh-cn');
 
 const DocContent = ({
   info,
@@ -44,6 +43,7 @@ const DocContent = ({
   characterCount?: number;
 }) => {
   const { mobile = false, authInfo, kbDetail, catalogWidth, tree } = useStore();
+  const { t } = useI18n();
   const basePath = useBasePath();
   const params = useParams() || {};
   const [commentLoading, setCommentLoading] = useState(false);
@@ -102,7 +102,7 @@ const DocContent = ({
         const solution = await cap.solve();
         token = solution.token;
       } catch (error) {
-        message.error('验证失败');
+        message.error(t('chat.validationFailed'));
         console.log(error, 'error---------');
         setCommentLoading(false);
         return;
@@ -129,11 +129,11 @@ const DocContent = ({
         setCommentImages([]);
         message.success(
           appDetail?.web_app_comment_settings?.moderation_enable
-            ? '评论已提交，请耐心等待审核'
-            : '评论成功',
+            ? t('node.commentPending')
+            : t('node.commentSuccess'),
         );
       } catch (error: any) {
-        console.log(error.message || '评论发布失败');
+        console.log(error.message || t('node.commentFailed'));
       } finally {
         setCommentLoading(false);
       }
@@ -148,12 +148,14 @@ const DocContent = ({
   if (!editorRef || !info) return null;
 
   const renderIp = (ip_address: any = {}) => {
-    const { city = '', country = '未知', province = '', ip } = ip_address;
+    const { city = '', country = t('common.unknown'), province = '', ip } =
+      ip_address;
+    const isChina = country === '中国' || country === 'China';
     return (
       <>
         <Box>{ip}</Box>
         <Box sx={{ color: 'text.tertiary', fontSize: 12 }}>
-          {country === '中国' ? `${province}-${city}` : `${country}`}
+          {isChina ? `${province}-${city}` : `${country}`}
         </Box>
       </>
     );
@@ -225,9 +227,10 @@ const DocContent = ({
         {info?.created_at && (
           <Box>
             {info?.creator_account && info?.creator_account === 'admin'
-              ? '管理员'
+              ? t('node.admin')
               : info?.creator_account}{' '}
-            {dayjs(info?.created_at).fromNow()}创建
+            {dayjs(info?.created_at).fromNow()}
+            {t('node.created')}
           </Box>
         )}
         {info?.updated_at && info.updated_at.slice(0, 1) !== '0' && (
@@ -235,22 +238,23 @@ const DocContent = ({
             <Box>·</Box>
             <Box>
               {info?.editor_account && info?.editor_account === 'admin'
-                ? '管理员'
+                ? t('node.admin')
                 : info?.editor_account}{' '}
-              {dayjs(info.updated_at).fromNow()}更新
+              {dayjs(info.updated_at).fromNow()}
+              {t('node.updated')}
             </Box>
           </>
         )}
         {!!characterCount && characterCount > 0 && (
           <>
             <Box>·</Box>
-            <Box>{characterCount} 字</Box>
+            <Box>{t('node.words', { count: characterCount })}</Box>
           </>
         )}
         {(info.pv ?? 0) > 0 && (
           <>
             <Box>·</Box>
-            <Box>浏览量 {info.pv}</Box>
+            <Box>{t('node.views', { count: info.pv })}</Box>
           </>
         )}
       </Stack>
@@ -269,7 +273,7 @@ const DocContent = ({
           }}
         >
           <Box sx={{ fontWeight: 'bold', mb: 2, lineHeight: '22px' }}>
-            内容摘要
+            {t('node.contentSummary')}
           </Box>
           <Box>{info?.meta?.summary}</Box>
         </Box>
@@ -344,7 +348,8 @@ const DocContent = ({
                   textAlign: 'left',
                 }}
               >
-                上一篇：{adjacentDocs.prev.name}
+                {t('node.prev')}
+                {adjacentDocs.prev.name}
               </Box>
             </Box>
           ) : (
@@ -377,7 +382,8 @@ const DocContent = ({
                   textAlign: 'right',
                 }}
               >
-                下一篇：{adjacentDocs.next.name}
+                {t('node.next')}
+                {adjacentDocs.next.name}
               </Box>
               <IconMianbaoxie sx={{ flexShrink: 0, fontSize: 14 }} />
             </Box>
@@ -390,7 +396,9 @@ const DocContent = ({
         <>
           {' '}
           <Divider sx={{ my: 4 }} />
-          <Box sx={{ fontWeight: 700, fontSize: 18, mb: 3 }}>评论</Box>
+          <Box sx={{ fontWeight: 700, fontSize: 18, mb: 3 }}>
+            {t('node.commentTitle')}
+          </Box>
           <Box
             sx={{
               p: 2,
@@ -404,7 +412,7 @@ const DocContent = ({
               name='content'
               control={control}
               rules={{
-                required: '请输入评论',
+                required: t('node.commentRequired'),
               }}
               render={({ field }) => (
                 <CommentInput
@@ -419,7 +427,7 @@ const DocContent = ({
                     setContentFocused(false);
                     field.onBlur?.();
                   }}
-                  placeholder='请输入评论'
+                  placeholder={t('node.commentPlaceholder')}
                   error={!!errors.content}
                   helperText={errors.content?.message}
                 />
@@ -438,19 +446,19 @@ const DocContent = ({
                 onClick={onSubmit}
                 loading={commentLoading}
               >
-                发送
+                {t('node.send')}
               </Button>
               {!authInfo?.username && (
                 <Controller
                   rules={{
-                    required: '请输入你的昵称',
+                    required: t('node.nicknameRequired'),
                   }}
                   name='name'
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      placeholder='你的昵称'
+                      placeholder={t('node.nicknamePlaceholder')}
                       size='small'
                       sx={{
                         '.MuiOutlinedInput-notchedOutline': {
@@ -508,7 +516,7 @@ const DocContent = ({
                   </Stack>
                 </Stack>
                 <Divider sx={{ my: 3, color: 'text.tertiary', fontSize: 14 }}>
-                  {index !== commentList.length - 1 ? '' : '没有更多了'}
+                  {index !== commentList.length - 1 ? '' : t('node.noMore')}
                 </Divider>
               </React.Fragment>
             ))}

@@ -11,6 +11,7 @@ import { Ellipsis } from '@ctzhian/ui';
 import { Box, Drawer, IconButton, Stack } from '@mui/material';
 import { useState } from 'react';
 import { IconDingzi, IconIcon_tool_close } from '@panda-wiki/icons';
+import { useI18n } from '@/i18n/useI18n';
 
 interface TocProps {
   headings: TocList;
@@ -43,6 +44,7 @@ const Toc = ({
   isMarkdown,
 }: TocProps) => {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const levels = Array.from(
     new Set(headings.map(it => it.level).sort((a, b) => a - b)),
   ).slice(0, 3);
@@ -124,7 +126,7 @@ const Toc = ({
             pb: 0,
           }}
         >
-          <Box>内容大纲</Box>
+          <Box>{t('editor.outline')}</Box>
           <IconButton
             size='small'
             onClick={() => {

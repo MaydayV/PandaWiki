@@ -1,14 +1,17 @@
 import LoadingIcon from '@/assets/images/loading.png';
 import { alpha, Box, Stack } from '@mui/material';
 import Image from 'next/image';
-import { AnswerStatus } from './constant';
+import { getAnswerStatus } from './constant';
+import { useI18n } from '@/i18n/useI18n';
 
 interface ChatLoadingProps {
-  thinking: keyof typeof AnswerStatus;
+  thinking: keyof ReturnType<typeof getAnswerStatus>;
   onClick?: () => void;
 }
 
 const ChatLoading = ({ thinking, onClick }: ChatLoadingProps) => {
+  const { t } = useI18n();
+  const answerStatus = getAnswerStatus(t);
   return (
     <Stack
       direction={onClick ? 'row-reverse' : 'row'}
@@ -50,7 +53,7 @@ const ChatLoading = ({ thinking, onClick }: ChatLoadingProps) => {
           color: alpha(theme.palette.text.primary, 0.5),
         })}
       >
-        {AnswerStatus[thinking]}
+        {answerStatus[thinking]}
       </Box>
     </Stack>
   );

@@ -57,6 +57,10 @@ func NewKnowledgeBaseHandler(
 	releaseGroup.POST("", h.CreateKBRelease)
 	releaseGroup.GET("/list", h.GetKBReleaseList)
 
+	promptGroup := echo.Group("/api/pro/v1/prompt", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
+	promptGroup.GET("", h.GetPromptSettings)
+	promptGroup.POST("", h.UpdatePromptSettings)
+
 	return h
 }
 
@@ -203,6 +207,62 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBaseDetail(c echo.Context) error {
 		CreatedAt:      kb.CreatedAt,
 		UpdatedAt:      kb.UpdatedAt,
 	})
+}
+
+// GetPromptSettings
+//
+//	@Summary		get prompt settings
+//	@Description	get prompt settings
+//	@Tags			prompt
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			kb_id	query		string	true	"kb id"
+//	@Success		200		{object}	domain.PWResponse{data=domain.Prompt}
+//	@Router			/api/pro/v1/prompt [get]
+func (h *KnowledgeBaseHandler) GetPromptSettings(c echo.Context) error {
+	kbID := c.QueryParam("kb_id")
+	if kbID == "" {
+		return h.NewResponseWithError(c, "kb id is required", nil)
+	}
+
+	promptSetting, err := h.llmUsecase.GetPromptSettings(c.Request().Context(), kbID)
+	if err != nil {
+		return h.NewResponseWithError(c, "get prompt settings failed", err)
+	}
+
+	return h.NewResponseWithData(c, promptSetting)
+}
+
+// UpdatePromptSettings
+//
+//	@Summary		update prompt settings
+//	@Description	update prompt settings
+//	@Tags			prompt
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			prompt	body		domain.UpdatePromptReq	true	"prompt settings"
+//	@Success		200		{object}	domain.PWResponse{data=domain.Prompt}
+//	@Router			/api/pro/v1/prompt [post]
+func (h *KnowledgeBaseHandler) UpdatePromptSettings(c echo.Context) error {
+	var req domain.UpdatePromptReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if req.Content == nil && req.SummaryContent == nil {
+		return h.NewResponseWithError(c, "content or summary_content is required", nil)
+	}
+
+	promptSetting, err := h.llmUsecase.UpdatePromptSettings(c.Request().Context(), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "update prompt settings failed", err)
+	}
+
+	return h.NewResponseWithData(c, promptSetting)
 }
 
 // DeleteKnowledgeBase

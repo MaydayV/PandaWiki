@@ -6,10 +6,12 @@ import { Box, Stack, SxProps, Tooltip } from '@mui/material';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
 import CatalogFolder from './CatalogFolder';
+import { useI18n } from '@/i18n/useI18n';
 
 const Catalog = ({ sx }: { sx?: SxProps }) => {
   const params = useParams() || {};
   const id = params.id as string;
+  const { t } = useI18n();
   const {
     kbDetail,
     mobile = false,
@@ -104,7 +106,7 @@ const Catalog = ({ sx }: { sx?: SxProps }) => {
             ...(docWidth === 'full' ? { ml: 1 } : { mr: 1 }),
           }}
         >
-          <Tooltip title={catalogShow ? null : '展开目录'} arrow>
+          <Tooltip title={catalogShow ? null : t('node.catalogExpand')} arrow>
             <IconMulu
               sx={{
                 fontSize: 16,
@@ -138,7 +140,7 @@ const Catalog = ({ sx }: { sx?: SxProps }) => {
               wordBreak: 'keep-all',
             }}
           >
-            目录
+            {t('node.catalog')}
           </Box>
           <IconMulu
             sx={{ fontSize: 16, cursor: 'pointer' }}

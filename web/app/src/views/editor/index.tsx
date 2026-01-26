@@ -6,6 +6,7 @@ import { Box, Stack, useMediaQuery } from '@mui/material';
 import { useParams } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import Edit from './edit';
+import { useI18n } from '@/i18n/useI18n';
 
 export interface WrapContext {
   catalogOpen: boolean;
@@ -34,6 +35,7 @@ export const useWrapContext = () => {
 const DocEditor = () => {
   const { id } = useParams();
   const isWideScreen = useMediaQuery('(min-width:1400px)');
+  const { t } = useI18n();
   const [saveLoading, setSaveLoading] = useState(false);
   const [nodeDetail, setNodeDetail] = useState<V1NodeDetailResp | null>(
     id
@@ -62,7 +64,7 @@ const DocEditor = () => {
       captcha_token: token,
       content_type: contentType || 'html',
     }).then(() => {
-      message.success('保存成功, 即将关闭页面');
+      message.success(t('editor.saveSuccessClose'));
       setTimeout(() => {
         setSaveLoading(false);
         try {

@@ -11,6 +11,7 @@ import { useDebounce } from 'ahooks';
 import { useEffect, useMemo, useState } from 'react';
 import CatalogFolder from './CatalogFolder';
 import { useStore } from '@/provider';
+import { useI18n } from '@/i18n/useI18n';
 
 const CatalogH5 = () => {
   const [open, setOpen] = useState(false);
@@ -18,6 +19,7 @@ const CatalogH5 = () => {
   const params = useParams() || {};
   const id = params.id as string;
   const { tree: initialTree, kbDetail } = useStore();
+  const { t } = useI18n();
   const debouncedSearchTerm = useDebounce(searchTerm, { wait: 300 });
 
   const catalogSetting = kbDetail?.settings?.catalog_settings;
@@ -82,7 +84,7 @@ const CatalogH5 = () => {
               color: 'text.primary',
             }}
           >
-            目录
+            {t('node.catalog')}
           </Box>
         </Stack>
         <IconXiajiantou
@@ -121,7 +123,7 @@ const CatalogH5 = () => {
             },
           }}
           size='small'
-          placeholder='搜索'
+          placeholder={t('common.searchPlaceholder')}
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           sx={{

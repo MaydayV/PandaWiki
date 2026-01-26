@@ -24,6 +24,7 @@ import Toc from './Toc';
 import Toolbar from './Toolbar';
 import IconPageview1 from '@panda-wiki/icons/IconPageview1';
 import { useBasePath } from '@/hooks/useBasePath';
+import { useI18n } from '@/i18n/useI18n';
 
 interface WrapProps {
   detail: V1NodeDetailResp;
@@ -35,6 +36,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
   const { nodeDetail, setNodeDetail, onSave } = useWrapContext();
   const { id } = useParams();
   const baseUrl = useBasePath();
+  const { t } = useI18n();
   const markdownEditorRef = useRef<MarkdownEditorRef>(null);
   const [characterCount, setCharacterCount] = useState(0);
   const [headings, setHeadings] = useState<TocList>([]);
@@ -115,13 +117,13 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
       const { from, to } = editorRef.editor.state.selection;
       const text = editorRef.editor.state.doc.textBetween(from, to, '\n');
       if (!text) {
-        message.error('请先选择文本');
+        message.error(t('editor.selectTextFirst'));
         return;
       }
       setSelectionText(text);
       setAiGenerateOpen(true);
     }
-  }, [editorRef.editor]);
+  }, [editorRef.editor, t]);
 
   const handleGlobalSave = useCallback(
     (event: KeyboardEvent) => {
@@ -140,20 +142,20 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
         }
       }
     },
-    [editorRef],
+    [checkRequiredFields, editorRef, updateDetail],
   );
 
   const checkRequiredFields = useCallback(() => {
     if (!nodeDetail?.name?.trim()) {
-      message.error('请先输入文档名称');
+      message.error(t('editor.enterDocNameFirst'));
       return false;
     }
     if (!nodeDetail?.content?.trim()) {
-      message.error('请先输入文档内容');
+      message.error(t('editor.enterDocContentFirst'));
       return false;
     }
     return true;
-  }, [nodeDetail]);
+  }, [nodeDetail, t]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleGlobalSave);
@@ -239,7 +241,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
             <TextField
               sx={{ flex: 1 }}
               value={nodeDetail?.name}
-              placeholder='请输入文档名称'
+              placeholder={t('editor.docNamePlaceholder')}
               slotProps={{
                 input: {
                   readOnly: !!id,
@@ -285,7 +287,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
                 {dayjs(defaultDetail?.created_at).format(
                   'YYYY-MM-DD HH:mm:ss',
                 )}{' '}
-                创建
+                {t('node.created')}
               </Stack>
             )}
 
@@ -296,7 +298,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
               sx={{ fontSize: 12, color: 'text.tertiary' }}
             >
               <IconZiti />
-              {characterCount} 字
+              {t('node.words', { count: characterCount })}
             </Stack>
             <Stack
               direction={'row'}
@@ -305,7 +307,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
               sx={{ fontSize: 12, color: 'text.tertiary' }}
             >
               <IconPageview1 sx={{ fontSize: 12 }} />
-              浏览量 {nodeDetail?.pv}
+              {t('node.views', { count: nodeDetail?.pv ?? 0 })}
             </Stack>
           </Stack>
           {editorRef.editor && (
@@ -315,7 +317,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
                   ref={markdownEditorRef}
                   editor={editorRef.editor}
                   value={nodeDetail?.content || defaultDetail?.content || ''}
-                  placeholder='请输入文档内容'
+                  placeholder={t('editor.docContentPlaceholder')}
                   onAceChange={value => {
                     updateDetail({
                       content: value,

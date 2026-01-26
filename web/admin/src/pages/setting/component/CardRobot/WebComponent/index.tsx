@@ -2,7 +2,7 @@ import { FreeSoloAutocomplete } from '@/components/FreeSoloAutocomplete';
 import ShowText from '@/components/ShowText';
 import UploadFile from '@/components/UploadFile';
 import VersionMask from '@/components/VersionMask';
-import { PROFESSION_VERSION_PERMISSION } from '@/constant/version';
+import { ALL_VERSION_PERMISSION } from '@/constant/version';
 import { useCommitPendingInput } from '@/hooks';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
 import {
@@ -604,7 +604,7 @@ const CardRobotWebComponent = ({ kb }: CardRobotWebComponentProps) => {
                         }}
                       />
                     </FormItem> */}
-                    <VersionMask permission={PROFESSION_VERSION_PERMISSION}>
+                    <VersionMask permission={ALL_VERSION_PERMISSION}>
                       <FormItem
                         label='版权信息'
                         sx={{ alignItems: 'flex-start' }}

@@ -1,6 +1,6 @@
 import { getApiProV1Prompt, postApiProV1Prompt } from '@/request/pro/Prompt';
 import { DomainKnowledgeBaseDetail } from '@/request/types';
-import { PROFESSION_VERSION_PERMISSION } from '@/constant/version';
+import { ALL_VERSION_PERMISSION } from '@/constant/version';
 import { useAppSelector } from '@/store';
 import { message, Modal } from '@ctzhian/ui';
 import { Box, Slider, TextField } from '@mui/material';
@@ -36,18 +36,18 @@ const CardAI = ({ kb }: CardAIProps) => {
     setIsEdit(false);
   });
 
-  const isPro = useMemo(() => {
-    return PROFESSION_VERSION_PERMISSION.includes(license.edition!);
+  const canEditPrompt = useMemo(() => {
+    return ALL_VERSION_PERMISSION.includes(license.edition!);
   }, [license]);
 
   useEffect(() => {
-    if (!kb.id || !PROFESSION_VERSION_PERMISSION.includes(license.edition!))
+    if (!kb.id || !ALL_VERSION_PERMISSION.includes(license.edition!))
       return;
     getApiProV1Prompt({ kb_id: kb.id! }).then(res => {
       setValue('content', res.content || '');
       setValue('summary_content', res.summary_content || '');
     });
-  }, [kb, isPro]);
+  }, [kb, canEditPrompt]);
 
   const onResetPrompt = (type: 'content' | 'summary_content' = 'content') => {
     Modal.confirm({
@@ -86,7 +86,7 @@ const CardAI = ({ kb }: CardAIProps) => {
       <SettingCardItem title='智能问答' isEdit={isEdit} onSubmit={onSubmit}>
         <FormItem
           vertical
-          permission={PROFESSION_VERSION_PERMISSION}
+          permission={ALL_VERSION_PERMISSION}
           extra={
             <Box
               sx={{
@@ -109,7 +109,7 @@ const CardAI = ({ kb }: CardAIProps) => {
               <TextField
                 {...field}
                 fullWidth
-                disabled={!isPro}
+                disabled={!canEditPrompt}
                 multiline
                 rows={20}
                 placeholder='智能问答提示词'
@@ -186,7 +186,7 @@ const CardAI = ({ kb }: CardAIProps) => {
         </FormItem>
         <FormItem
           vertical
-          permission={PROFESSION_VERSION_PERMISSION}
+          permission={ALL_VERSION_PERMISSION}
           extra={
             <Box
               sx={{
@@ -209,7 +209,7 @@ const CardAI = ({ kb }: CardAIProps) => {
               <TextField
                 {...field}
                 fullWidth
-                disabled={!isPro}
+                disabled={!canEditPrompt}
                 multiline
                 rows={5}
                 placeholder='智能摘要提示词'

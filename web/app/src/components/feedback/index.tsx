@@ -3,6 +3,7 @@ import { useStore } from '@/provider';
 import { Box, Stack, TextField } from '@mui/material';
 import { Modal } from '@ctzhian/ui';
 import { useState } from 'react';
+import { useI18n } from '@/i18n/useI18n';
 
 interface FeedbackProps {
   open: boolean;
@@ -25,6 +26,7 @@ const Feedback = ({
   tags: propsTags,
 }: FeedbackProps) => {
   const { themeMode, kbDetail } = useStore();
+  const { t } = useI18n();
   const [type, setType] = useState<string>('');
   const [content, setContent] = useState('');
 
@@ -49,9 +51,9 @@ const Feedback = ({
     <Modal
       open={open}
       onCancel={handleCancel}
-      title='反馈意见'
-      cancelText='取消'
-      okText='提交'
+      title={t('feedback.title')}
+      cancelText={t('common.cancel')}
+      okText={t('feedback.submit')}
       onOk={handleSubmit}
       cancelButtonProps={{
         sx: {
@@ -107,7 +109,7 @@ const Feedback = ({
           multiline
           rows={4}
           size='small'
-          placeholder='请输入反馈内容'
+          placeholder={t('feedback.placeholder')}
           value={content}
           sx={{
             '.MuiInputBase-root': {

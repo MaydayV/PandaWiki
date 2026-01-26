@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import React, { useMemo, useState, useEffect } from 'react';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { useI18n } from '@/i18n/useI18n';
 
 // Styled Components
 const StyledAccordion = styled(Accordion)({
@@ -166,6 +167,7 @@ interface FolderListProps {
 
 const FolderList: React.FC<FolderListProps> = ({ list = [] }) => {
   const { tree, setTree } = useStore();
+  const { t } = useI18n();
 
   const handleCatalogExpand = (item: DomainShareNodeDetailItem) => {
     if (!tree || !setTree || !item.id) return;
@@ -312,10 +314,12 @@ const FolderList: React.FC<FolderListProps> = ({ list = [] }) => {
                 prefetch={false}
                 onClick={() => handleCatalogExpand(item)}
               >
-                {item.name || '未命名'}
+                {item.name || t('node.untitled')}
               </StyledLink>
               {item.type === 2 && (
-                <StyledSummaryBox>{summary || '暂无摘要'}</StyledSummaryBox>
+                <StyledSummaryBox>
+                  {summary || t('home.noSummary')}
+                </StyledSummaryBox>
               )}
             </StyledContentBox>
           </StyledStack>

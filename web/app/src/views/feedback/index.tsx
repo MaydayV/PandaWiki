@@ -9,6 +9,7 @@ import { message } from '@ctzhian/ui';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/i18n/useI18n';
 
 const Feedback = () => {
   const searchParams = useSearchParams();
@@ -24,6 +25,7 @@ const Feedback = () => {
   const [type, setType] = useState<string>('');
   const [content, setContent] = useState('');
   const [success, setSuccess] = useState(score === 1);
+  const { t } = useI18n();
 
   const handleSubmit = async () => {
     const data: DomainFeedbackRequest = {
@@ -35,7 +37,7 @@ const Feedback = () => {
     };
     await postShareV1ChatFeedback(data);
     setSuccess(true);
-    message.success('反馈成功');
+    message.success(t('feedback.success'));
   };
 
   useEffect(() => {
@@ -63,14 +65,19 @@ const Feedback = () => {
               height: '100%',
             }}
           >
-            <Image src={feedback.src} alt='success' width={300} height={300} />
+            <Image
+              src={feedback.src}
+              alt={t('feedback.successTitle')}
+              width={300}
+              height={300}
+            />
             <Box
               sx={{
                 fontSize: 16,
                 mt: 2,
               }}
             >
-              感谢您的反馈！
+              {t('feedback.thanks')}
             </Box>
           </Box>
         ) : (
@@ -82,7 +89,7 @@ const Feedback = () => {
                 mb: 2,
               }}
             >
-              问题类型
+              {t('feedback.issueType')}
             </Box>
             <Stack
               direction='row'
@@ -121,7 +128,7 @@ const Feedback = () => {
                 my: 2,
               }}
             >
-              反馈内容
+              {t('feedback.content')}
             </Box>
             <Box
               sx={{
@@ -137,7 +144,7 @@ const Feedback = () => {
                 multiline
                 rows={8}
                 size='small'
-                placeholder='请输入反馈内容'
+                placeholder={t('feedback.placeholder')}
                 value={content}
                 sx={{
                   '.MuiInputBase-root': {
@@ -175,7 +182,7 @@ const Feedback = () => {
               }}
               onClick={handleSubmit}
             >
-              提交
+              {t('feedback.submit')}
             </Button>
           </Box>
         )}

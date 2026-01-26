@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { styled, SvgIcon, SvgIconProps } from '@mui/material';
+import { useI18n } from '@/i18n/useI18n';
 
 // ==================== 图片数据缓存工具函数 ====================
 // 下载图片并转换为 blob URL
@@ -95,12 +96,12 @@ export const ImageErrorIcon = (props: SvgIconProps) => {
 };
 
 // 错误展示组件
-const ImageErrorDisplay: React.FC = () => (
+const ImageErrorDisplay: React.FC<{ message: string }> = ({ message }) => (
   <StyledErrorContainer>
     <ImageErrorIcon
       sx={{ color: 'var(--mui-palette-text-tertiary)', fontSize: 140 }}
     />
-    <StyledErrorText>图片加载失败</StyledErrorText>
+    <StyledErrorText>{message}</StyledErrorText>
   </StyledErrorContainer>
 );
 
@@ -129,6 +130,7 @@ const ImageComponent: React.FC<ImageComponentProps> = ({
     'loading',
   );
   const [blobUrl, setBlobUrl] = useState<string>('');
+  const { t } = useI18n();
 
   // 基础样式对象
   const baseStyleObj = {
@@ -225,7 +227,7 @@ const ImageComponent: React.FC<ImageComponentProps> = ({
   return (
     <>
       {status === 'error' ? (
-        <ImageErrorDisplay />
+        <ImageErrorDisplay message={t('image.loadFailed')} />
       ) : blobUrl ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
@@ -250,7 +252,7 @@ const ImageComponent: React.FC<ImageComponentProps> = ({
             color: '#999',
           }}
         >
-          加载中...
+          {t('image.loading')}
         </div>
       )}
     </>

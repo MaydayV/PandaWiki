@@ -5,7 +5,7 @@ import {
   DomainAppDetailResp,
   DomainConversationSetting,
 } from '@/request/types';
-import { PROFESSION_VERSION_PERMISSION } from '@/constant/version';
+import { ALL_VERSION_PERMISSION } from '@/constant/version';
 import {
   FormControlLabel,
   Radio,
@@ -72,7 +72,7 @@ const CardQaCopyright = ({
       isEdit={isEdit}
       onSubmit={onSubmit}
     >
-      <VersionMask permission={PROFESSION_VERSION_PERMISSION}>
+      <VersionMask permission={ALL_VERSION_PERMISSION}>
         <FormItem
           label='版权信息'
           sx={{ alignItems: 'flex-start' }}

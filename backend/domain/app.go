@@ -87,6 +87,8 @@ type AppSettings struct {
 	// nav
 	Title string `json:"title,omitempty"`
 	Icon  string `json:"icon,omitempty"`
+	// language
+	Language string `json:"language,omitempty"`
 	Btns  []any  `json:"btns,omitempty"`
 	// welcome
 	WelcomeStr         string   `json:"welcome_str,omitempty"`
@@ -488,6 +490,8 @@ type AppSettingsResp struct {
 	// nav
 	Title string `json:"title,omitempty"`
 	Icon  string `json:"icon,omitempty"`
+	// language
+	Language string `json:"language,omitempty"`
 	Btns  []any  `json:"btns,omitempty"`
 	// welcome
 	WelcomeStr         string   `json:"welcome_str,omitempty"`

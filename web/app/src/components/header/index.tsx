@@ -16,6 +16,7 @@ import QaModal from '../QaModal';
 import ThemeSwitch from './themeSwitch';
 import { getImagePath } from '@/utils/getImagePath';
 import { useBasePath } from '@/hooks';
+import { useI18n } from '@/i18n/useI18n';
 interface HeaderProps {
   isDocPage?: boolean;
   isWelcomePage?: boolean;
@@ -23,6 +24,7 @@ interface HeaderProps {
 
 const LogoutButton = () => {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const handleLogout = () => {
     return postShareProV1AuthLogout().then(() => {
       // 使用当前页面的协议（http 或 https）
@@ -37,19 +39,19 @@ const LogoutButton = () => {
         title={
           <Stack direction='row' alignItems='center' gap={1}>
             <ErrorIcon sx={{ fontSize: 24, color: 'warning.main' }} />
-            <Box sx={{ mt: '2px' }}>提示</Box>
+            <Box sx={{ mt: '2px' }}>{t('common.notice')}</Box>
           </Stack>
         }
         open={open}
-        okText='确定'
-        cancelText='取消'
+        okText={t('common.confirm')}
+        cancelText={t('common.cancel')}
         onCancel={() => setOpen(false)}
         onOk={handleLogout}
         closable={false}
       >
-        <Box sx={{ pl: 4 }}>确定要退出登录吗？</Box>
+        <Box sx={{ pl: 4 }}>{t('auth.logoutConfirm')}</Box>
       </Modal>
-      <Tooltip title='退出登录' arrow>
+      <Tooltip title={t('auth.logout')} arrow>
         <IconButton size='small' onClick={() => setOpen(true)}>
           <IconDengchu
             sx={theme => ({

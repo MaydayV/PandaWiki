@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
+import { useI18n } from '@/i18n/useI18n';
 
 const MERMAID_CONFIG = {
   startOnLoad: false,
@@ -15,6 +16,7 @@ const MERMAID_CONFIG = {
 const MermaidDiagram = ({ chart }: { chart: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isMermaidInitialized = useRef(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!containerRef.current || !chart) return;
@@ -38,12 +40,12 @@ const MermaidDiagram = ({ chart }: { chart: string }) => {
       } catch (error: any) {
         // 在渲染错误时显示简单文本表示
         if (containerRef.current) {
-          containerRef.current.innerHTML = `<div>流程图渲染错误: ${error?.message}</div>`;
+          containerRef.current.innerHTML = `<div>${t('mermaid.renderError', { message: error?.message || '' })}</div>`;
         }
       }
     };
     renderDiagram();
-  }, [chart]);
+  }, [chart, t]);
 
   return <div ref={containerRef} className='mermaid-container' />;
 };

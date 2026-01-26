@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { useParams, usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useI18n } from '@/i18n/useI18n';
 
 const DocFab = () => {
   const pathname = usePathname();
@@ -26,12 +27,13 @@ const DocFab = () => {
   const [openSelectContentTypeModal, setOpenSelectContentTypeModal] =
     useState(false);
   const basePath = useBasePath();
+  const { t } = useI18n();
   if (mobile) return null;
 
   return (
     <>
       <Modal
-        title='新建文档类型'
+        title={t('doc.createTypeTitle')}
         open={openSelectContentTypeModal}
         onCancel={() => {
           setOpenSelectContentTypeModal(false);
@@ -52,12 +54,12 @@ const DocFab = () => {
           <FormControlLabel
             value='html'
             control={<Radio size='small' />}
-            label='富文本'
+            label={t('doc.richText')}
           />
           <FormControlLabel
             value='md'
             control={<Radio size='small' />}
-            label='Markdown'
+            label={t('doc.markdown')}
           />
         </RadioGroup>
       </Modal>
@@ -77,7 +79,7 @@ const DocFab = () => {
               in={showActions}
               style={{ transitionDelay: showActions ? '100ms' : '0ms' }}
             >
-              <Tooltip title='创建文档' placement='left' arrow>
+              <Tooltip title={t('doc.createDoc')} placement='left' arrow>
                 <Fab
                   color='primary'
                   size='small'
@@ -94,7 +96,7 @@ const DocFab = () => {
                 in={showActions}
                 style={{ transitionDelay: showActions ? '40ms' : '0ms' }}
               >
-                <Tooltip title='编辑文档' placement='left' arrow>
+                <Tooltip title={t('doc.editDoc')} placement='left' arrow>
                   <Fab
                     color='primary'
                     size='small'

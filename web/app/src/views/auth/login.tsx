@@ -49,6 +49,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useBasePath } from '@/hooks';
 import { getImagePath } from '@/utils/getImagePath';
+import { useI18n } from '@/i18n/useI18n';
 function isWeComByUA() {
   if (typeof navigator === 'undefined') {
     return false;
@@ -72,6 +73,7 @@ export default function Login() {
   const [sourceType, setSourceType] = useState<ConstsSourceType>();
   const { kbDetail, themeMode, mobile = false, setNodeList } = useStore();
   const basePath = useBasePath();
+  const { t } = useI18n();
 
   const redirectUrl =
     typeof window !== 'undefined'
@@ -80,7 +82,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!password.trim()) {
-      message.error('请输入访问口令');
+      message.error(t('login.enterAccessToken'));
       return;
     }
     setLoading(true);
@@ -91,12 +93,12 @@ export default function Login() {
       }).then(() => {
         getShareV1NodeList().then(res => {
           setNodeList?.((res as any) ?? []);
-          message.success('认证成功');
+          message.success(t('login.authSuccess'));
           window.open(redirectUrl, '_self');
         });
       });
     } catch (error) {
-      message.error('认证失败，请重试');
+      message.error(t('login.authFail'));
     } finally {
       setLoading(false);
     }
@@ -189,12 +191,12 @@ export default function Login() {
       }).then(() => {
         getShareV1NodeList().then(res => {
           setNodeList?.((res as any) ?? []);
-          message.success('认证成功');
+          message.success(t('login.authSuccess'));
           window.open(redirectUrl, '_self');
         });
       });
     } catch (error) {
-      message.error('认证失败，请重试');
+      message.error(t('login.authFail'));
     } finally {
       setLoading(false);
     }
@@ -264,7 +266,7 @@ export default function Login() {
                   autoFocus
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder='请输入访问口令'
+                  placeholder={t('login.accessTokenPlaceholder')}
                   disabled={loading}
                   slotProps={{
                     input: {
@@ -304,7 +306,7 @@ export default function Login() {
                   sx={{ mt: 5, height: '50px', fontSize: 16 }}
                   disabled={loading || !password.trim()}
                 >
-                  {loading ? '验证中...' : '认证访问'}
+                  {loading ? t('login.verifying') : t('login.verifyAccess')}
                 </Button>
               </>
             )}
@@ -333,7 +335,7 @@ export default function Login() {
                     onClick={handleOAuthLogin}
                     sx={{ height: '50px', fontSize: 16 }}
                   >
-                    登录
+                    {t('login.login')}
                   </Button>
                 )}
                 {sourceType === ConstsSourceType.SourceTypeGitHub && (
@@ -344,7 +346,7 @@ export default function Login() {
                     startIcon={<IconGitHub1 />}
                     sx={{ height: '50px', fontSize: 16 }}
                   >
-                    登录
+                    {t('login.login')}
                   </Button>
                 )}
 
@@ -385,7 +387,7 @@ export default function Login() {
                             value={username}
                             autoFocus
                             onChange={e => setUsername(e.target.value)}
-                            placeholder='用户名'
+                            placeholder={t('login.username')}
                             disabled={loading}
                             slotProps={{
                               input: {
@@ -410,7 +412,7 @@ export default function Login() {
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder='密码'
+                            placeholder={t('login.password')}
                             disabled={loading}
                             slotProps={{
                               input: {
@@ -459,7 +461,7 @@ export default function Login() {
                               loading || !username.trim() || !password.trim()
                             }
                           >
-                            {loading ? '验证中...' : '登录'}
+                            {loading ? t('login.verifying') : t('login.login')}
                           </Button>
                         </>
                       );
@@ -478,7 +480,7 @@ export default function Login() {
                 mt: 2,
               }}
             >
-              需要认证以后才能访问
+              {t('login.authRequired')}
             </Box>
           </Stack>
         </Box>

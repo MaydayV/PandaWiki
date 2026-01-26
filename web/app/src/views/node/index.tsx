@@ -14,6 +14,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import DocAnchor from './DocAnchor';
 import DocContent from './DocContent';
+import { useI18n } from '@/i18n/useI18n';
 
 const Doc = ({
   node,
@@ -23,6 +24,7 @@ const Doc = ({
   error?: Partial<Error> & { digest?: string } & { code?: number | string };
 }) => {
   const { kbDetail, mobile, catalogWidth } = useStore();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [headings, setHeadings] = useState<TocList>([]);
   const [characterCount, setCharacterCount] = useState(0);
@@ -63,7 +65,7 @@ const Doc = ({
     blockContextMenuWhenDisabled: false,
     suffix:
       kbDetail?.settings?.copy_setting === ConstsCopySetting.CopySettingAppend
-        ? `\n\n-----------------------------------------\n内容来自 ${typeof window !== 'undefined' ? window.location.href : ''}`
+        ? `\n\n-----------------------------------------\n${t('node.contentFrom')} ${typeof window !== 'undefined' ? window.location.href : ''}`
         : '',
   });
 
@@ -178,7 +180,7 @@ const Doc = ({
                   }}
                 >
                   <Box sx={{ fontWeight: 'bold', mb: 2, lineHeight: '22px' }}>
-                    内容摘要
+                    {t('node.contentSummary')}
                   </Box>
                   <Skeleton variant='rounded' height={16} sx={{ mb: 1 }} />
                   <Skeleton variant='rounded' width={'30%'} height={16} />

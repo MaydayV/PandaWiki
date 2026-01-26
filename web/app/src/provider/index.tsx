@@ -11,6 +11,11 @@ import {
   Dispatch,
   SetStateAction,
 } from 'react';
+import dayjs from 'dayjs';
+import 'dayjs/locale/en';
+import 'dayjs/locale/zh-cn';
+
+import { resolveLanguage, toDayjsLocale } from '@/i18n/locale';
 import { GithubComChaitinPandaWikiProApiShareV1AuthInfoResp } from '@/request/pro/types';
 
 interface StoreContextType {
@@ -68,6 +73,15 @@ export default function StoreProvider({
   );
   const [tree, setTree] = useState<ITreeItem[] | undefined>(initialTree);
   const [qaModalOpen, setQaModalOpen] = useState(false);
+  const configuredLanguage =
+    kbDetail?.settings?.language || widget?.settings?.language;
+  const locale = resolveLanguage(
+    configuredLanguage === 'auto'
+      ? typeof navigator !== 'undefined'
+        ? navigator.language
+        : undefined
+      : configuredLanguage,
+  );
 
   const [catalogShow, setCatalogShow] = useState(
     catalogSettings?.catalog_visible !== 2,
@@ -83,6 +97,10 @@ export default function StoreProvider({
       setCatalogShow(catalogSettings?.catalog_visible !== 2);
     }
   }, [kbDetail]);
+
+  useEffect(() => {
+    dayjs.locale(toDayjsLocale(locale));
+  }, [locale]);
 
   useEffect(() => {
     const savedWidth = window.localStorage.getItem('CATALOG_WIDTH');

@@ -23,6 +23,7 @@ import { IconWenjian } from '@panda-wiki/icons';
 import { useStore } from '@/provider';
 import { useBasePath } from '@/hooks';
 import { getImagePath } from '@/utils/getImagePath';
+import { useI18n } from '@/i18n/useI18n';
 
 const StyledSearchResultItem = styled(Stack)(({ theme }) => ({
   position: 'relative',
@@ -77,6 +78,7 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
   placeholder,
 }) => {
   const { kbDetail } = useStore();
+  const { t } = useI18n();
   const basePath = useBasePath();
   // 模糊搜索相关状态
   const [fuzzySuggestions, setFuzzySuggestions] = useState<string[]>([]);
@@ -142,7 +144,7 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
       const solution = await cap.solve();
       token = solution.token;
     } catch (error) {
-      message.error('验证失败');
+      message.error(t('chat.validationFailed'));
       console.log(error, 'error---------');
       setIsSearching(false);
       return;
@@ -337,7 +339,7 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
               fontSize: 14,
             }}
           >
-            共找到 {searchResults.length} 个结果
+            {t('search.resultCount', { count: searchResults.length })}
           </Typography>
 
           {/* 搜索结果列表 */}
@@ -399,7 +401,7 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {result.summary || '暂无摘要'}
+                    {result.summary || t('search.noSummary')}
                   </Typography>
                 </Stack>
                 <IconMianbaoxie sx={{ fontSize: 12 }} />
@@ -411,9 +413,13 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
 
       {searchResults.length === 0 && !isSearching && hasSearch && (
         <Box sx={{ my: 5, textAlign: 'center' }}>
-          <Image src={noDocImage} alt='暂无结果' width={250} />
+          <Image
+            src={noDocImage}
+            alt={t('search.noResultsAlt')}
+            width={250}
+          />
           <Typography variant='body2' sx={{ color: 'text.tertiary' }}>
-            暂无相关结果
+            {t('search.noResults')}
           </Typography>
         </Box>
       )}

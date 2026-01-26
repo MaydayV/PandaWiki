@@ -4,6 +4,7 @@ import { Editor, useTiptap, UseTiptapReturn } from '@ctzhian/tiptap';
 import { Modal } from '@ctzhian/ui';
 import { Box, Divider, Stack } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '@/i18n/useI18n';
 
 interface AIGenerateProps {
   open: boolean;
@@ -20,6 +21,7 @@ const AIGenerate = ({
 }: AIGenerateProps) => {
   const sseClientRef = useRef<SSEClient<string> | null>(null);
   const baseUrl = useBasePath();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState('');
 
@@ -99,8 +101,8 @@ const AIGenerate = ({
     <Modal
       open={open}
       onCancel={onCancel}
-      title={'文本润色'}
-      okText='替换'
+      title={t('editor.textPolish')}
+      okText={t('editor.replace')}
       width={1000}
       onOk={onSubmit}
       okButtonProps={{
@@ -131,7 +133,7 @@ const AIGenerate = ({
               color: 'text.tertiary',
             }}
           >
-            原文
+            {t('editor.originalText')}
           </Box>
           <Box
             sx={{
@@ -155,7 +157,7 @@ const AIGenerate = ({
               color: 'text.tertiary',
             }}
           >
-            润色后
+            {t('editor.polishedText')}
           </Box>
           <Box
             sx={{

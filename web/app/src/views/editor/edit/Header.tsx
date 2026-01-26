@@ -6,6 +6,7 @@ import { IconBaocun, IconMuluzhankai } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
 import { useEffect, useRef } from 'react';
 import { useWrapContext } from '..';
+import { useI18n } from '@/i18n/useI18n';
 
 interface HeaderProps {
   detail: V1NodeDetailResp;
@@ -14,6 +15,7 @@ interface HeaderProps {
 
 const Header = ({ detail, handleSave }: HeaderProps) => {
   const firstLoad = useRef(true);
+  const { t } = useI18n();
 
   const { catalogOpen, nodeDetail, setCatalogOpen, saveLoading } =
     useWrapContext();
@@ -89,7 +91,7 @@ const Header = ({ detail, handleSave }: HeaderProps) => {
             startIcon={<IconBaocun />}
             onClick={handleSave}
           >
-            保存
+            {t('common.save')}
           </Button>
         </Stack>
       </Stack>

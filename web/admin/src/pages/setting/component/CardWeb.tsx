@@ -9,6 +9,7 @@ import CardAuth from './CardAuth';
 import CardBasicInfo from './CardBasicInfo';
 import CardCatalog from './CardCatalog';
 import CardCustom from './CardCustom';
+import CardLanguage from './CardLanguage';
 import CardListen from './CardListen';
 import CardProxy from './CardProxy';
 import CardStyle from './CardStyle';
@@ -78,6 +79,18 @@ const CardWeb = ({ kb, refresh }: CardWebProps) => {
       <CardListen kb={kb} refresh={refresh} />
       <CardProxy kb={kb} refresh={refresh} />
       <CardBasicInfo kb={kb} refresh={refresh} />
+      <CardLanguage
+        data={info}
+        refresh={value => {
+          setInfo({
+            ...info,
+            settings: {
+              ...info.settings,
+              ...value,
+            },
+          });
+        }}
+      />
       <CardQaCopyright
         data={info}
         refresh={value => {

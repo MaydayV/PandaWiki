@@ -4,6 +4,7 @@ import { Modal } from '@ctzhian/ui';
 import { useEffect, useState } from 'react';
 import { useWrapContext } from '..';
 import { IconDJzhinengzhaiyao } from '@panda-wiki/icons';
+import { useI18n } from '@/i18n/useI18n';
 
 interface SummaryProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface SummaryProps {
 
 const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
   const { nodeDetail } = useWrapContext();
+  const { t } = useI18n();
   const [summary, setSummary] = useState(nodeDetail?.meta?.summary || '');
   const [loading, setLoading] = useState(false);
   const [edit, setEdit] = useState(false);
@@ -47,8 +49,8 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
     <Modal
       open={open}
       onCancel={handleClose}
-      title='智能摘要'
-      okText='保存'
+      title={t('editor.summaryTitle')}
+      okText={t('common.save')}
       okButtonProps={{
         disabled: loading || !edit,
       }}
@@ -78,7 +80,7 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
             setSummary(e.target.value);
             setEdit(true);
           }}
-          placeholder='请输入摘要'
+          placeholder={t('editor.summaryPlaceholder')}
         />
         <Button
           fullWidth
@@ -93,7 +95,7 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
             )
           }
         >
-          点击此处，AI 自动生成摘要
+          {t('editor.summaryGenerate')}
         </Button>
       </Stack>
     </Modal>

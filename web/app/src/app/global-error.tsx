@@ -7,6 +7,7 @@ import { lightTheme } from '@/theme';
 import { Box, Stack } from '@mui/material';
 import { ThemeProvider } from '@ctzhian/ui';
 import Image from 'next/image';
+import { useI18n } from '@/i18n/useI18n';
 
 export default function GlobalError({
   error,
@@ -14,6 +15,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     // 只在生产环境下上报错误到 Sentry
     if (process.env.NODE_ENV === 'production') {
@@ -54,7 +56,7 @@ export default function GlobalError({
                 alignItems='center'
                 sx={{ color: 'text.tertiary', fontSize: 14, mt: 3 }}
               >
-                页面出错了 {error.digest}
+                {t('error.pageError', { code: error.digest || '' })}
               </Stack>
             </Stack>
 

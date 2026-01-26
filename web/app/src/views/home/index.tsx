@@ -7,9 +7,11 @@ import { DomainRecommendNodeListResp } from '@/request/types';
 import { useStore } from '@/provider';
 import { useBasePath } from '@/hooks';
 import { getImagePath } from '@/utils/getImagePath';
-const handleFaqProps = (config: any = {}) => {
+import { useI18n } from '@/i18n/useI18n';
+
+const handleFaqProps = (config: any = {}, labels: HomeLabels) => {
   return {
-    title: config.title || '链接组',
+    title: config.title || labels.linkGroup,
     items:
       config.list?.map((item: any) => ({
         question: item.question,
@@ -22,14 +24,15 @@ const handleBasicDocProps = (
   config: any = {},
   docs: DomainRecommendNodeListResp[],
   basePath: string,
+  labels: HomeLabels,
 ) => {
   return {
-    title: config.title || '文档摘要卡片',
+    title: config.title || labels.docSummaryCard,
     basePath,
     items:
       docs?.map(item => ({
         ...item,
-        summary: item.summary || '暂无摘要',
+        summary: item.summary || labels.noSummary,
       })) || [],
   };
 };
@@ -38,9 +41,10 @@ const handleDirDocProps = (
   config: any = {},
   docs: DomainRecommendNodeListResp[],
   basePath: string,
+  labels: HomeLabels,
 ) => {
   return {
-    title: config.title || '文档目录卡片',
+    title: config.title || labels.docDirCard,
     basePath,
     items:
       docs?.map(item => ({
@@ -58,9 +62,10 @@ const handleSimpleDocProps = (
   config: any = {},
   docs: DomainRecommendNodeListResp[],
   basePath: string,
+  labels: HomeLabels,
 ) => {
   return {
-    title: config.title || '简易文档卡片',
+    title: config.title || labels.simpleDocCard,
     basePath,
     items:
       docs?.map(item => ({
@@ -69,9 +74,13 @@ const handleSimpleDocProps = (
   };
 };
 
-const handleCarouselProps = (config: any = {}, basePath: string) => {
+const handleCarouselProps = (
+  config: any = {},
+  basePath: string,
+  labels: HomeLabels,
+) => {
   return {
-    title: config.title || '轮播图',
+    title: config.title || labels.carousel,
     items:
       config.list?.map((item: any) => ({
         id: item.id,
@@ -98,36 +107,40 @@ const handleBannerProps = (config: any = {}, basePath: string) => {
   };
 };
 
-const handleTextProps = (config: any = {}) => {
+const handleTextProps = (config: any = {}, labels: HomeLabels) => {
   return {
-    title: config.title || '标题',
+    title: config.title || labels.title,
   };
 };
 
-const handleCaseProps = (config: any = {}) => {
+const handleCaseProps = (config: any = {}, labels: HomeLabels) => {
   return {
-    title: config.title || '案例',
+    title: config.title || labels.case,
     items: config.list || [],
   };
 };
 
-const handleMetricsProps = (config: any = {}) => {
+const handleMetricsProps = (config: any = {}, labels: HomeLabels) => {
   return {
-    title: config.title || '指标',
+    title: config.title || labels.metrics,
     items: config.list || [],
   };
 };
 
-const handleFeatureProps = (config: any = {}) => {
+const handleFeatureProps = (config: any = {}, labels: HomeLabels) => {
   return {
-    title: config.title || '产品特性',
+    title: config.title || labels.feature,
     items: config.list || [],
   };
 };
 
-const handleImgTextProps = (config: any = {}, basePath: string) => {
+const handleImgTextProps = (
+  config: any = {},
+  basePath: string,
+  labels: HomeLabels,
+) => {
   return {
-    title: config.title || '左图右字',
+    title: config.title || labels.leftImgRightText,
     item: {
       ...config.item,
       url: getImagePath(config.item?.url, basePath),
@@ -136,9 +149,13 @@ const handleImgTextProps = (config: any = {}, basePath: string) => {
   };
 };
 
-const handleTextImgProps = (config: any = {}, basePath: string) => {
+const handleTextImgProps = (
+  config: any = {},
+  basePath: string,
+  labels: HomeLabels,
+) => {
   return {
-    title: config.title || '右图左字',
+    title: config.title || labels.rightImgLeftText,
     item: {
       ...config.item,
       url: getImagePath(config.item?.url, basePath),
@@ -147,9 +164,13 @@ const handleTextImgProps = (config: any = {}, basePath: string) => {
   };
 };
 
-const handleCommentProps = (config: any = {}, basePath: string) => {
+const handleCommentProps = (
+  config: any = {},
+  basePath: string,
+  labels: HomeLabels,
+) => {
   return {
-    title: config.title || '评论卡片',
+    title: config.title || labels.commentCard,
     items:
       config.list?.map((item: any) => ({
         ...item,
@@ -158,9 +179,13 @@ const handleCommentProps = (config: any = {}, basePath: string) => {
   };
 };
 
-const handleBlockGridProps = (config: any = {}, basePath: string) => {
+const handleBlockGridProps = (
+  config: any = {},
+  basePath: string,
+  labels: HomeLabels,
+) => {
   return {
-    title: config.title || '区块网格',
+    title: config.title || labels.blockGrid,
     basePath,
     items:
       config.list?.map((item: any) => ({
@@ -170,9 +195,9 @@ const handleBlockGridProps = (config: any = {}, basePath: string) => {
   };
 };
 
-const handleQuestionProps = (config: any = {}) => {
+const handleQuestionProps = (config: any = {}, labels: HomeLabels) => {
   return {
-    title: config.title || '常见问题',
+    title: config.title || labels.faq,
     items: config.list || [],
   };
 };
@@ -199,10 +224,46 @@ const componentMap = {
   question: dynamic(() => import('@panda-wiki/ui').then(mod => mod.Question)),
 } as const;
 
+type HomeLabels = {
+  linkGroup: string;
+  docSummaryCard: string;
+  noSummary: string;
+  docDirCard: string;
+  simpleDocCard: string;
+  carousel: string;
+  title: string;
+  case: string;
+  metrics: string;
+  feature: string;
+  leftImgRightText: string;
+  rightImgLeftText: string;
+  commentCard: string;
+  blockGrid: string;
+  faq: string;
+};
+
 const Welcome = () => {
   const basePath = useBasePath();
   const { mobile = false, kbDetail, setQaModalOpen } = useStore();
+  const { t } = useI18n();
   const settings = kbDetail?.settings;
+  const labels: HomeLabels = {
+    linkGroup: t('home.linkGroup'),
+    docSummaryCard: t('home.docSummaryCard'),
+    noSummary: t('home.noSummary'),
+    docDirCard: t('home.docDirCard'),
+    simpleDocCard: t('home.simpleDocCard'),
+    carousel: t('home.carousel'),
+    title: t('home.title'),
+    case: t('home.case'),
+    metrics: t('home.metrics'),
+    feature: t('home.feature'),
+    leftImgRightText: t('home.leftImgRightText'),
+    rightImgLeftText: t('home.rightImgLeftText'),
+    commentCard: t('home.commentCard'),
+    blockGrid: t('home.blockGrid'),
+    faq: t('home.faq'),
+  };
   const onBannerSearch = (
     searchText: string,
     type: 'chat' | 'search' = 'chat',
@@ -243,15 +304,15 @@ const Welcome = () => {
 
     switch (data.type) {
       case 'faq':
-        return handleFaqProps(config);
+        return handleFaqProps(config, labels);
       case 'basic_doc':
-        return handleBasicDocProps(config, data.nodes, basePath);
+        return handleBasicDocProps(config, data.nodes, basePath, labels);
       case 'dir_doc':
-        return handleDirDocProps(config, data.nodes, basePath);
+        return handleDirDocProps(config, data.nodes, basePath, labels);
       case 'simple_doc':
-        return handleSimpleDocProps(config, data.nodes, basePath);
+        return handleSimpleDocProps(config, data.nodes, basePath, labels);
       case 'carousel':
-        return handleCarouselProps(config, basePath);
+        return handleCarouselProps(config, basePath, labels);
       case 'banner':
         return {
           ...handleBannerProps(config, basePath),
@@ -262,24 +323,24 @@ const Welcome = () => {
           })),
         };
       case 'text':
-        return handleTextProps(config);
+        return handleTextProps(config, labels);
       case 'case':
-        return handleCaseProps(config);
+        return handleCaseProps(config, labels);
       case 'metrics':
-        return handleMetricsProps(config);
+        return handleMetricsProps(config, labels);
       case 'feature':
-        return handleFeatureProps(config);
+        return handleFeatureProps(config, labels);
       case 'text_img':
-        return handleTextImgProps(config, basePath);
+        return handleTextImgProps(config, basePath, labels);
       case 'img_text':
-        return handleImgTextProps(config, basePath);
+        return handleImgTextProps(config, basePath, labels);
       case 'comment':
-        return handleCommentProps(config, basePath);
+        return handleCommentProps(config, basePath, labels);
       case 'block_grid':
-        return handleBlockGridProps(config, basePath);
+        return handleBlockGridProps(config, basePath, labels);
       case 'question':
         return {
-          ...handleQuestionProps(config),
+          ...handleQuestionProps(config, labels),
           onSearch: (text: string) => {
             onBannerSearch(text, 'chat');
           },

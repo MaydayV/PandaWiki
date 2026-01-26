@@ -64,6 +64,7 @@ export interface KBDetail {
     title: string;
     btns: NavBtn[];
     icon: string;
+    language?: string;
     welcome_str: string;
     search_placeholder: string;
     recommend_questions: string[];
@@ -107,6 +108,7 @@ export type WidgetInfo = {
   settings: {
     title: string;
     icon: string;
+    language?: string;
     welcome_str: string;
     search_placeholder: string;
     recommend_questions: string[];

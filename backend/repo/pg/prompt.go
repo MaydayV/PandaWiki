@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -67,4 +68,51 @@ func (r *PromptRepo) GetSummaryPrompt(ctx context.Context, kbID string) (string,
 		prompt.SummaryContent = domain.SystemDefaultSummaryPrompt
 	}
 	return prompt.SummaryContent, nil
+}
+
+func (r *PromptRepo) GetPromptSettings(ctx context.Context, kbID string) (promptJson, bool, error) {
+	var setting domain.Setting
+	var prompt promptJson
+	err := r.db.WithContext(ctx).Table("settings").
+		Where("kb_id = ? AND key = ?", kbID, domain.SettingKeySystemPrompt).
+		First(&setting).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return prompt, false, nil
+		}
+		return prompt, false, err
+	}
+	if err := json.Unmarshal(setting.Value, &prompt); err != nil {
+		return prompt, false, err
+	}
+	return prompt, true, nil
+}
+
+func (r *PromptRepo) UpsertPrompt(ctx context.Context, kbID string, prompt promptJson) error {
+	value, err := json.Marshal(prompt)
+	if err != nil {
+		return err
+	}
+
+	var setting domain.Setting
+	err = r.db.WithContext(ctx).Table("settings").
+		Where("kb_id = ? AND key = ?", kbID, domain.SettingKeySystemPrompt).
+		First(&setting).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return r.db.WithContext(ctx).Table("settings").Create(&domain.Setting{
+				KBID:  kbID,
+				Key:   domain.SettingKeySystemPrompt,
+				Value: value,
+			}).Error
+		}
+		return err
+	}
+
+	return r.db.WithContext(ctx).Table("settings").
+		Where("kb_id = ? AND key = ?", kbID, domain.SettingKeySystemPrompt).
+		Updates(map[string]any{
+			"value":      value,
+			"updated_at": time.Now(),
+		}).Error
 }

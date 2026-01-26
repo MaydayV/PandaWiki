@@ -256,6 +256,52 @@ func (u *LLMUsecase) SummaryNode(ctx context.Context, kbID string, model *domain
 	return finalSummary, nil
 }
 
+func (u *LLMUsecase) GetPromptSettings(ctx context.Context, kbID string) (*domain.Prompt, error) {
+	promptSetting, found, err := u.promptRepo.GetPromptSettings(ctx, kbID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !found {
+		return &domain.Prompt{
+			Content:        domain.SystemDefaultPrompt,
+			SummaryContent: domain.SystemDefaultSummaryPrompt,
+		}, nil
+	}
+
+	if strings.TrimSpace(promptSetting.Content) == "" {
+		promptSetting.Content = domain.SystemDefaultPrompt
+	}
+	if strings.TrimSpace(promptSetting.SummaryContent) == "" {
+		promptSetting.SummaryContent = domain.SystemDefaultSummaryPrompt
+	}
+
+	return &domain.Prompt{
+		Content:        promptSetting.Content,
+		SummaryContent: promptSetting.SummaryContent,
+	}, nil
+}
+
+func (u *LLMUsecase) UpdatePromptSettings(ctx context.Context, req *domain.UpdatePromptReq) (*domain.Prompt, error) {
+	promptSetting, _, err := u.promptRepo.GetPromptSettings(ctx, req.KBID)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Content != nil {
+		promptSetting.Content = *req.Content
+	}
+	if req.SummaryContent != nil {
+		promptSetting.SummaryContent = *req.SummaryContent
+	}
+
+	if err := u.promptRepo.UpsertPrompt(ctx, req.KBID, promptSetting); err != nil {
+		return nil, err
+	}
+
+	return u.GetPromptSettings(ctx, req.KBID)
+}
+
 func (u *LLMUsecase) trimThinking(summary string) string {
 	if !strings.HasPrefix(summary, "<think>") {
 		return summary

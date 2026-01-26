@@ -11,6 +11,7 @@ import localFont from 'next/font/local';
 import { headers, cookies } from 'next/headers';
 import { getSelectorsByUserAgent } from 'react-device-detect';
 import { getBasePath, getImagePath } from '@/utils';
+import { resolveLanguage } from '@/i18n/locale';
 import './globals.css';
 
 const gilory = localFont({
@@ -94,9 +95,15 @@ const Layout = async ({
   };
 
   const basePath = getBasePath(kbDetail?.base_url || '');
+  const acceptLanguage = headersList.get('accept-language') || '';
+  const locale = resolveLanguage(
+    kbDetail?.settings?.language === 'auto'
+      ? acceptLanguage
+      : kbDetail?.settings?.language,
+  );
 
   return (
-    <html lang='en'>
+    <html lang={locale}>
       <Script
         id='base-path'
         dangerouslySetInnerHTML={{

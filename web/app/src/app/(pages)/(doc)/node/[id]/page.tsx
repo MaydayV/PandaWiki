@@ -13,9 +13,9 @@ export async function generateMetadata(
 ) {
   const { id } = await params;
   let node = {
-    name: '无权访问',
+    name: 'Access denied',
     meta: {
-      summary: '无权访问',
+      summary: 'Access denied',
     },
   };
   try {

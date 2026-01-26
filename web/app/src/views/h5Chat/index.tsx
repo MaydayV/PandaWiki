@@ -18,6 +18,7 @@ import { useStore } from '@/provider';
 import Feedback from '@/components/feedback';
 import { ConstsSourceType, V1WechatAppInfoResp } from '@/request/types';
 import { useBasePath } from '@/hooks';
+import { useI18n } from '@/i18n/useI18n';
 import {
   IconADiancaiWeixuanzhong2,
   IconDiancaiWeixuanzhong,
@@ -218,7 +219,7 @@ const ChatLoading = ({ onClick }: { onClick: () => void }) => {
           }}
         />
       </Box>
-      停止回答
+      {t('chat.stopAnswer')}
     </Stack>
   );
 };
@@ -241,6 +242,7 @@ const H5Chat = () => {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const { kbDetail } = useStore();
+  const { t } = useI18n();
   const basePath = useBasePath();
 
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -295,7 +297,7 @@ const H5Chat = () => {
     if (content) data.feedback_content = content;
     await postShareV1ChatFeedback(data);
     setScore(score);
-    message.success('反馈成功');
+    message.success(t('chat.feedbackSuccess'));
   };
 
   const scrollToTop = () => {
@@ -347,9 +349,11 @@ const H5Chat = () => {
           setLoading(false);
           setAnswer(prev => {
             if (content) {
-              return prev + `\n\n回答出现错误：<error>${content}</error>`;
+              return (
+                prev + `\n\n${t('chat.answerError')}: <error>${content}</error>`
+              );
             }
-            return prev + '\n\n回答出现错误，请重试';
+            return prev + `\n\n${t('chat.answerRetry')}`;
           });
           if (content) message.error(content);
         } else if (type === 'done') {

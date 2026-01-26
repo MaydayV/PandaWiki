@@ -17,6 +17,7 @@ import {
 import AiQaContent from './AiQaContent';
 import SearchDocContent from './SearchDocContent';
 import { useStore } from '@/provider';
+import { useI18n } from '@/i18n/useI18n';
 
 interface SearchSuggestion {
   id: string;
@@ -77,6 +78,7 @@ const StyledTab = styled(Tab)(({ theme }) => ({
 
 const QaModal: React.FC<QaModalProps> = () => {
   const { qaModalOpen, setQaModalOpen, kbDetail, mobile } = useStore();
+  const { t } = useI18n();
   const [searchMode, setSearchMode] = useState<'chat' | 'search'>('chat');
   const inputRef = useRef<HTMLInputElement>(null);
   const aiQaInputRef = useRef<HTMLInputElement>(null);
@@ -88,9 +90,9 @@ const QaModal: React.FC<QaModalProps> = () => {
   const placeholder = useMemo(() => {
     return (
       kbDetail?.settings?.web_app_custom_style?.header_search_placeholder ||
-      '搜索...'
+      t('common.searchPlaceholder')
     );
-  }, [kbDetail]);
+  }, [kbDetail, t]);
 
   const hotSearch = useMemo(() => {
     const bannerConfig = kbDetail?.settings?.web_app_landing_configs?.find(
@@ -178,7 +180,7 @@ const QaModal: React.FC<QaModalProps> = () => {
               label={
                 <Stack direction='row' gap={0.5} alignItems='center'>
                   <IconZhinengwenda sx={{ fontSize: 16 }} />
-                  {!mobile && <span>智能问答</span>}
+                  {!mobile && <span>{t('qa.chatTab')}</span>}
                 </Stack>
               }
               value='chat'
@@ -187,7 +189,7 @@ const QaModal: React.FC<QaModalProps> = () => {
               label={
                 <Stack direction='row' gap={0.5} alignItems='center'>
                   <IconJinsousuo sx={{ fontSize: 16 }} />
-                  {!mobile && <span>仅搜索文档</span>}
+                  {!mobile && <span>{t('qa.searchTab')}</span>}
                 </Stack>
               }
               value='search'
@@ -270,7 +272,7 @@ const QaModal: React.FC<QaModalProps> = () => {
               {!kbDetail?.settings?.conversation_setting
                 ?.copyright_hide_enabled &&
                 (kbDetail?.settings?.conversation_setting?.copyright_info ||
-                  '本网站由 PandaWiki 提供技术支持')}
+                  t('brand.defaultCopyright'))}
             </Box>
           </Typography>
         </Box>
