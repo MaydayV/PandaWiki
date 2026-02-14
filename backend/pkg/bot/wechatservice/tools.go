@@ -41,7 +41,11 @@ func CheckSessionState(token, extrenaluserid, kfId string) (int, error) {
 	}
 	// 获取状态信息
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/get?access_token=%s", token)
-	resp, _ := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return 0, fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
 
 	// 读取响应体
 	body, err := io.ReadAll(resp.Body)
@@ -78,7 +82,11 @@ func ChangeState(token, extrenaluserId, kfId string, state int, serviceId string
 	}
 	// 发送请求
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token=%s", token)
-	resp, _ := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
 
 	// 读取响应体
 	body, err := io.ReadAll(resp.Body)
@@ -116,7 +124,6 @@ func GetUserInfo(userid string, accessToken string) (*Customer, error) {
 	}
 	// post获取用户的消息信息
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
-
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +133,7 @@ func GetUserInfo(userid string, accessToken string) (*Customer, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+
 	var userInfo WechatCustomerResponse
 	if err := json.Unmarshal(body, &userInfo); err != nil {
 		return nil, err

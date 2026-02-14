@@ -4384,6 +4384,7 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "",
+                "not null",
                 "full_control",
                 "doc_manage",
                 "data_operate"
@@ -4392,16 +4393,19 @@ const docTemplate = `{
                 "UserKBPermissionDataOperate": "数据运营",
                 "UserKBPermissionDocManage": "文档管理",
                 "UserKBPermissionFullControl": "完全控制",
+                "UserKBPermissionNotNull": "有权限",
                 "UserKBPermissionNull": "无权限"
             },
             "x-enum-descriptions": [
                 "无权限",
+                "有权限",
                 "完全控制",
                 "文档管理",
                 "数据运营"
             ],
             "x-enum-varnames": [
                 "UserKBPermissionNull",
+                "UserKBPermissionNotNull",
                 "UserKBPermissionFullControl",
                 "UserKBPermissionDocManage",
                 "UserKBPermissionDataOperate"
@@ -6794,10 +6798,22 @@ const docTemplate = `{
             "type": "integer",
             "format": "int32",
             "enum": [
+                0,
                 1,
                 2
             ],
+            "x-enum-comments": {
+                "NodeStatusDraft": "更新未发布",
+                "NodeStatusReleased": "已发布",
+                "NodeStatusUnreleased": "未发布"
+            },
+            "x-enum-descriptions": [
+                "未发布",
+                "更新未发布",
+                "已发布"
+            ],
             "x-enum-varnames": [
+                "NodeStatusUnreleased",
                 "NodeStatusDraft",
                 "NodeStatusReleased"
             ]

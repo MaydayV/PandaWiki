@@ -1,6 +1,7 @@
 import ErrorJSON from '@/assets/json/error.json';
 import Card from '@/components/Card';
 import { ModelProvider } from '@/constant/enums';
+import { AddModelForm } from '@ctzhian/modelkit';
 import {
   postApiV1ModelSwitchMode,
   putApiV1Model,
@@ -28,6 +29,7 @@ import {
   useRef,
   forwardRef,
   useImperativeHandle,
+  useMemo,
 } from 'react';
 import {
   convertLocalModelToUIModel,
@@ -79,6 +81,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
     } = props;
 
     const [autoConfigMode, setAutoConfigMode] = useState(false);
+    const [modelModalLoading, setModelModalLoading] = useState(false);
     const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
     const [tempMode, setTempMode] = useState<'auto' | 'manual'>('manual');
     const [savedMode, setSavedMode] = useState<'auto' | 'manual'>('manual');
@@ -86,6 +89,16 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
     const [initialApiKey, setInitialApiKey] = useState('');
     const [initialChatModel, setInitialChatModel] = useState('');
     const [hasConfigChanged, setHasConfigChanged] = useState(false);
+
+    const [modelData, setModelData] = useState<Record<string, any>>({
+      chat: chatModelData,
+      embedding: embeddingModelData,
+      rerank: rerankModelData,
+      analysis: analysisModelData,
+      'analysis-vl': analysisVLModelData,
+    });
+
+    const cacheModelData = useRef<Record<string, any>>({});
 
     const autoConfigRef = useRef<AutoModelConfigRef>(null);
 
@@ -108,6 +121,212 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
         setAddOpen(true);
       } finally {
         setOpeningAdd(null);
+      }
+    };
+
+    const onModelModalOk = async (value: AddModelForm) => {
+      setModelModalLoading(true);
+      const res = await onCheckModel(value).finally(() => {
+        setModelModalLoading(false);
+      });
+      if (!res) {
+        return;
+      }
+      const currentModelData = {
+        provider: value.provider,
+        model: value.model_name,
+        api_key: value.api_key,
+        api_header: value.api_header,
+        base_url: value.base_url,
+        api_version: value.api_version,
+        type: value.model_type,
+      };
+
+      switch (addType) {
+        case 'chat':
+          cacheModelData.current['chat'] = value;
+          setModelData({
+            ...modelData,
+            chat: {
+              ...currentModelData,
+              id: chatModelData?.id,
+            },
+          });
+          break;
+        case 'embedding':
+          cacheModelData.current['embedding'] = value;
+          setModelData({
+            ...modelData,
+            embedding: {
+              ...currentModelData,
+              id: embeddingModelData?.id,
+            },
+          });
+          break;
+        case 'rerank':
+          cacheModelData.current['rerank'] = value;
+          setModelData({
+            ...modelData,
+            rerank: {
+              ...currentModelData,
+              id: rerankModelData?.id,
+            },
+          });
+          break;
+        case 'analysis':
+          cacheModelData.current['analysis'] = value;
+          setModelData({
+            ...modelData,
+            analysis: {
+              ...currentModelData,
+              id: analysisModelData?.id,
+            },
+          });
+          break;
+        case 'analysis-vl':
+          cacheModelData.current['analysis-vl'] = value;
+          setModelData({
+            ...modelData,
+            'analysis-vl': {
+              ...currentModelData,
+              id: analysisVLModelData?.id,
+            },
+          });
+          break;
+      }
+
+      setAddOpen(false);
+      // 标记配置已变更
+      setHasConfigChanged(true);
+    };
+
+    const getProcessedUrl = (
+      baseUrl: string,
+      provider: keyof typeof ModelProvider,
+    ) => {
+      if (!ModelProvider[provider]?.urlWrite) {
+        return baseUrl;
+      }
+      if (baseUrl.endsWith('#')) {
+        return baseUrl;
+      }
+      const forceUseOriginalHost = () => {
+        if (baseUrl.endsWith('/')) {
+          baseUrl = baseUrl.slice(0, -1);
+          return true;
+        }
+        if (/\/v\d+$/.test(baseUrl)) {
+          return true;
+        }
+        return baseUrl.endsWith('volces.com/api/v3');
+      };
+
+      return forceUseOriginalHost() ? baseUrl : `${baseUrl}/v1`;
+    };
+
+    const onCheckModel = async (value: AddModelForm) => {
+      let header = '';
+      if (value.api_header_key && value.api_header_value) {
+        header = value.api_header_key + '=' + value.api_header_value;
+      }
+      return modelService
+        .checkModel({
+          model_type: value.model_type,
+          model_name: value.model_name,
+          api_key: value.api_key,
+          // @ts-expect-error 忽略类型错误
+          base_url: getProcessedUrl(value.base_url, value.provider),
+          api_version: value.api_version,
+
+          provider: value.provider,
+          api_header: value.api_header || header,
+          param: {
+            context_window: value.context_window_size,
+            max_tokens: value.max_output_tokens,
+            r1_enabled: value.enable_r1_params,
+            support_images: value.support_image,
+            support_computer_use: value.support_compute,
+            support_prompt_cache: value.support_prompt_caching,
+          },
+        })
+        .then(res => {
+          if (res.error) {
+            message.error(value.model_name + ' 检查模型失败');
+            return Promise.reject(res.error);
+          }
+          return value;
+        });
+    };
+
+    const onSubmitModelConfig = (value: AddModelForm, id: string = '') => {
+      let header = '';
+      if (value.api_header_key && value.api_header_value) {
+        header = value.api_header_key + '=' + value.api_header_value;
+      }
+      if (id) {
+        return modelService
+          .updateModel({
+            api_key: value.api_key,
+            model_type: value.model_type,
+            // @ts-expect-error 忽略类型错误
+            base_url: getProcessedUrl(value.base_url, value.provider),
+            model_name: value.model_name,
+            api_header: value.api_header || header,
+            api_version: value.api_version,
+            id: id,
+            provider: value.provider as Exclude<typeof value.provider, 'Other'>,
+            show_name: value.show_name,
+            // 添加高级设置字段到 param 对象中
+            param: {
+              context_window: value.context_window_size,
+              max_tokens: value.max_output_tokens,
+              r1_enabled: value.enable_r1_params,
+              support_images: value.support_image,
+              support_computer_use: value.support_compute,
+              support_prompt_cache: value.support_prompt_caching,
+            },
+          })
+          .then(res => {
+            if (res.error) {
+              message.error(value.model_name + ' 修改模型失败');
+            } else {
+              message.success(value.model_name + ' 修改成功');
+            }
+          })
+          .catch(res => {
+            message.error(value.model_name + ' 修改模型失败');
+          });
+      } else {
+        return modelService
+          .createModel({
+            model_type: value.model_type,
+            api_key: value.api_key,
+            // @ts-expect-error 忽略类型错误
+            base_url: getProcessedUrl(value.base_url, value.provider),
+            model_name: value.model_name,
+            api_header: value.api_header || header,
+            provider: value.provider as Exclude<typeof value.provider, 'Other'>,
+            show_name: value.show_name,
+            // 添加高级设置字段到 param 对象中
+            param: {
+              context_window: value.context_window_size,
+              max_tokens: value.max_output_tokens,
+              r1_enabled: value.enable_r1_params,
+              support_images: value.support_image,
+              support_computer_use: value.support_compute,
+              support_prompt_cache: value.support_prompt_caching,
+            },
+          })
+          .then(res => {
+            if (res.error) {
+              message.error(value.model_name + ' 添加模型失败');
+            } else {
+              message.success(value.model_name + ' 添加成功');
+            }
+          })
+          .catch(res => {
+            message.error(value.model_name + ' 添加模型失败');
+          });
       }
     };
 
@@ -189,79 +408,154 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
       handleClose: handleCloseModal,
     }));
 
+    useEffect(() => {
+      setModelData({
+        chat: chatModelData,
+        embedding: embeddingModelData,
+        rerank: rerankModelData,
+        analysis: analysisModelData,
+        'analysis-vl': analysisVLModelData,
+      });
+    }, [
+      chatModelData,
+      embeddingModelData,
+      rerankModelData,
+      analysisModelData,
+      analysisVLModelData,
+    ]);
+
     const handleSave = async () => {
+      if (!showSaveBtn) {
+        return await performSave();
+      }
+
       if (tempMode !== savedMode || hasConfigChanged) {
-        setIsSaving(true);
-        try {
-          const requestData: {
-            mode: 'auto' | 'manual';
-            auto_mode_api_key?: string;
-            chat_model?: string;
-          } = {
-            mode: tempMode,
-          };
+        // 检测是否切换了模式
+        const isModeChanged = tempMode !== savedMode;
+        // 检测向量模型是否变更 (比较 provider + model 组合)
+        const isEmbeddingModelChanged = !!cacheModelData.current['embedding'];
 
-          // 如果是自动模式，获取用户输入的 API Key 和 model
-          if (tempMode === 'auto' && autoConfigRef.current) {
-            const formData = autoConfigRef.current.getFormData();
-            if (formData) {
-              requestData.auto_mode_api_key = formData.apiKey;
-              requestData.chat_model = formData.selectedModel;
-            }
-          }
-
-          await postApiV1ModelSwitchMode(requestData);
-          setSavedMode(tempMode);
-          setAutoConfigMode(tempMode === 'auto');
-          setHasConfigChanged(false); // 重置变更标记
-
-          // 更新保存的初始值
-          if (tempMode === 'auto' && autoConfigRef.current) {
-            const formData = autoConfigRef.current.getFormData();
-            if (formData) {
-              setInitialApiKey(formData.apiKey);
-              setInitialChatModel(formData.selectedModel);
-            }
-          }
-
-          if (showSaveBtn) {
-            message.success(
-              tempMode === 'auto'
-                ? '已切换为自动配置模式'
-                : '已切换为手动配置模式',
-            );
-          }
-          getModelList(); // 刷新模型列表
-        } finally {
-          setIsSaving(false);
+        // 如果切换了模式或修改了向量模型,需要确认
+        if (isModeChanged || isEmbeddingModelChanged) {
+          Modal.confirm({
+            title: '确认操作',
+            content: '此操作会触发重新学习，请确认是否继续？',
+            onOk: async () => {
+              await performSave();
+            },
+            okText: '确认',
+            cancelText: '取消',
+          });
+        } else {
+          await performSave();
         }
       }
     };
 
-    const IconModel = chatModelData
-      ? ModelProvider[chatModelData.provider as keyof typeof ModelProvider].icon
-      : null;
+    const performSave = async () => {
+      setIsSaving(true);
+      const modelConfigList = Object.keys(cacheModelData.current);
+      if (modelConfigList.length > 0) {
+        await Promise.all(
+          modelConfigList.map(async modelType => {
+            const model = cacheModelData.current[modelType];
+            return onSubmitModelConfig(model, modelData[modelType].id);
+          }),
+        );
+      }
 
-    const IconEmbeddingModel = embeddingModelData
-      ? ModelProvider[embeddingModelData.provider as keyof typeof ModelProvider]
+      try {
+        const requestData: {
+          mode: 'auto' | 'manual';
+          auto_mode_api_key?: string;
+          chat_model?: string;
+        } = {
+          mode: tempMode,
+        };
+
+        // 如果是自动模式，获取用户输入的 API Key 和 model
+        if (tempMode === 'auto' && autoConfigRef.current) {
+          const formData = autoConfigRef.current.getFormData();
+          if (formData) {
+            requestData.auto_mode_api_key = formData.apiKey;
+            requestData.chat_model = formData.selectedModel;
+          }
+        }
+
+        await postApiV1ModelSwitchMode(requestData);
+        setSavedMode(tempMode);
+        setAutoConfigMode(tempMode === 'auto');
+        setHasConfigChanged(false); // 重置变更标记
+
+        // 更新保存的初始值
+        if (tempMode === 'auto' && autoConfigRef.current) {
+          const formData = autoConfigRef.current.getFormData();
+          if (formData) {
+            setInitialApiKey(formData.apiKey);
+            setInitialChatModel(formData.selectedModel);
+          }
+        }
+
+        if (showSaveBtn && modelConfigList.length === 0) {
+          message.success(
+            tempMode === 'auto'
+              ? '已切换为自动配置模式'
+              : '已切换为手动配置模式',
+          );
+        }
+        cacheModelData.current = {};
+        await getModelList(); // 刷新模型列表
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    const IconModel = modelData.chat
+      ? ModelProvider[modelData.chat.provider as keyof typeof ModelProvider]
           .icon
       : null;
 
-    const IconRerankModel = rerankModelData
-      ? ModelProvider[rerankModelData.provider as keyof typeof ModelProvider]
-          .icon
-      : null;
-
-    const IconAnalysisModel = analysisModelData
-      ? ModelProvider[analysisModelData.provider as keyof typeof ModelProvider]
-          .icon
-      : null;
-
-    const IconAnalysisVLModel = analysisVLModelData
+    const IconEmbeddingModel = modelData.embedding
       ? ModelProvider[
-          analysisVLModelData.provider as keyof typeof ModelProvider
+          modelData.embedding.provider as keyof typeof ModelProvider
         ].icon
       : null;
+
+    const IconRerankModel = modelData.rerank
+      ? ModelProvider[modelData.rerank.provider as keyof typeof ModelProvider]
+          .icon
+      : null;
+
+    const IconAnalysisModel = modelData.analysis
+      ? ModelProvider[modelData.analysis.provider as keyof typeof ModelProvider]
+          .icon
+      : null;
+
+    const IconAnalysisVLModel = modelData['analysis-vl']
+      ? ModelProvider[
+          modelData['analysis-vl'].provider as keyof typeof ModelProvider
+        ].icon
+      : null;
+
+    const modelModalChatData = useMemo(() => {
+      return convertLocalModelToUIModel(modelData.chat);
+    }, [modelData.chat]);
+
+    const modelModalEmbeddingData = useMemo(() => {
+      return convertLocalModelToUIModel(modelData.embedding);
+    }, [modelData.embedding]);
+
+    const modelModalRerankData = useMemo(() => {
+      return convertLocalModelToUIModel(modelData.rerank);
+    }, [modelData.rerank]);
+
+    const modelModalAnalysisData = useMemo(() => {
+      return convertLocalModelToUIModel(modelData.analysis);
+    }, [modelData.analysis]);
+
+    const modelModalAnalysisVLData = useMemo(() => {
+      return convertLocalModelToUIModel(modelData['analysis-vl']);
+    }, [modelData['analysis-vl']]);
 
     return (
       <Stack gap={0}>
@@ -294,29 +588,54 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
               />
               模型配置
             </Box>
-            <RadioGroup
-              row
-              value={tempMode}
-              onChange={e => {
-                const newMode = e.target.value as 'auto' | 'manual';
-                setTempMode(newMode);
-                // 立即切换显示的组件
-                setAutoConfigMode(newMode === 'auto');
-                // 切换模式时重置变更标记
-                setHasConfigChanged(false);
-              }}
-            >
-              <FormControlLabel
-                value='auto'
-                control={<Radio size='small' />}
-                label='自动配置'
-              />
-              <FormControlLabel
-                value='manual'
-                control={<Radio size='small' />}
-                label='手动配置'
-              />
-            </RadioGroup>
+            <Stack gap={1} direction='row' alignItems='center'>
+              <RadioGroup
+                row
+                value={tempMode}
+                onChange={e => {
+                  const newMode = e.target.value as 'auto' | 'manual';
+                  setTempMode(newMode);
+                  // 立即切换显示的组件
+                  setAutoConfigMode(newMode === 'auto');
+                  // 切换模式时重置变更标记
+                  setHasConfigChanged(false);
+                }}
+              >
+                <FormControlLabel
+                  value='auto'
+                  control={<Radio size='small' />}
+                  label='自动配置'
+                />
+                <FormControlLabel
+                  value='manual'
+                  control={<Radio size='small' />}
+                  label='手动配置'
+                />
+              </RadioGroup>
+              {showSaveBtn && (
+                <Box
+                  sx={{
+                    fontSize: 12,
+                    color: 'text.tertiary',
+                    ml: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  <Box
+                    component='span'
+                    sx={{
+                      color: 'warning.main',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    提示：
+                  </Box>
+                  切换配置模式或修改向量模型会触发重新学习
+                </Box>
+              )}
+            </Stack>
           </Box>
           {(tempMode !== savedMode || hasConfigChanged) && showSaveBtn && (
             <Button
@@ -363,7 +682,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                     gap={1}
                     sx={{ width: 500 }}
                   >
-                    {chatModelData ? (
+                    {modelData.chat ? (
                       <>
                         {IconModel && <IconModel sx={{ fontSize: 18 }} />}
                         <Box
@@ -374,10 +693,12 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                           }}
                         >
                           {ModelProvider[
-                            chatModelData.provider as keyof typeof ModelProvider
+                            modelData.chat
+                              .provider as keyof typeof ModelProvider
                           ].cn ||
                             ModelProvider[
-                              chatModelData.provider as keyof typeof ModelProvider
+                              modelData.chat
+                                .provider as keyof typeof ModelProvider
                             ].label ||
                             '其他'}
                           &nbsp;&nbsp;/
@@ -390,7 +711,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                             ml: -0.5,
                           }}
                         >
-                          {chatModelData.model}
+                          {modelData.chat.model}
                         </Box>
                         <Box
                           sx={{
@@ -466,7 +787,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   </Box>
                 </Box>
                 <Box sx={{ flexGrow: 1, flexSelf: 'flex-start' }}>
-                  {chatModelData ? (
+                  {modelData.chat ? (
                     <Box
                       sx={{
                         display: 'inline-block',
@@ -537,7 +858,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   loading={openingAdd === 'chat'}
                   onClick={() => handleOpenAdd('chat')}
                 >
-                  {chatModelData ? '修改' : '配置'}
+                  {modelData.chat ? '修改' : '配置'}
                 </Button>
               </Stack>
             </Card>
@@ -565,7 +886,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                     gap={1}
                     sx={{ width: 500 }}
                   >
-                    {embeddingModelData ? (
+                    {modelData.embedding ? (
                       <>
                         {IconEmbeddingModel && (
                           <IconEmbeddingModel sx={{ fontSize: 18 }} />
@@ -579,10 +900,12 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                           }}
                         >
                           {ModelProvider[
-                            embeddingModelData.provider as keyof typeof ModelProvider
+                            modelData.embedding
+                              .provider as keyof typeof ModelProvider
                           ].cn ||
                             ModelProvider[
-                              embeddingModelData.provider as keyof typeof ModelProvider
+                              modelData.embedding
+                                .provider as keyof typeof ModelProvider
                             ].label ||
                             '其他'}
                           &nbsp;&nbsp;/
@@ -595,7 +918,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                             ml: -0.5,
                           }}
                         >
-                          {embeddingModelData.model}
+                          {modelData.embedding.model}
                         </Box>
                         <Box
                           sx={{
@@ -676,7 +999,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   </Box>
                 </Box>
                 <Box sx={{ flexGrow: 1, flexSelf: 'flex-start' }}>
-                  {embeddingModelData ? (
+                  {modelData.embedding ? (
                     <Box
                       sx={{
                         display: 'inline-block',
@@ -747,7 +1070,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   loading={openingAdd === 'embedding'}
                   onClick={() => handleOpenAdd('embedding')}
                 >
-                  {embeddingModelData ? '修改' : '配置'}
+                  {modelData.embedding ? '修改' : '配置'}
                 </Button>
               </Stack>
             </Card>
@@ -775,7 +1098,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                     gap={1}
                     sx={{ width: 500 }}
                   >
-                    {rerankModelData ? (
+                    {modelData.rerank ? (
                       <>
                         {IconRerankModel && (
                           <IconRerankModel sx={{ fontSize: 18 }} />
@@ -789,10 +1112,12 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                           }}
                         >
                           {ModelProvider[
-                            rerankModelData.provider as keyof typeof ModelProvider
+                            modelData.rerank
+                              .provider as keyof typeof ModelProvider
                           ].cn ||
                             ModelProvider[
-                              rerankModelData.provider as keyof typeof ModelProvider
+                              modelData.rerank
+                                .provider as keyof typeof ModelProvider
                             ].label ||
                             '其他'}
                           &nbsp;&nbsp;/
@@ -805,7 +1130,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                             ml: -0.5,
                           }}
                         >
-                          {rerankModelData.model}
+                          {modelData.rerank.model}
                         </Box>
                         <Box
                           sx={{
@@ -881,7 +1206,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   </Box>
                 </Box>
                 <Box sx={{ flexGrow: 1, flexSelf: 'flex-start' }}>
-                  {rerankModelData ? (
+                  {modelData.rerank ? (
                     <Box
                       sx={{
                         display: 'inline-block',
@@ -952,7 +1277,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   loading={openingAdd === 'rerank'}
                   onClick={() => handleOpenAdd('rerank')}
                 >
-                  {rerankModelData ? '修改' : '配置'}
+                  {modelData.rerank ? '修改' : '配置'}
                 </Button>
               </Stack>
             </Card>
@@ -980,7 +1305,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                     gap={1}
                     sx={{ width: 500 }}
                   >
-                    {analysisModelData ? (
+                    {modelData.analysis ? (
                       <>
                         {IconAnalysisModel && (
                           <IconAnalysisModel sx={{ fontSize: 18 }} />
@@ -994,10 +1319,12 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                           }}
                         >
                           {ModelProvider[
-                            analysisModelData.provider as keyof typeof ModelProvider
+                            modelData.analysis
+                              .provider as keyof typeof ModelProvider
                           ].cn ||
                             ModelProvider[
-                              analysisModelData.provider as keyof typeof ModelProvider
+                              modelData.analysis
+                                .provider as keyof typeof ModelProvider
                             ].label ||
                             '其他'}
                           &nbsp;&nbsp;/
@@ -1010,7 +1337,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                             ml: -0.5,
                           }}
                         >
-                          {analysisModelData.model}
+                          {modelData.analysis.model}
                         </Box>
                         <Box
                           sx={{
@@ -1086,7 +1413,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   </Box>
                 </Box>
                 <Box sx={{ flexGrow: 1, flexSelf: 'flex-start' }}>
-                  {analysisModelData ? (
+                  {modelData.analysis ? (
                     <Box
                       sx={{
                         display: 'inline-block',
@@ -1157,7 +1484,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   loading={openingAdd === 'analysis'}
                   onClick={() => handleOpenAdd('analysis')}
                 >
-                  {analysisModelData ? '修改' : '配置'}
+                  {modelData.analysis ? '修改' : '配置'}
                 </Button>
               </Stack>
             </Card>
@@ -1185,7 +1512,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                     gap={1}
                     sx={{ width: 500 }}
                   >
-                    {analysisVLModelData ? (
+                    {modelData['analysis-vl'] ? (
                       <>
                         {IconAnalysisVLModel && (
                           <IconAnalysisVLModel sx={{ fontSize: 18 }} />
@@ -1198,10 +1525,12 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                           }}
                         >
                           {ModelProvider[
-                            analysisVLModelData.provider as keyof typeof ModelProvider
+                            modelData['analysis-vl']
+                              .provider as keyof typeof ModelProvider
                           ].cn ||
                             ModelProvider[
-                              analysisVLModelData.provider as keyof typeof ModelProvider
+                              modelData['analysis-vl']
+                                .provider as keyof typeof ModelProvider
                             ].label ||
                             '其他'}
                           &nbsp;&nbsp;/
@@ -1214,7 +1543,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                             ml: -0.5,
                           }}
                         >
-                          {analysisVLModelData.model}
+                          {modelData['analysis-vl'].model}
                         </Box>
                         <Box
                           sx={{
@@ -1271,22 +1600,22 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                     >
                       可选
                     </Box>
-                    {analysisVLModelData && (
-                      <Switch
-                        size='small'
-                        checked={analysisVLModelData.is_active}
-                        onChange={() => {
-                          // @ts-expect-error base_url 可能为 undefined
-                          putApiV1Model({
-                            ...analysisVLModelData,
-                            is_active: !analysisVLModelData.is_active,
-                          }).then(() => {
-                            message.success('修改成功');
-                            getModelList();
-                          });
-                        }}
-                      />
-                    )}
+                    {modelData['analysis-vl'] &&
+                      modelData['analysis-vl'].id && (
+                        <Switch
+                          size='small'
+                          checked={modelData['analysis-vl'].is_active}
+                          onChange={() => {
+                            putApiV1Model({
+                              ...modelData['analysis-vl'],
+                              is_active: !modelData['analysis-vl'].is_active,
+                            }).then(() => {
+                              message.success('修改成功');
+                              getModelList();
+                            });
+                          }}
+                        />
+                      )}
                   </Stack>
                   <Box sx={{ fontSize: 12, color: 'text.tertiary', mt: 1 }}>
                     在
@@ -1303,7 +1632,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   </Box>
                 </Box>
                 <Box sx={{ flexGrow: 1, flexSelf: 'flex-start' }}>
-                  {analysisVLModelData ? (
+                  {modelData['analysis-vl'] ? (
                     <Box
                       sx={{
                         display: 'inline-block',
@@ -1344,7 +1673,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
                   loading={openingAdd === 'analysis-vl'}
                   onClick={() => handleOpenAdd('analysis-vl')}
                 >
-                  {analysisVLModelData ? '修改' : '配置'}
+                  {modelData['analysis-vl'] ? '修改' : '配置'}
                 </Button>
               </Stack>
             </Card>
@@ -1355,25 +1684,25 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             <ModelModal
               open={addOpen}
               model_type={addType}
+              onOk={onModelModalOk}
+              loading={modelModalLoading}
               data={
                 addType === 'chat'
-                  ? convertLocalModelToUIModel(chatModelData)
+                  ? modelModalChatData
                   : addType === 'embedding'
-                    ? convertLocalModelToUIModel(embeddingModelData)
+                    ? modelModalEmbeddingData
                     : addType === 'rerank'
-                      ? convertLocalModelToUIModel(rerankModelData)
+                      ? modelModalRerankData
                       : addType === 'analysis'
-                        ? convertLocalModelToUIModel(analysisModelData)
+                        ? modelModalAnalysisData
                         : addType === 'analysis-vl'
-                          ? convertLocalModelToUIModel(analysisVLModelData)
+                          ? modelModalAnalysisVLData
                           : null
               }
               onClose={() => {
                 setAddOpen(false);
-                // 关闭模态框时标记为已变更(假设用户可能已修改)
-                setHasConfigChanged(true);
               }}
-              refresh={getModelList}
+              refresh={() => {}}
               modelService={modelService}
               language='zh-CN'
               messageComponent={message}

@@ -162,6 +162,7 @@ const UserGroup = ({
           data={userGroupTree.filter(it => it.sync_id)}
           sync
           onSync={handleSync}
+          sourceType={sourceType}
           onClickMembers={item => {
             setUserGroupModalData({
               id: item.id,

@@ -20,7 +20,10 @@ import {
 import { ItemChangedReason } from '@/components/TreeDragSortable/types';
 import { treeSx } from '@/constant/styles';
 import { getApiProV1AuthGroupDetail } from '@/request/pro/AuthGroup';
-import { GithubComChaitinPandaWikiProApiAuthV1AuthGroupTreeItem } from '@/request/pro/types';
+import {
+  GithubComChaitinPandaWikiProApiAuthV1AuthGroupTreeItem,
+  ConstsSourceType,
+} from '@/request/pro/types';
 import { useAppSelector } from '@/store';
 import { Modal, Table } from '@ctzhian/ui';
 import { ColumnType } from '@ctzhian/ui/dist/Table';
@@ -56,6 +59,7 @@ export interface GroupTreeProps {
   ) => void;
   sync?: boolean;
   onSync?: () => void;
+  sourceType?: ConstsSourceType;
 }
 
 interface IContext {
@@ -68,6 +72,7 @@ interface IContext {
   ) => void;
   sync: boolean;
   onSync?: () => void;
+  sourceType?: ConstsSourceType;
 }
 
 const AppContext = createContext<IContext | null>(null);
@@ -95,7 +100,7 @@ const TreeItem = React.forwardRef<
   const { item } = props;
   const context = useContext(AppContext);
   if (!context) throw new Error('TreeItem 必须在 AppContext.Provider 内部使用');
-  const { onClickMembers, handleMenuOpen, sync, onSync } = context;
+  const { onClickMembers, handleMenuOpen, sync, onSync, sourceType } = context;
   return (
     <Box
       sx={[
@@ -182,21 +187,24 @@ const TreeItem = React.forwardRef<
                     </IconButton>
                   </Box>
                 )}
-                {sync && item.isRoot && (
-                  <Box
-                    sx={{
-                      fontSize: 14,
-                      color: 'primary.main',
-                      cursor: 'pointer',
-                    }}
-                    onClick={e => {
-                      e.stopPropagation();
-                      onSync?.();
-                    }}
-                  >
-                    同步
-                  </Box>
-                )}
+                {sync &&
+                  item.isRoot &&
+                  (sourceType === ConstsSourceType.SourceTypeDingTalk ||
+                    sourceType === ConstsSourceType.SourceTypeWeCom) && (
+                    <Box
+                      sx={{
+                        fontSize: 14,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                      }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        onSync?.();
+                      }}
+                    >
+                      同步
+                    </Box>
+                  )}
               </Stack>
             </Stack>
           </TreeItemWrapper>
@@ -213,6 +221,7 @@ const GroupTree = ({
   onEdit,
   sync = false,
   onSync,
+  sourceType,
 }: GroupTreeProps) => {
   const itemsData = useMemo(() => mapToTree(data), [data]);
   const { kbDetail } = useAppSelector(state => state.config);
@@ -302,7 +311,7 @@ const GroupTree = ({
 
   return (
     <AppContext.Provider
-      value={{ onClickMembers, handleMenuOpen, sync, onSync }}
+      value={{ onClickMembers, handleMenuOpen, sync, onSync, sourceType }}
     >
       <GroupModal
         open={isModalOpen}
@@ -428,6 +437,9 @@ export const ActionsMenu = ({
       )}
       {canEdit && (
         <MenuItem
+          sx={{
+            color: 'error.main',
+          }}
           onClick={e => {
             e.stopPropagation();
             onClose(e);

@@ -89,7 +89,7 @@ func (r *NodeRepository) Create(ctx context.Context, req *domain.CreateNodeReq, 
 			Type:      req.Type,
 			ParentID:  req.ParentID,
 			Position:  newPos,
-			Status:    domain.NodeStatusDraft,
+			Status:    domain.NodeStatusUnreleased,
 			CreatorId: userId,
 			EditorId:  userId,
 			CreatedAt: now,
@@ -250,8 +250,8 @@ func (r *NodeRepository) UpdateNodeContent(ctx context.Context, req *domain.Upda
 			}
 		}
 
-		// If any field is updated, set status to draft
-		if updateStatus {
+		// If any field is updated and node released, set status to draft
+		if updateStatus && currentNode.Status != domain.NodeStatusUnreleased {
 			updateMap["status"] = domain.NodeStatusDraft
 			updateMap["edit_time"] = time.Now()
 		}
@@ -791,12 +791,13 @@ func (r *NodeRepository) MoveNodeBetween(ctx context.Context, id, parentID, prev
 			}
 		}
 
-		return tx.Model(&domain.Node{}).
-			Where("id = ?", id).
-			Update("position", newPos).
-			Update("parent_id", parentID).
-			Update("status", domain.NodeStatusDraft).
-			Error
+		querySet := tx.Model(&domain.Node{}).Where("id = ?", id).Update("position", newPos).Update("parent_id", parentID)
+
+		if node.Status == domain.NodeStatusReleased {
+			querySet = querySet.Update("status", domain.NodeStatusDraft)
+		}
+
+		return querySet.Error
 	})
 }
 
@@ -827,8 +828,16 @@ func (r *NodeRepository) UpdateNodeSummary(ctx context.Context, kbID, nodeID, su
 		Model(&domain.Node{}).
 		Where("kb_id = ? AND id = ?", kbID, nodeID).
 		Updates(map[string]any{
-			"meta":   gorm.Expr("jsonb_set(meta, '{summary}', to_jsonb(?::text))", summary),
-			"status": domain.NodeStatusDraft,
+			"meta": gorm.Expr("jsonb_set(meta, '{summary}', to_jsonb(?::text))", summary),
+		}).Error
+}
+
+func (r *NodeRepository) UpdateNodeStatus(ctx context.Context, kbID, nodeID string, nodeStatus domain.NodeStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.Node{}).
+		Where("kb_id = ? AND id = ?", kbID, nodeID).
+		Updates(map[string]any{
+			"status": nodeStatus,
 		}).Error
 }
 
@@ -939,10 +948,17 @@ func (r *NodeRepository) GetOldNodeDocIDsByNodeID(ctx context.Context, nodeRelea
 func (r *NodeRepository) BatchMove(ctx context.Context, req *domain.BatchMoveReq) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// update node parent_id
-		if err := tx.Model(&domain.Node{}).
+		if err := tx.WithContext(ctx).Model(&domain.Node{}).
 			Where("kb_id = ?", req.KBID).
 			Where("id IN ?", req.IDs).
 			Update("parent_id", req.ParentID).
+			Error; err != nil {
+			return err
+		}
+		if err := tx.WithContext(ctx).Model(&domain.Node{}).
+			Where("kb_id = ?", req.KBID).
+			Where("id IN ?", req.IDs).
+			Where("status = ?", domain.NodeStatusReleased).
 			Update("status", domain.NodeStatusDraft).
 			Error; err != nil {
 			return err

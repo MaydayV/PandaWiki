@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ctzhian/tiptap':
-        specifier: ^2.12.6
-        version: 2.12.6(e4c5bad0fda113a434585d85a7035bd4)
+        specifier: ^2.13.6
+        version: 2.13.6(e4c5bad0fda113a434585d85a7035bd4)
       '@ctzhian/ui':
         specifier: ^7.1.3
         version: 7.1.3(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@mui/icons-material@7.3.4(@mui/material@7.3.4(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@mui/material@7.3.4(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(@mui/utils@7.3.3(@types/react@19.2.7)(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -82,8 +82,8 @@ importers:
   admin:
     dependencies:
       '@ctzhian/modelkit':
-        specifier: 2.10.0
-        version: 2.10.0(c8dc0435e02423477f24413eeb687cf8)
+        specifier: 2.12.6
+        version: 2.12.6(c8dc0435e02423477f24413eeb687cf8)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -512,8 +512,8 @@ packages:
     resolution: {integrity: sha512-VSNoMsvT8bi1eYuG9nO9oyW/ODxebAJr0j+OMqvDc2FsnznabU1Sjjg9ge6jJuDTRiWWAKfIJX2LEvINmw5C6w==}
     hasBin: true
 
-  '@ctzhian/modelkit@2.10.0':
-    resolution: {integrity: sha512-xWUMntdflfYKzg5Dtdwc/9rZYnyC/WRCIPJApEo4+1DS2kHDRJT1FQyctNFhOk+3cN0c4auswJOlYJWVg1IqNw==}
+  '@ctzhian/modelkit@2.12.6':
+    resolution: {integrity: sha512-FGYePDGekkuVWzhb8wm/GRVjXui8srghlm5gcPiOkstOHHuDC6IqNDas/Gbh1K+yKcF4PjPl/oRBe9OL1V2I4g==}
     peerDependencies:
       '@ctzhian/ui': ^7
       '@emotion/react': ^11
@@ -523,8 +523,8 @@ packages:
       react: '>=16.9.0'
       react-dom: '>=16.9.0'
 
-  '@ctzhian/tiptap@2.12.6':
-    resolution: {integrity: sha512-+NIz1Ov0VnPJ4cA56seE2NMpY38GOuci++yR7wESg60hoxPm5UhlYUmbCNH++zsE9oWTfSmXoIR+i/5xvv4DtA==}
+  '@ctzhian/tiptap@2.13.6':
+    resolution: {integrity: sha512-zAazMJZqU8B4ov8w0JZK9iBqHDNdiPTNwV9SIli/KELSXnnCgOXOc6mj5dSVTq4PydGLjVNqPRhukkC8gn3aYg==}
     peerDependencies:
       '@emotion/react': ^11
       '@emotion/styled': ^11
@@ -6675,7 +6675,7 @@ snapshots:
       - magicast
       - typescript
 
-  '@ctzhian/modelkit@2.10.0(c8dc0435e02423477f24413eeb687cf8)':
+  '@ctzhian/modelkit@2.12.6(c8dc0435e02423477f24413eeb687cf8)':
     dependencies:
       '@ctzhian/ui': 7.1.3(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@mui/icons-material@7.3.4(@mui/material@7.3.4(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@mui/material@7.3.4(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(@mui/utils@7.3.3(@types/react@19.2.7)(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@emotion/react': 11.14.0(@types/react@19.2.7)(react@19.2.3)
@@ -6693,7 +6693,7 @@ snapshots:
       - react-native
       - typescript
 
-  '@ctzhian/tiptap@2.12.6(e4c5bad0fda113a434585d85a7035bd4)':
+  '@ctzhian/tiptap@2.13.6(e4c5bad0fda113a434585d85a7035bd4)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.7)(react@19.2.3)
       '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(@types/react@19.2.7)(react@19.2.3)
@@ -6893,7 +6893,7 @@ snapshots:
       '@emotion/memoize': 0.9.0
       '@emotion/unitless': 0.10.0
       '@emotion/utils': 1.4.2
-      csstype: 3.1.3
+      csstype: 3.2.3
 
   '@emotion/sheet@0.9.4': {}
 
@@ -7311,7 +7311,7 @@ snapshots:
       '@popperjs/core': 2.11.8
       '@types/react-transition-group': 4.4.12(@types/react@19.2.7)
       clsx: 2.1.1
-      csstype: 3.1.3
+      csstype: 3.2.3
       prop-types: 15.8.1
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
@@ -7337,7 +7337,7 @@ snapshots:
       '@emotion/cache': 11.14.0
       '@emotion/serialize': 1.3.3
       '@emotion/sheet': 1.4.0
-      csstype: 3.1.3
+      csstype: 3.2.3
       prop-types: 15.8.1
       react: 19.2.3
     optionalDependencies:
@@ -7352,7 +7352,7 @@ snapshots:
       '@mui/types': 7.4.7(@types/react@19.2.7)
       '@mui/utils': 7.3.3(@types/react@19.2.7)(react@19.2.3)
       clsx: 2.1.1
-      csstype: 3.1.3
+      csstype: 3.2.3
       prop-types: 15.8.1
       react: 19.2.3
     optionalDependencies:
@@ -9913,7 +9913,7 @@ snapshots:
   dom-helpers@5.2.1:
     dependencies:
       '@babel/runtime': 7.28.4
-      csstype: 3.1.3
+      csstype: 3.2.3
 
   dom-serializer@2.0.0:
     dependencies:

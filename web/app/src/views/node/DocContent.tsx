@@ -7,17 +7,32 @@ import CommentInput, {
 import { DocWidth } from '@/constant';
 import { useBasePath } from '@/hooks';
 import { useStore } from '@/provider';
+import { copyText } from '@/utils';
 import {
   getShareV1CommentList,
   postShareV1Comment,
 } from '@/request/ShareComment';
-import { V1ShareNodeDetailResp } from '@/request/types';
+import { ConstsCopySetting, V1ShareNodeDetailResp } from '@/request/types';
 import { findAdjacentDocuments } from '@/utils';
 import { getImagePath } from '@/utils/getImagePath';
 import { Editor, UseTiptapReturn } from '@ctzhian/tiptap';
 import { Image, message } from '@ctzhian/ui';
-import { Box, Button, Divider, Stack, TextField, alpha } from '@mui/material';
-import { IconMianbaoxie, IconWenjian, IconWenjianjia } from '@panda-wiki/icons';
+import {
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  Stack,
+  TextField,
+  Tooltip,
+  alpha,
+} from '@mui/material';
+import {
+  IconFuzhi,
+  IconMianbaoxie,
+  IconWenjian,
+  IconWenjianjia,
+} from '@panda-wiki/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import Link from 'next/link';
@@ -161,6 +176,17 @@ const DocContent = ({
     );
   };
 
+  const onCopyDocMd = () => {
+    let context = editorRef.getMarkdown() || '';
+    // 如果设置了追加尾缀，则在复制内容后添加尾缀
+    if (
+      kbDetail?.settings?.copy_setting === ConstsCopySetting.CopySettingAppend
+    ) {
+      context += `\n\n-----------------------------------------\n内容来自 ${typeof window !== 'undefined' ? window.location.href : ''}`;
+    }
+    copyText(context);
+  };
+
   return (
     <Box
       id='doc-content'
@@ -216,48 +242,64 @@ const DocContent = ({
       </Stack>
       <Stack
         direction='row'
+        justifyContent='space-between'
         alignItems='center'
-        gap={1}
-        sx={{
-          fontSize: 14,
-          mb: 4,
-          color: 'text.tertiary',
-        }}
+        sx={{ mb: 4 }}
       >
-        {info?.created_at && (
-          <Box>
-            {info?.creator_account && info?.creator_account === 'admin'
-              ? t('node.admin')
-              : info?.creator_account}{' '}
-            {dayjs(info?.created_at).fromNow()}
-            {t('node.created')}
-          </Box>
-        )}
-        {info?.updated_at && info.updated_at.slice(0, 1) !== '0' && (
-          <>
-            <Box>·</Box>
+        <Stack
+          direction='row'
+          alignItems='center'
+          gap={1}
+          sx={{
+            fontSize: 14,
+            color: 'text.tertiary',
+          }}
+        >
+          {info?.created_at && (
             <Box>
-              {info?.editor_account && info?.editor_account === 'admin'
+              {info?.creator_account && info?.creator_account === 'admin'
                 ? t('node.admin')
-                : info?.editor_account}{' '}
-              {dayjs(info.updated_at).fromNow()}
-              {t('node.updated')}
+                : info?.creator_account}{' '}
+              {dayjs(info?.created_at).fromNow()}
+              {t('node.created')}
             </Box>
-          </>
-        )}
-        {!!characterCount && characterCount > 0 && (
-          <>
-            <Box>·</Box>
-            <Box>{t('node.words', { count: characterCount })}</Box>
-          </>
-        )}
-        {(info.pv ?? 0) > 0 && (
-          <>
-            <Box>·</Box>
-            <Box>{t('node.views', { count: info.pv })}</Box>
-          </>
-        )}
+          )}
+          {info?.updated_at && info.updated_at.slice(0, 1) !== '0' && (
+            <>
+              <Box>·</Box>
+              <Box>
+                {info?.editor_account && info?.editor_account === 'admin'
+                  ? t('node.admin')
+                  : info?.editor_account}{' '}
+                {dayjs(info.updated_at).fromNow()}
+                {t('node.updated')}
+              </Box>
+            </>
+          )}
+          {!!characterCount && characterCount > 0 && (
+            <>
+              <Box>·</Box>
+              <Box>{t('node.words', { count: characterCount })}</Box>
+            </>
+          )}
+          {(info.pv ?? 0) > 0 && (
+            <>
+              <Box>·</Box>
+              <Box>{t('node.views', { count: info.pv })}</Box>
+            </>
+          )}
+        </Stack>
+        {info?.type === 2 &&
+          kbDetail?.settings?.copy_setting !==
+            ConstsCopySetting.CopySettingDisabled && (
+            <Tooltip title='复制 MarkDown 格式' arrow placement='top'>
+              <IconButton size='small' onClick={onCopyDocMd}>
+                <IconFuzhi sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )}
       </Stack>
+
       {info?.meta?.summary && (
         <Box
           sx={{

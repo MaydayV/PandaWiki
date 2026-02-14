@@ -1,7 +1,7 @@
 import { DomainNodeReleaseListItem } from '@/request/pro';
 import { Modal } from '@ctzhian/ui';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, alpha } from '@mui/material';
 
 interface VersionRollbackProps {
   open: boolean;
@@ -21,7 +21,6 @@ const VersionRollback = ({
     <Modal
       title={
         <Stack direction='row' alignItems='center' gap={1}>
-          <ErrorOutlineIcon sx={{ color: 'warning.main', fontSize: 24 }} />
           确认使用当前版本？
         </Stack>
       }
@@ -29,6 +28,23 @@ const VersionRollback = ({
       onOk={onOk}
       onCancel={onClose}
     >
+      <Stack
+        direction='row'
+        gap={1}
+        alignItems='center'
+        sx={{
+          py: 1,
+          px: 1.5,
+          borderRadius: 1,
+          mb: 2,
+          fontSize: 12,
+          color: 'warning.main',
+          bgcolor: theme => alpha(theme.palette.warning.main, 0.05),
+        }}
+      >
+        <ErrorOutlineIcon sx={{ color: 'warning.main', fontSize: 12 }} />
+        使用此版本会覆盖当前草稿内容
+      </Stack>
       <Stack direction='row' spacing={2}>
         <Box sx={{ fontSize: 14, width: 100, flexShrink: 0 }}>版本号</Box>
         <Box sx={{ fontWeight: 700 }}>{data.release_name}</Box>

@@ -1,4 +1,5 @@
 import { ConstsHomePageSetting } from '@/request/types';
+import { getBasePath } from '@/utils/getBasePath';
 
 export const INIT_DOC_DATA = [
   {
@@ -36,10 +37,10 @@ export const INIT_LADING_DATA = {
   theme_mode: 'light',
   home_page_setting:
     ConstsHomePageSetting.HomePageSettingCustom as ConstsHomePageSetting,
-  icon: '/images/init/icon.png',
+  icon: getBasePath('/images/init/icon.png'),
   btns: [
     {
-      icon: '/images/init/github_icon.png',
+      icon: getBasePath('/images/init/github_icon.png'),
       id: '1748421035847',
       showIcon: true,
       target: '_blank',
@@ -67,7 +68,7 @@ export const INIT_LADING_DATA = {
         channel: 'wechat_oa',
         text: '微信交流群',
         link: '',
-        icon: '/images/init/weixin_qrcode.png',
+        icon: getBasePath('/images/init/weixin_qrcode.png'),
         phone: '',
       },
     ],
@@ -79,7 +80,7 @@ export const INIT_LADING_DATA = {
     brand_name: 'PandaWiki 知识库',
     brand_desc:
       'PandaWiki 是一款 AI 驱动的开源知识库系统，支持构建产品文档、技术文档、FAQ 和博客，提供AI创作、问答和搜索功能',
-    brand_logo: '/images/init/brand_logo.png',
+    brand_logo: getBasePath('/images/init/brand_logo.png'),
     brand_groups: [
       {
         name: '相关产品',
@@ -185,37 +186,37 @@ export const INIT_LADING_DATA = {
           {
             id: '1760701308042',
             title: '数据统计',
-            url: '/images/init/carousel_data_statistics.jpg',
+            url: getBasePath('/images/init/carousel_data_statistics.jpg'),
             desc: '',
           },
           {
             id: '1760701285851',
             title: '文档管理',
-            url: '/images/init/carousel_doc_manage.jpg',
+            url: getBasePath('/images/init/carousel_doc_manage.jpg'),
             desc: '',
           },
           {
             id: '1760701343411',
             title: '文档首页',
-            url: '/images/init/carousel_doc_home.jpg',
+            url: getBasePath('/images/init/carousel_doc_home.jpg'),
             desc: '',
           },
           {
             id: '1760701321421',
             title: '智能问答',
-            url: '/images/init/carousel_ai_qa.jpg',
+            url: getBasePath('/images/init/carousel_ai_qa.jpg'),
             desc: '',
           },
           {
             id: '1760701346392',
             title: '三方机器人集成',
-            url: '/images/init/carousel_third_party_robot.jpg',
+            url: getBasePath('/images/init/carousel_third_party_robot.jpg'),
             desc: '',
           },
           {
             id: '1760701385679',
             title: '网页挂件机器人',
-            url: '/images/init/carousel_web_robot.jpg',
+            url: getBasePath('/images/init/carousel_web_robot.jpg'),
             desc: '',
           },
         ],

@@ -128,6 +128,22 @@ func (r *KnowledgeBaseRepository) SyncKBAccessSettingsToCaddy(ctx context.Contex
 				"disable_certificates": true,
 				"disable_redirects":    true,
 			}
+			// SSL port: collect certificate tags for tls_connection_policies
+			certTags := make([]string, 0)
+			for _, kb := range hostKBMap {
+				if len(kb.AccessSettings.PublicKey) > 0 && len(kb.AccessSettings.PrivateKey) > 0 {
+					certTags = append(certTags, kb.ID)
+				}
+			}
+			if len(certTags) > 0 {
+				server["tls_connection_policies"] = []map[string]any{
+					{
+						"certificate_selection": map[string]any{
+							"any_tag": certTags,
+						},
+					},
+				}
+			}
 		}
 		routes := make([]map[string]any, 0)
 		var defaultRoute map[string]any

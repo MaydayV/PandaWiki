@@ -13,16 +13,9 @@ interface DocDeleteProps {
   onClose: () => void;
   data: DomainNodeListItemResp[];
   onDeleted?: (ids: string[]) => void;
-  type?: 'doc' | 'list';
 }
 
-const DocDelete = ({
-  open,
-  onClose,
-  data,
-  onDeleted,
-  type = 'list',
-}: DocDeleteProps) => {
+const DocDelete = ({ open, onClose, data, onDeleted }: DocDeleteProps) => {
   const { kb_id } = useAppSelector(state => state.config);
   if (!data) return null;
 
@@ -36,11 +29,6 @@ const DocDelete = ({
       message.success('删除成功');
       onClose();
       onDeleted?.(ids);
-      if (type === 'doc') {
-        setTimeout(() => {
-          window.close();
-        }, 1500);
-      }
     });
   };
 

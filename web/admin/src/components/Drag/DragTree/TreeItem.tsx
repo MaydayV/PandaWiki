@@ -524,21 +524,27 @@ const TreeItem = React.forwardRef<
                       gap={1}
                       sx={{ flexShrink: 0, fontSize: 12 }}
                     >
-                      {item.type === 2 && item.rag_status && (
-                        <Tooltip title={item.rag_message}>
-                          <StyledTag
-                            color={
-                              RAG_SOURCES[item.rag_status]?.color ||
-                              ('warning' as any)
-                            }
-                          >
-                            {RAG_SOURCES[item.rag_status]?.name || '处理失败'}
-                          </StyledTag>
-                        </Tooltip>
+                      {item.status === 0 && (
+                        <StyledTag color='error'>未发布</StyledTag>
                       )}
                       {item.status === 1 && (
                         <StyledTag color='error'>更新未发布</StyledTag>
                       )}
+                      {item.type === 2 &&
+                        item.rag_status &&
+                        item.status !== 0 && (
+                          <Tooltip title={item.rag_message}>
+                            <StyledTag
+                              color={
+                                RAG_SOURCES[item.rag_status]?.color ||
+                                ('warning' as any)
+                              }
+                            >
+                              {RAG_SOURCES[item.rag_status]?.name || '处理失败'}
+                            </StyledTag>
+                          </Tooltip>
+                        )}
+
                       {item.type === 2 && (
                         <>
                           {permissions?.answerable &&

@@ -203,7 +203,7 @@ export interface ITreeItem {
   isEditting?: boolean;
   canHaveChildren?: boolean;
   updated_at?: string;
-  status?: 1 | 2;
+  status?: 0 | 1 | 2;
   permissions?: DomainNodePermissions;
   collapsed?: boolean;
 }

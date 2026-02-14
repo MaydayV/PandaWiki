@@ -192,6 +192,13 @@ func (c *DingTalkClient) CreateAndDeliverCard(ctx context.Context, trackID strin
 }
 
 func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *chatbot.BotCallbackDataModel) ([]byte, error) {
+	select {
+	case <-c.ctx.Done():
+		c.logger.Info("dingtalk bot is disabled, ignoring message", log.String("client_id", c.clientID))
+		return nil, nil
+	default:
+	}
+
 	question := data.Text.Content
 	question = strings.TrimSpace(question)
 	trackID := uuid.New().String()

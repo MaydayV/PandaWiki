@@ -48,7 +48,8 @@ const VersionPublish = ({
 
   const getData = () => {
     getApiV1NodeList({ kb_id }).then(res => {
-      const unPublishedData = res?.filter(item => item.status === 1) || [];
+      const unPublishedData =
+        res?.filter(item => item.status === 1 || item.status === 0) || [];
       setList(unPublishedData);
       setSelected(
         defaultSelected.length > 0

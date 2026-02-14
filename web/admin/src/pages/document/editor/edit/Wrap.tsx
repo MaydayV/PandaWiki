@@ -48,8 +48,14 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
   const { license } = useAppSelector(state => state.config);
 
   const state = useLocation().state as { node?: V1NodeDetailResp };
-  const { catalogOpen, setCatalogOpen, nodeDetail, setNodeDetail, onSave } =
-    useOutletContext<WrapContext>();
+  const {
+    catalogOpen,
+    setCatalogOpen,
+    nodeDetail,
+    setNodeDetail,
+    onSave,
+    catalogData,
+  } = useOutletContext<WrapContext>();
 
   const storageTocOpen = localStorage.getItem('toc-open');
 
@@ -645,8 +651,22 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
   }, []);
 
   useEffect(() => {
-    if (id !== defaultDetail.id) changeCatalogItem();
-  }, [id]);
+    if (id !== defaultDetail.id) {
+      // 检查当前文档是否存在于目录数据中（避免保存已删除的文档）
+      const checkDocExists = (items: typeof catalogData): boolean => {
+        for (const item of items) {
+          if (item.id === defaultDetail.id) return true;
+          if (item.children && checkDocExists(item.children)) return true;
+        }
+        return false;
+      };
+
+      // 只有文档存在时才执行保存
+      if (checkDocExists(catalogData)) {
+        changeCatalogItem();
+      }
+    }
+  }, [id, catalogData, defaultDetail.id, changeCatalogItem]);
 
   return (
     <>

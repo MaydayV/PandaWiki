@@ -159,14 +159,21 @@ const Header = React.memo(
             //   }),
           }}
         >
-          <Link href={homePath} sx={{ flex: 1, minWidth: 0 }}>
-            <Stack
-              direction='row'
-              alignItems='center'
-              gap={1.5}
+          <Stack
+            direction='row'
+            alignItems='center'
+            gap={1.5}
+            sx={{ flex: 1, minWidth: 0 }}
+          >
+            <Link
+              href={homePath}
               sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
                 cursor: 'pointer',
                 color: 'text.primary',
+                textDecoration: 'none',
                 '&:hover': { color: 'primary.main' },
               }}
             >
@@ -181,8 +188,8 @@ const Header = React.memo(
               >
                 {title}
               </Box>
-            </Stack>
-          </Link>
+            </Link>
+          </Stack>
           {showSearch &&
             (mobile ? (
               // 移动端：显示搜索图标按钮

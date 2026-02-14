@@ -9,11 +9,13 @@ export type TreeMenuItem = {
   label: string;
   onClick?: () => void;
   disabled?: boolean;
+  color?: 'error' | 'default';
   children?: {
     key: string;
     label: string;
     disabled?: boolean;
     onClick?: () => void;
+    color?: 'error' | 'default';
   }[];
 };
 
@@ -86,10 +88,18 @@ const TreeMenu = ({
                 height: 40,
                 width: 180,
                 borderRadius: '5px',
-                color: value?.disabled ? 'text.disabled' : 'text.primary',
+                color: value?.disabled
+                  ? 'text.disabled'
+                  : value.color === 'error'
+                    ? 'error.main'
+                    : 'text.primary',
                 cursor: value?.disabled ? 'not-allowed' : 'pointer',
                 ':hover': {
-                  bgcolor: addOpacityToColor(theme.palette.primary.main, 0.1),
+                  bgcolor: value?.disabled
+                    ? 'transparent'
+                    : value.color === 'error'
+                      ? addOpacityToColor(theme.palette.error.main, 0.1)
+                      : addOpacityToColor(theme.palette.primary.main, 0.1),
                 },
               }}
               onClick={value?.disabled ? undefined : value.onClick}

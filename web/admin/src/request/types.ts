@@ -41,7 +41,11 @@ export enum DomainNodeType {
 
 /** @format int32 */
 export enum DomainNodeStatus {
+  /** 未发布 */
+  NodeStatusUnreleased = 0,
+  /** 更新未发布 */
   NodeStatusDraft = 1,
+  /** 已发布 */
   NodeStatusReleased = 2,
 }
 
@@ -100,6 +104,8 @@ export enum ConstsUserRole {
 export enum ConstsUserKBPermission {
   /** 无权限 */
   UserKBPermissionNull = "",
+  /** 有权限 */
+  UserKBPermissionNotNull = "not null",
   /** 完全控制 */
   UserKBPermissionFullControl = "full_control",
   /** 文档管理 */

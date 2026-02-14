@@ -71,10 +71,12 @@ func createApp() (*App, error) {
 	migrationNodeVersion := fns.NewMigrationNodeVersion(logger, nodeUsecase, knowledgeBaseUsecase, ragRepository)
 	migrationCreateBotAuth := fns.NewMigrationCreateBotAuth(logger)
 	migrationFixGroupIds := fns.NewMigrationFixGroupIds(logger, ragRepository)
+	migrationUpdateNodeStatusUnreleased := fns.NewMigrationUpdateNodeStatusUnreleased(logger)
 	migrationFuncs := &migration.MigrationFuncs{
-		NodeMigration:        migrationNodeVersion,
-		BotAuthMigration:     migrationCreateBotAuth,
-		FixGroupIdsMigration: migrationFixGroupIds,
+		NodeMigration:                       migrationNodeVersion,
+		BotAuthMigration:                    migrationCreateBotAuth,
+		FixGroupIdsMigration:                migrationFixGroupIds,
+		UpdateNodeStatusUnreleasedMigration: migrationUpdateNodeStatusUnreleased,
 	}
 	manager, err := migration.NewManager(db, logger, migrationFuncs)
 	if err != nil {

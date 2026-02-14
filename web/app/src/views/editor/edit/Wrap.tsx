@@ -125,6 +125,23 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
     }
   }, [editorRef.editor, t]);
 
+  const checkRequiredFields = useCallback(
+    (content?: string) => {
+      if (!nodeDetail?.name?.trim()) {
+        message.error(t('editor.enterDocNameFirst'));
+        return false;
+      }
+      const contentToCheck =
+        content !== undefined ? content : nodeDetail?.content;
+      if (!contentToCheck?.trim()) {
+        message.error(t('editor.enterDocContentFirst'));
+        return false;
+      }
+      return true;
+    },
+    [nodeDetail, t],
+  );
+
   const handleGlobalSave = useCallback(
     (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -134,29 +151,14 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
           updateDetail({
             content: value,
           });
-          setTimeout(() => {
-            if (checkRequiredFields()) {
-              setConfirmModalOpen(true);
-            }
-          }, 10);
+          if (checkRequiredFields(value)) {
+            setConfirmModalOpen(true);
+          }
         }
       }
     },
     [checkRequiredFields, editorRef, updateDetail],
   );
-
-  const checkRequiredFields = useCallback(() => {
-    if (!nodeDetail?.name?.trim()) {
-      message.error(t('editor.enterDocNameFirst'));
-      return false;
-    }
-    if (!nodeDetail?.content?.trim()) {
-      message.error(t('editor.enterDocContentFirst'));
-      return false;
-    }
-    return true;
-  }, [nodeDetail, t]);
-
   useEffect(() => {
     document.addEventListener('keydown', handleGlobalSave);
     return () => {
@@ -186,13 +188,14 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
         <Header
           detail={nodeDetail!}
           handleSave={async () => {
+            let content = nodeDetail?.content || '';
             if (!isMarkdown) {
-              const value = editorRef.getContent();
+              content = editorRef.getContent();
               updateDetail({
-                content: value,
+                content: content,
               });
             }
-            if (checkRequiredFields()) {
+            if (checkRequiredFields(content)) {
               setConfirmModalOpen(true);
             }
           }}

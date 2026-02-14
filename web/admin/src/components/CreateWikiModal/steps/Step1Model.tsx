@@ -36,10 +36,11 @@ const Step1Model: React.FC<Step1ModelProps> = ({ ref }) => {
     useState<GithubComChaitinPandaWikiDomainModelListItem | null>(null);
 
   const getModelList = () => {
-    getApiV1ModelList().then(res => {
+    return getApiV1ModelList().then(res => {
       dispatch(
         setModelList(res as GithubComChaitinPandaWikiDomainModelListItem[]),
       );
+      return res;
     });
   };
 
@@ -76,15 +77,17 @@ const Step1Model: React.FC<Step1ModelProps> = ({ ref }) => {
           return Promise.reject(new Error('请点击应用完成模型配置'));
         }
       } else {
-        // 手动模式检查
-        if (
-          !chatModelData ||
-          !embeddingModelData ||
-          !rerankModelData ||
-          !analysisModelData
-        ) {
-          return Promise.reject(new Error('请配置必要的模型后点击应用'));
-        }
+        getModelList().then(res => {
+          const list = res as GithubComChaitinPandaWikiDomainModelListItem[];
+          const chat = list.find(it => it.type === 'chat') || null;
+          const embedding = list.find(it => it.type === 'embedding') || null;
+          const rerank = list.find(it => it.type === 'rerank') || null;
+          const analysis = list.find(it => it.type === 'analysis') || null;
+          // 手动模式检查
+          if (!chat || !embedding || !rerank || !analysis) {
+            return Promise.reject(new Error('请配置必要的模型后点击应用'));
+          }
+        });
       }
     } catch (error) {
       if (error instanceof Error) {

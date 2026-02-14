@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -189,6 +190,10 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 	for chunk := range answerCh {
 		seq += 1
 		answer += chunk
+		// 部分模型存在输出为空的情况导致飞书报错
+		if strings.TrimSpace(chunk) == "" {
+			continue
+		}
 		// update card content streaming
 		updateReq := larkcardkit.NewContentCardElementReqBuilder().
 			CardId(*resp.Data.CardId).

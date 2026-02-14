@@ -1,14 +1,9 @@
-import { ITreeItem, NodeListFilterData } from '@/api';
+import { ITreeItem } from '@/api';
 import Cascader from '@/components/Cascader';
-import {
-  findItemDeep,
-  setProperty,
-} from '@/components/TreeDragSortable/utilities';
-import { getApiV1NodeList } from '@/request/Node';
-import { DomainNodeListItemResp, V1NodeDetailResp } from '@/request/types';
+import { setProperty } from '@/components/TreeDragSortable/utilities';
+import { V1NodeDetailResp } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { addOpacityToColor } from '@/utils';
-import { convertToTree } from '@/utils/drag';
 import { Ellipsis } from '@ctzhian/ui';
 import { alpha, Box, IconButton, Stack, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -26,9 +21,16 @@ import {
 interface CatalogProps {
   curNode: V1NodeDetailResp;
   setCatalogOpen: (open: boolean) => void;
+  catalogData: ITreeItem[];
+  onRefresh: () => Promise<ITreeItem[]>;
 }
 
-const Catalog = ({ curNode, setCatalogOpen }: CatalogProps) => {
+const Catalog = ({
+  curNode,
+  setCatalogOpen,
+  catalogData: externalData,
+  onRefresh,
+}: CatalogProps) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { id = '' } = useParams();
@@ -68,12 +70,8 @@ const Catalog = ({ curNode, setCatalogOpen }: CatalogProps) => {
   };
 
   const getCatalogData = useCallback(() => {
-    const params: NodeListFilterData = {
-      kb_id: kb_id || localStorage.getItem('kb_id') || '',
-    };
-    getApiV1NodeList(params).then(res => {
-      const v = convertToTree(res || []);
-      setData(v);
+    onRefresh().then(tree => {
+      setData(tree);
       // 计算当前文档的所有父级文件夹，并默认展开
       try {
         const currentId = id as string;
@@ -82,15 +80,23 @@ const Catalog = ({ curNode, setCatalogOpen }: CatalogProps) => {
           return;
         }
 
-        const map = new Map<string, DomainNodeListItemResp>();
-        (res || []).forEach(item => {
-          if (item?.id) map.set(item.id, item);
-        });
+        // 从树形结构中构建 id 到节点的映射
+        const buildMap = (items: ITreeItem[], map: Map<string, ITreeItem>) => {
+          items.forEach(item => {
+            map.set(item.id, item);
+            if (item.children && item.children.length > 0) {
+              buildMap(item.children, map);
+            }
+          });
+        };
+
+        const map = new Map<string, ITreeItem>();
+        buildMap(tree, map);
 
         const expanded = new Set<string>();
         let cur = map.get(currentId);
-        while (cur && cur.parent_id) {
-          const parent = map.get(cur.parent_id);
+        while (cur && cur.parentId) {
+          const parent = map.get(cur.parentId);
           if (!parent) break;
           if (parent.type === 1 && parent.id) {
             expanded.add(parent.id);
@@ -102,7 +108,14 @@ const Catalog = ({ curNode, setCatalogOpen }: CatalogProps) => {
         setExpandedFolders(new Set());
       }
     });
-  }, [kb_id]);
+  }, [onRefresh, id]);
+
+  // 同步外部数据到内部状态
+  useEffect(() => {
+    if (externalData.length > 0) {
+      setData(externalData);
+    }
+  }, [externalData]);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => {
@@ -386,57 +399,12 @@ const Catalog = ({ curNode, setCatalogOpen }: CatalogProps) => {
         open={customDocOpen}
         parentId={opraParentId}
         onCreated={node => {
+          onRefresh();
           if (opraParentId) {
-            // 复用工具方法：findItemDeep / setProperty
-            setData(prev => {
-              const parent = findItemDeep(prev, opraParentId);
-              if (!parent) return prev;
-              const children =
-                (parent.children as ITreeItem[] | undefined) ?? [];
-              const lastOrder = children.length
-                ? (children[children.length - 1].order ?? children.length - 1)
-                : -1;
-              const newChild: ITreeItem = {
-                id: node.id,
-                name: node.name,
-                content_type: node.content_type,
-                type: node.type,
-                emoji: node.emoji,
-                parentId: parent.id,
-                level: (parent.level ?? 0) + 1,
-                order: lastOrder + 1,
-                status: 1,
-                children: node.type === 1 ? [] : undefined,
-              };
-              const next = setProperty(prev, opraParentId, 'children', val => [
-                ...((val as ITreeItem[] | undefined) ?? []),
-                newChild,
-              ]) as ITreeItem[];
-              return [...next];
-            });
-            // 展开父级，确保新项可见
             setExpandedFolders(prev => {
               const ns = new Set(prev);
               if (opraParentId) ns.add(opraParentId);
               return ns;
-            });
-          } else {
-            const newChild: ITreeItem = {
-              id: node.id,
-              name: node.name,
-              content_type: node.content_type,
-              type: node.type,
-              emoji: node.emoji,
-              parentId: '',
-              level: 1,
-              order: data.length
-                ? (data[data.length - 1].order ?? data.length - 1)
-                : -1,
-              status: 1,
-              children: node.type === 1 ? [] : undefined,
-            };
-            setData(prev => {
-              return [...prev, newChild];
             });
           }
         }}

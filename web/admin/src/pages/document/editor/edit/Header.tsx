@@ -1,3 +1,4 @@
+import { ITreeItem } from '@/api';
 import Cascader from '@/components/Cascader';
 import { VersionCanUse } from '@/components/VersionMask';
 import { BUSINESS_VERSION_PERMISSION } from '@/constant/version';
@@ -61,8 +62,13 @@ const Header = ({
     return kbList?.find(item => item.id === kb_id);
   }, [kbList, kb_id]);
 
-  const { catalogOpen, nodeDetail, setCatalogOpen } =
-    useOutletContext<WrapContext>();
+  const {
+    catalogOpen,
+    nodeDetail,
+    setCatalogOpen,
+    refreshCatalog,
+    catalogData,
+  } = useOutletContext<WrapContext>();
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
@@ -103,6 +109,63 @@ const Header = ({
       }, 200);
     }
   }, [nodeDetail, edit]);
+
+  const handleDeleteAndNavigate = async () => {
+    // 深度优先遍历树，按照目录顺序收集所有文档
+    const collectDocs = (items: ITreeItem[]): ITreeItem[] => {
+      const docs: ITreeItem[] = [];
+      // 先对 items 按 order 排序，与 Catalog 渲染顺序保持一致
+      const sortedItems = [...items].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0),
+      );
+      sortedItems.forEach(item => {
+        if (item.type === 2) {
+          // 是文档，添加到列表
+          docs.push(item);
+        }
+        if (item.children && item.children.length > 0) {
+          // 递归处理子节点
+          docs.push(...collectDocs(item.children));
+        }
+      });
+      return docs;
+    };
+
+    // 使用删除前的原始数据查找下一个文档
+    const allDocs = collectDocs(catalogData);
+
+    // 找到下一个文档
+    let nextDoc = null;
+    if (allDocs.length > 0) {
+      // 找到当前文档在列表中的索引
+      const currentIndex = allDocs.findIndex(
+        (doc: ITreeItem) => doc.id === detail.id,
+      );
+
+      if (currentIndex !== -1) {
+        // 如果当前文档不是最后一个，选择下一个文档
+        if (currentIndex < allDocs.length - 1) {
+          nextDoc = allDocs[currentIndex + 1];
+        }
+        // 如果当前文档是最后一个但不是唯一的，选择前一个文档
+        else if (allDocs.length > 1) {
+          nextDoc = allDocs[currentIndex - 1];
+        }
+      }
+    }
+
+    // 刷新目录数据（删除后更新目录显示）
+    await refreshCatalog();
+
+    // 导航到下一个文档或首页
+    if (nextDoc) {
+      // 有其他文档，导航到下一个文档
+      navigate(`/doc/editor/${nextDoc.id}`);
+    } else {
+      // 没有其他文档，回到首页
+      navigate('/');
+    }
+  };
 
   useEffect(() => {
     if (nodeDetail?.updated_at && !firstLoad.current) {
@@ -198,7 +261,7 @@ const Header = ({
               {
                 key: 'copy',
                 textSx: { flex: 1 },
-                label: <StyledMenuSelect>复制</StyledMenuSelect>,
+                label: <StyledMenuSelect>创建副本</StyledMenuSelect>,
                 onClick: () => {
                   if (kb_id) {
                     postApiV1Node({
@@ -256,7 +319,7 @@ const Header = ({
               {
                 key: 'delete',
                 textSx: { flex: 1 },
-                label: <StyledMenuSelect>删除</StyledMenuSelect>,
+                label: <StyledMenuSelect type='error'>删除</StyledMenuSelect>,
                 onClick: () => {
                   setDelOpen(true);
                 },
@@ -440,9 +503,11 @@ const Header = ({
         }
       />
       <DocDelete
-        type='doc'
         open={delOpen}
-        onClose={() => setDelOpen(false)}
+        onClose={() => {
+          setDelOpen(false);
+        }}
+        onDeleted={handleDeleteAndNavigate}
         data={[
           {
             ...detail,
@@ -458,25 +523,32 @@ const Header = ({
   );
 };
 
-const StyledMenuSelect = styled('div')<{ disabled?: boolean }>(
-  ({ theme, disabled = false }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between ',
-    fontSize: 14,
-    padding: theme.spacing(0, 2),
-    lineHeight: '40px',
-    height: 40,
-    minWidth: 106,
-    borderRadius: '5px',
-    color: disabled ? theme.palette.text.secondary : theme.palette.text.primary,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    ':hover': {
-      backgroundColor: disabled
-        ? 'transparent'
+const StyledMenuSelect = styled('div')<{
+  disabled?: boolean;
+  type?: 'default' | 'error';
+}>(({ theme, disabled = false, type = 'default' }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between ',
+  fontSize: 14,
+  padding: theme.spacing(0, 2),
+  lineHeight: '40px',
+  height: 40,
+  minWidth: 106,
+  borderRadius: '5px',
+  color: disabled
+    ? theme.palette.text.secondary
+    : type === 'error'
+      ? theme.palette.error.main
+      : theme.palette.text.primary,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  ':hover': {
+    backgroundColor: disabled
+      ? 'transparent'
+      : type === 'error'
+        ? addOpacityToColor(theme.palette.error.main, 0.1)
         : addOpacityToColor(theme.palette.primary.main, 0.1),
-    },
-  }),
-);
+  },
+}));
 
 export default Header;

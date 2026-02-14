@@ -29,51 +29,58 @@ export function addOpacityToColor(color: string, opacity: number) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
+/**
+ * 复制文本到剪贴板
+ * 优先使用现代 Clipboard API（需要安全上下文：HTTPS 或 localhost）
+ * 降级使用 document.execCommand（兼容非 HTTPS 环境）
+ */
 export const copyText = (text: string, callback?: () => void) => {
   const locale =
     typeof document !== 'undefined'
       ? resolveLanguage(document.documentElement.lang || DEFAULT_LOCALE)
       : DEFAULT_LOCALE;
   const messages = MESSAGES[locale] || MESSAGES[DEFAULT_LOCALE];
-  const isNotHttps = !/^https:\/\//.test(window.location.origin);
 
-  if (isNotHttps) {
-    message.error(messages['common.copyNotSupported']);
-    return;
-  }
+  const fallbackCopy = () => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
 
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text);
-      message.success(messages['common.copySuccess']);
-      callback?.();
-    } else {
-      const textArea = document.createElement('textarea');
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      textArea.style.left = '-9999px';
-      textArea.style.top = '-9999px';
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        const successful = document.execCommand('copy');
-        if (successful) {
-          message.success(messages['common.copySuccess']);
-          callback?.();
-        } else {
-          message.error(messages['common.copyFailed']);
-        }
-      } catch (err) {
-        console.error(err);
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        message.success(messages['common.copySuccess']);
+        callback?.();
+      } else {
         message.error(messages['common.copyFailed']);
       }
+    } catch (err) {
+      console.error('复制失败:', err);
+      message.error(messages['common.copyFailed']);
+    } finally {
       document.body.removeChild(textArea);
     }
-  } catch (err) {
-    console.error(err);
-    message.error(messages['common.copyFailed']);
+  };
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        message.success(messages['common.copySuccess']);
+        callback?.();
+      })
+      .catch(err => {
+        console.error('Clipboard API 失败，尝试降级方案:', err);
+        fallbackCopy();
+      });
+  } else {
+    fallbackCopy();
   }
 };
 

@@ -189,17 +189,12 @@ func (cfg *WechatServiceConfig) SendResponseToKfUrl(userId, openkfId, conversati
 	var err error
 	if image != "" && !strings.HasPrefix(image, "data:image/") { // user own image and not base64 image
 		imageId, err = GetUserImageID(token, fmt.Sprintf("%s%s", "http://panda-wiki-minio:9000", image))
-		if err != nil {
-			return err
-		}
 	} else if strings.HasPrefix(image, "data:image/") {
 		// 解析base64
 		imageId, err = GetDefaultImageID(token, image)
-		if err != nil {
-			return err
-		}
-	} else {
-		// 解析base64 -> default image
+	}
+	// 如果获取失败或没有设置图片，使用默认图片
+	if err != nil || imageId == "" {
 		imageId, err = GetDefaultImageID(token, domain.DefaultPandaWikiIconB64)
 		if err != nil {
 			return err

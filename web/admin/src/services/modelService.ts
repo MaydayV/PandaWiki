@@ -50,7 +50,7 @@ const convertLocalModelToUIModel = (
 };
 
 // 转换 UI 创建模型数据为本地创建模型数据
-const convertUICreateToLocalCreate = (
+export const convertUICreateToLocalCreate = (
   uiModel: UICreateModelData,
 ): LocalCreateModelData => {
   return {
@@ -65,7 +65,7 @@ const convertUICreateToLocalCreate = (
 };
 
 // 转换 UI 更新模型数据为本地更新模型数据
-const convertUIUpdateToLocalUpdate = (
+export const convertUIUpdateToLocalUpdate = (
   uiModel: UIUpdateModelData,
 ): LocalUpdateModelData => {
   return {
@@ -82,7 +82,7 @@ const convertUIUpdateToLocalUpdate = (
 };
 
 // 转换 UI 检查模型数据为本地检查模型数据
-const convertUICheckToLocalCheck = (
+export const convertUICheckToLocalCheck = (
   uiCheck: UICheckModelData,
 ): LocalCheckModelData => {
   return {

@@ -1,9 +1,11 @@
+import { ITreeItem } from '@/api';
 import { getApiV1AppDetail } from '@/request';
 import { getApiV1KnowledgeBaseList } from '@/request/KnowledgeBase';
-import { putApiV1NodeDetail } from '@/request/Node';
+import { getApiV1NodeList, putApiV1NodeDetail } from '@/request/Node';
 import { V1NodeDetailResp } from '@/request/types';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { setKbDetail, setKbId, setKbList } from '@/store/slices/config';
+import { convertToTree } from '@/utils/drag';
 import { message } from '@ctzhian/ui';
 import { Box, Drawer, Stack, useMediaQuery } from '@mui/material';
 import { useEffect, useState } from 'react';
@@ -17,6 +19,8 @@ export interface WrapContext {
   setNodeDetail: (detail: V1NodeDetailResp) => void;
   onSave: (content: string) => void;
   docWidth: string;
+  catalogData: ITreeItem[];
+  refreshCatalog: () => Promise<ITreeItem[]>;
 }
 
 const DocEditor = () => {
@@ -26,6 +30,7 @@ const DocEditor = () => {
   const { kb_id = '' } = useAppSelector(state => state.config);
   const [nodeDetail, setNodeDetail] = useState<V1NodeDetailResp>({});
   const [catalogOpen, setCatalogOpen] = useState(true);
+  const [catalogData, setCatalogData] = useState<ITreeItem[]>([]);
 
   const [docWidth, setDocWidth] = useState<string>('full');
 
@@ -48,6 +53,16 @@ const DocEditor = () => {
         }
       }
     });
+  };
+
+  const refreshCatalog = async (): Promise<ITreeItem[]> => {
+    const params = {
+      kb_id: kb_id || localStorage.getItem('kb_id') || '',
+    };
+    const res = await getApiV1NodeList(params);
+    const tree = convertToTree(res || []);
+    setCatalogData(tree);
+    return tree;
   };
 
   const onSave = async (content: string) => {
@@ -97,7 +112,12 @@ const DocEditor = () => {
           },
         }}
       >
-        <Catalog curNode={nodeDetail} setCatalogOpen={setCatalogOpen} />
+        <Catalog
+          curNode={nodeDetail}
+          setCatalogOpen={setCatalogOpen}
+          catalogData={catalogData}
+          onRefresh={refreshCatalog}
+        />
       </Drawer>
       <Box sx={{ flexGrow: 1 }}>
         <Outlet
@@ -108,6 +128,8 @@ const DocEditor = () => {
             setNodeDetail,
             onSave,
             docWidth,
+            catalogData,
+            refreshCatalog,
           }}
         />
       </Box>

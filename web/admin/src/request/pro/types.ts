@@ -20,6 +20,8 @@ export enum DomainCommentStatus {
 export enum ConstsUserKBPermission {
   /** 无权限 */
   UserKBPermissionNull = "",
+  /** 有权限 */
+  UserKBPermissionNotNull = "not null",
   /** 完全控制 */
   UserKBPermissionFullControl = "full_control",
   /** 文档管理 */
