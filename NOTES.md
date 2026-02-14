@@ -70,3 +70,37 @@
 - 反馈弹窗、Mermaid/Markdown 渲染错误、图片加载占位文案接入 i18n。
 - 上传错误提示改为根据当前语言返回（`upload.*` 文案）。
 - Widget “敬请期待”提示改为 i18n。
+
+## 部署记录（2026-02-14，Debian VM）
+- 目标机器：`deploy@10.211.55.5`
+- 线上源码目录：`/home/deploy/pandawiki-src`
+- 线上编排目录：`/home/deploy/pandawiki-src/deploy`
+
+### 本次采用方式
+- 使用 Git 同步源码到虚拟机（非本机构建部署）。
+- 本机创建快照提交后，推送到虚拟机 bare 仓库：
+  - `ssh://deploy@10.211.55.5/home/deploy/pandawiki-sync.git`
+- 虚拟机工作目录通过 `git fetch + reset` 更新到该提交。
+
+### 关键命令（可复用）
+```bash
+# 本机：推送当前提交到虚拟机 bare 仓库
+git push ssh://deploy@10.211.55.5/home/deploy/pandawiki-sync.git HEAD:refs/heads/deploy-sync
+
+# 虚拟机：更新工作目录到 deploy-sync
+git -C /home/deploy/pandawiki-src init
+git -C /home/deploy/pandawiki-src remote add sync /home/deploy/pandawiki-sync.git
+git -C /home/deploy/pandawiki-src fetch sync deploy-sync
+git -C /home/deploy/pandawiki-src reset --hard sync/deploy-sync
+
+# 虚拟机：重建并拉起核心服务
+cd /home/deploy/pandawiki-src/deploy
+sudo docker compose build panda-wiki-api panda-wiki-consumer panda-wiki-app panda-wiki-admin
+sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer panda-wiki-app panda-wiki-admin
+```
+
+### 本次验收结果
+- `docker compose ps` 显示核心服务 `panda-wiki-api / consumer / app / admin` 均为 `Up`。
+- `https://127.0.0.1:2443` 返回 `HTTP/2 200`（管理端 HTTPS 正常）。
+- `http://127.0.0.1:3010` 返回 `HTTP/1.1 200`（前台正常）。
+- `http://127.0.0.1:8000/share/v1/app/web/info` 返回 `HTTP/1.1 200`（API 可用）。
