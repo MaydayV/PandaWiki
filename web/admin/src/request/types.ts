@@ -317,6 +317,7 @@ export interface DomainAppInfoResp {
 export interface DomainAppSettings {
   /** AI feedback */
   ai_feedback_settings?: DomainAIFeedbackSettings;
+  brand_settings?: DomainBrandSettings;
   body_code?: string;
   btns?: unknown[];
   /** catalog settings */
@@ -349,6 +350,7 @@ export interface DomainAppSettings {
   home_page_setting?: ConstsHomePageSetting;
   icon?: string;
   keyword?: string;
+  seo_settings?: DomainSEOSettings;
   /** LarkBot */
   lark_bot_settings?: DomainLarkBotSettings;
   /** MCP Server Settings */
@@ -406,6 +408,7 @@ export interface DomainAppSettings {
 export interface DomainAppSettingsResp {
   /** AI feedback */
   ai_feedback_settings?: DomainAIFeedbackSettings;
+  brand_settings?: DomainBrandSettings;
   body_code?: string;
   btns?: unknown[];
   /** catalog settings */
@@ -438,6 +441,7 @@ export interface DomainAppSettingsResp {
   home_page_setting?: ConstsHomePageSetting;
   icon?: string;
   keyword?: string;
+  seo_settings?: DomainSEOSettings;
   /** LarkBot */
   lark_bot_settings?: DomainLarkBotSettings;
   /** MCP Server Settings */
@@ -727,6 +731,12 @@ export interface DomainConversationReference {
   name?: string;
   node_id?: string;
   url?: string;
+}
+
+export interface DomainBrandSettings {
+  copyright_info?: string;
+  hide_copyright?: boolean;
+  powered_by_label?: string;
 }
 
 export interface DomainConversationSetting {
@@ -1281,6 +1291,14 @@ export interface DomainStatsSetting {
   pv_enable?: boolean;
 }
 
+export interface DomainSEOSettings {
+  canonical_url?: string;
+  json_ld?: string;
+  og_image?: string;
+  robots?: string;
+  twitter_card?: string;
+}
+
 export interface DomainSwitchModeReq {
   /** 百智云 API Key */
   auto_mode_api_key?: string;
@@ -1781,6 +1799,26 @@ export interface V1StatCountResp {
   session_count?: number;
 }
 
+export interface V1StatFunnelData {
+  conversion_rate?: number;
+  conversations?: number;
+  page_visit_count?: number;
+  sessions?: number;
+  visits?: number;
+}
+
+export interface V1StatSourceItem {
+  conversion_rate?: number;
+  estimated?: boolean;
+  referer_host?: string;
+  visits?: number;
+}
+
+export interface V1StatFunnelResp {
+  funnel?: V1StatFunnelData;
+  sources?: V1StatSourceItem[];
+}
+
 export interface V1UserInfoResp {
   account?: string;
   created_at?: string;
@@ -1999,6 +2037,11 @@ export interface GetApiV1StatInstantPagesParams {
 }
 
 export interface GetApiV1StatRefererHostsParams {
+  day?: 1 | 7 | 30 | 90;
+  kb_id: string;
+}
+
+export interface GetApiV1StatFunnelParams {
   day?: 1 | 7 | 30 | 90;
   kb_id: string;
 }

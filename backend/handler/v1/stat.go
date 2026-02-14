@@ -40,6 +40,7 @@ func NewStatHandler(baseHandler *handler.BaseHandler, echo *echo.Echo, usecase *
 	group.GET("/hot_pages", h.StatHotPages)
 	group.GET("/referer_hosts", h.StatRefererHosts)
 	group.GET("/browsers", h.StatBrowsers)
+	group.GET("/funnel", h.StatFunnel)
 	return h
 }
 
@@ -236,6 +237,39 @@ func (h *StatHandler) StatBrowsers(c echo.Context) error {
 		return h.NewResponseWithError(c, "get hot browsers failed", err)
 	}
 	return h.NewResponseWithData(c, hotBrowsers)
+}
+
+// StatFunnel 漏斗和来源转化统计
+//
+//	@Summary		漏斗和来源转化统计
+//	@Description	漏斗和来源转化统计
+//	@Tags			stat
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			para	query		v1.StatFunnelReq	true	"para"
+//	@Success		200		{object}	domain.Response{data=v1.StatFunnelResp}
+//	@Router			/api/v1/stat/funnel [get]
+func (h *StatHandler) StatFunnel(c echo.Context) error {
+	var req v1.StatFunnelReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request parameters", err)
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "validation failed", err)
+	}
+
+	if err := h.usecase.ValidateStatDay(req.Day, consts.GetLicenseEdition(c)); err != nil {
+		h.logger.Error("validate stat day failed")
+		return h.NewResponseWithErrCode(c, domain.ErrCodePermissionDenied)
+	}
+
+	resp, err := h.usecase.GetStatFunnel(c.Request().Context(), req.KbID, req.Day)
+	if err != nil {
+		return h.NewResponseWithError(c, "get stat funnel failed", err)
+	}
+	return h.NewResponseWithData(c, resp)
 }
 
 // GetInstantCount get instant count

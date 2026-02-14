@@ -14,6 +14,14 @@ const LANGUAGE_OPTIONS = [
   { value: 'auto', label: '跟随浏览器' },
 ];
 
+const DEFAULT_LANGUAGES = ['zh-CN', 'en-US'];
+
+type I18nSettings = {
+  default_language?: string;
+  supported_languages?: string[];
+  follow_browser?: boolean;
+};
+
 const CardLanguage = ({
   data,
   refresh,
@@ -30,9 +38,28 @@ const CardLanguage = ({
   });
 
   const onSubmit = handleSubmit(value => {
+    const currentSettings = data.settings as Record<string, unknown>;
+    const currentI18n = (currentSettings.i18n_settings || {}) as I18nSettings;
+    const fallbackDefaultLanguage =
+      value.language === 'auto'
+        ? currentI18n.default_language || 'en-US'
+        : value.language;
+    const nextSettings = {
+      ...currentSettings,
+      language: value.language,
+      i18n_settings: {
+        ...currentI18n,
+        follow_browser: value.language === 'auto',
+        default_language: fallbackDefaultLanguage,
+        supported_languages:
+          currentI18n.supported_languages?.length
+            ? currentI18n.supported_languages
+            : DEFAULT_LANGUAGES,
+      },
+    };
     putApiV1App(
       { id: data.id! },
-      { settings: { ...data.settings, language: value.language }, kb_id },
+      { settings: nextSettings as any, kb_id },
     ).then(() => {
       refresh({ language: value.language });
       message.success('保存成功');
@@ -41,7 +68,12 @@ const CardLanguage = ({
   });
 
   useEffect(() => {
-    const language = (data.settings as { language?: string })?.language;
+    const settings = data.settings as {
+      language?: string;
+      i18n_settings?: I18nSettings;
+    };
+    const language =
+      settings?.language || settings?.i18n_settings?.default_language;
     setValue('language', language || 'en-US');
   }, [data]);
 

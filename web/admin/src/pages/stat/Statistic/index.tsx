@@ -3,10 +3,12 @@ import { CusTabs } from '@ctzhian/ui';
 import { useMemo, useState } from 'react';
 import AreaMap from './AreaMap';
 import ClientStat from './ClientStat';
+import FunnelConversion from './FunnelConversion';
 import HostReferer from './HostReferer';
 import HotDocs from './HotDocs';
 import QAReferer from './QAReferer';
 import RTVisitor from './RTVisitor';
+import SourceConversion from './SourceConversion';
 import TypeCount from './TypeCount';
 import { useAppSelector } from '@/store';
 import { VersionCanUse } from '@/components/VersionMask';
@@ -102,6 +104,19 @@ const Statistic = () => {
         />
       </Box>
       <TypeCount tab={tab} />
+      <Stack
+        direction={isWideScreen ? 'row' : 'column'}
+        gap={2}
+        alignItems={'stretch'}
+        sx={{ my: 2 }}
+      >
+        <Box sx={{ flex: 1 }}>
+          <FunnelConversion tab={tab} />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <SourceConversion tab={tab} />
+        </Box>
+      </Stack>
       <Stack
         direction={isWideScreen ? 'row' : 'column'}
         gap={2}

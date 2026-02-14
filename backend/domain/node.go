@@ -33,6 +33,11 @@ const (
 )
 
 const (
+	NodeReleaseAuditActionPublish  = "publish"
+	NodeReleaseAuditActionRollback = "rollback"
+)
+
+const (
 	ContentTypeMD   string = "md"
 	ContentTypeHTML string = "html"
 )
@@ -120,9 +125,16 @@ type NodeGroupDetail struct {
 }
 
 type NodeMeta struct {
-	Summary     string `json:"summary"`
-	Emoji       string `json:"emoji"`
-	ContentType string `json:"content_type"`
+	Summary      string                            `json:"summary"`
+	Emoji        string                            `json:"emoji"`
+	ContentType  string                            `json:"content_type"`
+	Translations map[string]NodeTranslationContent `json:"translations,omitempty"`
+}
+
+type NodeTranslationContent struct {
+	Name    string `json:"name,omitempty"`
+	Content string `json:"content,omitempty"`
+	Summary string `json:"summary,omitempty"`
 }
 
 func (d *NodeMeta) Value() (driver.Value, error) {
@@ -320,6 +332,23 @@ func (NodeRelease) TableName() string {
 	return "node_releases"
 }
 
+// table: node_release_audits
+type NodeReleaseAudit struct {
+	ID             int64           `json:"id" gorm:"primaryKey;autoIncrement"`
+	KBID           string          `json:"kb_id" gorm:"index"`
+	NodeID         string          `json:"node_id" gorm:"index"`
+	Action         string          `json:"action" gorm:"index"`
+	OperatorUserID string          `json:"operator_user_id" gorm:"index"`
+	SourceVersion  *string         `json:"source_version,omitempty"`
+	TargetVersion  *string         `json:"target_version,omitempty"`
+	Detail         json.RawMessage `json:"detail" gorm:"type:jsonb"`
+	CreatedAt      time.Time       `json:"created_at"`
+}
+
+func (NodeReleaseAudit) TableName() string {
+	return "node_release_audits"
+}
+
 // NodeReleaseWithDirPath extends NodeRelease with directory path information
 type NodeReleaseWithDirPath struct {
 	*NodeRelease
@@ -342,4 +371,66 @@ type NodeReleaseWithPublisher struct {
 	ID               string `json:"id" gorm:"primaryKey"`
 	PublisherId      string `json:"publisher_id"`
 	PublisherAccount string `json:"publisher_account"`
+}
+
+type GetNodeReleaseListReq struct {
+	KBID   string `json:"kb_id" query:"kb_id" validate:"required"`
+	NodeID string `json:"node_id" query:"node_id" validate:"required"`
+}
+
+type NodeReleaseListItem struct {
+	ID               string    `json:"id"`
+	NodeID           string    `json:"node_id"`
+	Name             string    `json:"name"`
+	Meta             NodeMeta  `json:"meta"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	CreatorID        string    `json:"creator_id"`
+	CreatorAccount   string    `json:"creator_account"`
+	EditorID         string    `json:"editor_id"`
+	EditorAccount    string    `json:"editor_account"`
+	PublisherID      string    `json:"publisher_id"`
+	PublisherAccount string    `json:"publisher_account"`
+	ReleaseID        string    `json:"release_id"`
+	ReleaseName      string    `json:"release_name"`
+	ReleaseMessage   string    `json:"release_message"`
+}
+
+type GetNodeReleaseDetailReq struct {
+	KBID string `json:"kb_id" query:"kb_id" validate:"required"`
+	ID   string `json:"id" query:"id" validate:"required"`
+}
+
+type GetNodeReleaseDetailResp struct {
+	NodeID           string   `json:"node_id"`
+	Name             string   `json:"name"`
+	Content          string   `json:"content"`
+	Meta             NodeMeta `json:"meta"`
+	CreatorID        string   `json:"creator_id"`
+	CreatorAccount   string   `json:"creator_account"`
+	EditorID         string   `json:"editor_id"`
+	EditorAccount    string   `json:"editor_account"`
+	PublisherID      string   `json:"publisher_id"`
+	PublisherAccount string   `json:"publisher_account"`
+}
+
+type RollbackNodeReleaseReq struct {
+	KBID string `json:"kb_id" validate:"required"`
+	ID   string `json:"id" validate:"required"`
+}
+
+type RollbackNodeReleaseResp struct {
+	NodeID string `json:"node_id"`
+}
+
+type GetNodeReleaseDiffReq struct {
+	KBID   string `json:"kb_id" query:"kb_id" validate:"required"`
+	ID     string `json:"id" query:"id" validate:"required"`
+	PrevID string `json:"prev_id" query:"prev_id"`
+}
+
+type GetNodeReleaseDiffResp struct {
+	Current       *GetNodeReleaseDetailResp `json:"current"`
+	Previous      *GetNodeReleaseDetailResp `json:"previous,omitempty"`
+	HasDiff       bool                      `json:"has_diff"`
+	ChangedFields []string                  `json:"changed_fields"`
 }

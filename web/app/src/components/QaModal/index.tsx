@@ -101,6 +101,22 @@ const QaModal: React.FC<QaModalProps> = () => {
     return bannerConfig?.banner_config?.hot_search || [];
   }, [kbDetail]);
 
+  const hideCopyright = useMemo(() => {
+    return (
+      kbDetail?.settings?.brand_settings?.hide_copyright ??
+      kbDetail?.settings?.conversation_setting?.copyright_hide_enabled ??
+      false
+    );
+  }, [kbDetail]);
+
+  const copyrightText = useMemo(() => {
+    return (
+      kbDetail?.settings?.brand_settings?.copyright_info ||
+      kbDetail?.settings?.conversation_setting?.copyright_info ||
+      t('brand.defaultCopyright')
+    );
+  }, [kbDetail, t]);
+
   // modal打开时自动聚焦
   useEffect(() => {
     if (qaModalOpen) {
@@ -249,10 +265,7 @@ const QaModal: React.FC<QaModalProps> = () => {
         <Box
           sx={{
             px: 3,
-            pt: !kbDetail?.settings?.conversation_setting
-              ?.copyright_hide_enabled
-              ? 2
-              : 0,
+            pt: !hideCopyright ? 2 : 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -268,12 +281,7 @@ const QaModal: React.FC<QaModalProps> = () => {
               gap: 1,
             }}
           >
-            <Box>
-              {!kbDetail?.settings?.conversation_setting
-                ?.copyright_hide_enabled &&
-                (kbDetail?.settings?.conversation_setting?.copyright_info ||
-                  t('brand.defaultCopyright'))}
-            </Box>
+            <Box>{!hideCopyright && copyrightText}</Box>
           </Typography>
         </Box>
       </Box>

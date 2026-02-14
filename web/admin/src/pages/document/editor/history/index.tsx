@@ -1,11 +1,12 @@
 import EmojiPicker from '@/components/Emoji';
 import { DocWidth } from '@/constant/enums';
-import { getApiV1NodeDetail, putApiV1NodeDetail } from '@/request';
+import { getApiV1NodeDetail } from '@/request';
 import {
   DomainGetNodeReleaseDetailResp,
   DomainNodeReleaseListItem,
   getApiProV1NodeReleaseDetail,
   getApiProV1NodeReleaseList,
+  postApiProV1NodeReleaseRollback,
 } from '@/request/pro';
 import { DomainNodeStatus, V1NodeDetailResp } from '@/request/types';
 import { useAppSelector } from '@/store';
@@ -593,10 +594,10 @@ const History = () => {
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onOk={async () => {
-          await putApiV1NodeDetail({
-            id: id,
+          if (!curVersion?.id) return;
+          await postApiProV1NodeReleaseRollback({
+            id: curVersion.id,
             kb_id: kb_id,
-            content: curNode?.content,
           });
           navigate(`/doc/editor/${id}`, {
             state: {

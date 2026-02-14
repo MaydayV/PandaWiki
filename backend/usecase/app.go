@@ -97,6 +97,12 @@ func (u *AppUsecase) ValidateUpdateApp(ctx context.Context, id string, req *doma
 	if err != nil {
 		return err
 	}
+	if req.Settings == nil {
+		return nil
+	}
+
+	u.syncBrandAndLegacyCopyrightSettings(&app.Settings)
+	u.syncBrandAndLegacyCopyrightSettings(req.Settings)
 
 	limitation := domain.GetBaseEditionLimitation(ctx)
 	if !limitation.AllowCopyProtection && app.Settings.CopySetting != req.Settings.CopySetting {
@@ -148,6 +154,13 @@ func (u *AppUsecase) ValidateUpdateApp(ctx context.Context, id string, req *doma
 		if req.Settings.ConversationSetting.CopyrightInfo != domain.SettingCopyrightInfo && app.Settings.ConversationSetting.CopyrightInfo != req.Settings.ConversationSetting.CopyrightInfo {
 			req.Settings.ConversationSetting.CopyrightInfo = domain.SettingCopyrightInfo
 		}
+		if app.Settings.BrandSettings.HideCopyright != req.Settings.BrandSettings.HideCopyright {
+			return domain.ErrPermissionDenied
+		}
+		if req.Settings.BrandSettings.CopyrightInfo != domain.SettingCopyrightInfo && app.Settings.BrandSettings.CopyrightInfo != req.Settings.BrandSettings.CopyrightInfo {
+			req.Settings.BrandSettings.CopyrightInfo = domain.SettingCopyrightInfo
+		}
+		u.syncBrandAndLegacyCopyrightSettings(req.Settings)
 	}
 
 	if !limitation.AllowMCPServer {
@@ -160,8 +173,11 @@ func (u *AppUsecase) ValidateUpdateApp(ctx context.Context, id string, req *doma
 }
 
 func (u *AppUsecase) UpdateApp(ctx context.Context, id string, appRequest *domain.UpdateAppReq) error {
-	if err := u.handleBotAuths(ctx, id, appRequest.Settings); err != nil {
-		return err
+	if appRequest.Settings != nil {
+		u.syncBrandAndLegacyCopyrightSettings(appRequest.Settings)
+		if err := u.handleBotAuths(ctx, id, appRequest.Settings); err != nil {
+			return err
+		}
 	}
 
 	if err := u.repo.UpdateApp(ctx, id, appRequest.KbID, appRequest); err != nil {
@@ -439,7 +455,10 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 	if err != nil {
 		return nil, err
 	}
-	language := u.resolveLanguage(app.Settings.Language)
+	u.syncBrandAndLegacyCopyrightSettings(&app.Settings)
+
+	i18nSettings := u.resolveI18nSettings(app.Settings.Language, app.Settings.I18nSettings)
+	language := u.resolveLanguage(app.Settings.Language, i18nSettings)
 	appDetailResp := &domain.AppDetailResp{
 		ID:   app.ID,
 		KBID: app.KBID,
@@ -481,6 +500,7 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 		RecommendNodeIDs:   app.Settings.RecommendNodeIDs,
 		Desc:               app.Settings.Desc,
 		Keyword:            app.Settings.Keyword,
+		SEOSettings:        app.Settings.SEOSettings,
 		HeadCode:           app.Settings.HeadCode,
 		BodyCode:           app.Settings.BodyCode,
 		// DingTalkBot
@@ -555,11 +575,14 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 
 		MCPServerSettings: app.Settings.MCPServerSettings,
 		StatsSetting:      app.Settings.StatsSetting,
+		AnalyticsSettings: app.Settings.AnalyticsSettings,
+		SecuritySettings:  app.Settings.SecuritySettings,
+		BrandSettings:     app.Settings.BrandSettings,
+		I18nSettings:      i18nSettings,
 	}
 
 	if !domain.GetBaseEditionLimitation(ctx).AllowCustomCopyright {
-		appDetailResp.Settings.ConversationSetting.CopyrightHideEnabled = false
-		appDetailResp.Settings.ConversationSetting.CopyrightInfo = domain.SettingCopyrightInfo
+		u.applyCopyrightLimitForResponse(&appDetailResp.Settings)
 	}
 
 	// init ai feedback string
@@ -608,7 +631,10 @@ func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId
 	if err != nil {
 		return nil, err
 	}
-	language := u.resolveLanguage(app.Settings.Language)
+	u.syncBrandAndLegacyCopyrightSettings(&app.Settings)
+
+	i18nSettings := u.resolveI18nSettings(app.Settings.Language, app.Settings.I18nSettings)
+	language := u.resolveLanguage(app.Settings.Language, i18nSettings)
 	var webAppLandingConfigs []domain.WebAppLandingConfigResp
 	for i := range app.Settings.WebAppLandingConfigs {
 		webAppLandingConfigResp := domain.WebAppLandingConfigResp{
@@ -652,6 +678,7 @@ func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId
 			RecommendNodeIDs:   app.Settings.RecommendNodeIDs,
 			Desc:               app.Settings.Desc,
 			Keyword:            app.Settings.Keyword,
+			SEOSettings:        app.Settings.SEOSettings,
 			HeadCode:           app.Settings.HeadCode,
 			BodyCode:           app.Settings.BodyCode,
 			// theme
@@ -682,6 +709,10 @@ func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId
 			HomePageSetting:     app.Settings.HomePageSetting,
 			ConversationSetting: app.Settings.ConversationSetting,
 			StatsSetting:        app.Settings.StatsSetting,
+			AnalyticsSettings:   app.Settings.AnalyticsSettings,
+			SecuritySettings:    app.Settings.SecuritySettings,
+			BrandSettings:       app.Settings.BrandSettings,
+			I18nSettings:        i18nSettings,
 		},
 	}
 	// init ai feedback string
@@ -692,13 +723,12 @@ func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId
 		appInfo.Settings.HomePageSetting = consts.HomePageSettingDoc
 	}
 	showBrand := true
-	defaultDisclaimer := u.defaultDisclaimerByLanguage(language)
+	defaultDisclaimer := u.defaultDisclaimerByLanguage(i18nSettings.DefaultLanguage)
 
 	if !domain.GetBaseEditionLimitation(ctx).AllowCustomCopyright {
 		appInfo.Settings.WebAppCustomSettings.ShowBrandInfo = &showBrand
 		appInfo.Settings.DisclaimerSettings.Content = &defaultDisclaimer
-		appInfo.Settings.ConversationSetting.CopyrightHideEnabled = false
-		appInfo.Settings.ConversationSetting.CopyrightInfo = domain.SettingCopyrightInfo
+		u.applyCopyrightLimitForResponse(&appInfo.Settings)
 	} else {
 		if appInfo.Settings.DisclaimerSettings.Content == nil {
 			appInfo.Settings.DisclaimerSettings.Content = &defaultDisclaimer
@@ -713,11 +743,26 @@ func (u *AppUsecase) GetWidgetAppInfo(ctx context.Context, kbID string) (*domain
 	if err != nil {
 		return nil, err
 	}
+	u.syncBrandAndLegacyCopyrightSettings(&webApp.Settings)
+
 	widgetApp, err := u.repo.GetOrCreateAppByKBIDAndType(ctx, kbID, domain.AppTypeWidget)
 	if err != nil {
 		return nil, err
 	}
-	language := u.resolveLanguage(webApp.Settings.Language)
+	u.syncBrandAndLegacyCopyrightSettings(&widgetApp.Settings)
+
+	brandSettings := webApp.Settings.BrandSettings
+	if !isBrandSettingsConfigured(brandSettings) && isBrandSettingsConfigured(widgetApp.Settings.BrandSettings) {
+		brandSettings = widgetApp.Settings.BrandSettings
+	}
+	widgetBotSettings := widgetApp.Settings.WidgetBotSettings
+	if isBrandSettingsConfigured(brandSettings) {
+		widgetBotSettings.CopyrightHideEnabled = brandSettings.HideCopyright
+		widgetBotSettings.CopyrightInfo = brandSettings.CopyrightInfo
+	}
+
+	i18nSettings := u.resolveI18nSettings(webApp.Settings.Language, webApp.Settings.I18nSettings)
+	language := u.resolveLanguage(webApp.Settings.Language, i18nSettings)
 	appInfo := &domain.AppInfoResp{
 		Settings: domain.AppSettingsResp{
 			Title:              webApp.Settings.Title,
@@ -725,8 +770,13 @@ func (u *AppUsecase) GetWidgetAppInfo(ctx context.Context, kbID string) (*domain
 			Language:           language,
 			WelcomeStr:         webApp.Settings.WelcomeStr,
 			SearchPlaceholder:  webApp.Settings.SearchPlaceholder,
+			SEOSettings:        webApp.Settings.SEOSettings,
 			RecommendQuestions: widgetApp.Settings.WidgetBotSettings.RecommendQuestions,
-			WidgetBotSettings:  widgetApp.Settings.WidgetBotSettings,
+			WidgetBotSettings:  widgetBotSettings,
+			AnalyticsSettings:  webApp.Settings.AnalyticsSettings,
+			SecuritySettings:   webApp.Settings.SecuritySettings,
+			BrandSettings:      brandSettings,
+			I18nSettings:       i18nSettings,
 		},
 	}
 	if len(widgetApp.Settings.WidgetBotSettings.RecommendNodeIDs) > 0 {
@@ -741,18 +791,69 @@ func (u *AppUsecase) GetWidgetAppInfo(ctx context.Context, kbID string) (*domain
 	}
 
 	if !domain.GetBaseEditionLimitation(ctx).AllowCustomCopyright {
-		appInfo.Settings.WidgetBotSettings.CopyrightHideEnabled = false
-		appInfo.Settings.WidgetBotSettings.CopyrightInfo = domain.SettingCopyrightInfo
+		u.applyCopyrightLimitForResponse(&appInfo.Settings)
 	}
 
 	return appInfo, nil
 }
 
-func (u *AppUsecase) resolveLanguage(language string) string {
-	if strings.TrimSpace(language) == "" {
-		return domain.SettingDefaultLanguage
+func (u *AppUsecase) resolveLanguage(language string, i18nSettings domain.I18nSettings) string {
+	if strings.TrimSpace(language) != "" {
+		return language
 	}
-	return language
+	if normalized := normalizeLanguageForI18n(i18nSettings.DefaultLanguage); normalized != "" {
+		return normalized
+	}
+	return domain.SettingDefaultLanguage
+}
+
+func (u *AppUsecase) resolveI18nSettings(language string, i18nSettings domain.I18nSettings) domain.I18nSettings {
+	resolved := i18nSettings
+
+	defaultLanguage := normalizeLanguageForI18n(resolved.DefaultLanguage)
+	if defaultLanguage == "" {
+		defaultLanguage = normalizeLanguageForI18n(language)
+	}
+	if defaultLanguage == "" {
+		defaultLanguage = domain.SettingDefaultLanguage
+	}
+	resolved.DefaultLanguage = defaultLanguage
+
+	if strings.EqualFold(strings.TrimSpace(language), "auto") {
+		resolved.FollowBrowser = true
+	}
+
+	if len(resolved.SupportedLanguages) == 0 {
+		resolved.SupportedLanguages = []string{"zh-CN", "en-US"}
+	}
+	if !containsLanguage(resolved.SupportedLanguages, resolved.DefaultLanguage) {
+		resolved.SupportedLanguages = append([]string{resolved.DefaultLanguage}, resolved.SupportedLanguages...)
+	}
+	return resolved
+}
+
+func normalizeLanguageForI18n(language string) string {
+	value := strings.ToLower(strings.TrimSpace(language))
+	switch {
+	case value == "", value == "auto":
+		return ""
+	case strings.HasPrefix(value, "zh"):
+		return "zh-CN"
+	case strings.HasPrefix(value, "en"):
+		return "en-US"
+	default:
+		return strings.TrimSpace(language)
+	}
+}
+
+func containsLanguage(languages []string, target string) bool {
+	target = strings.TrimSpace(target)
+	for _, language := range languages {
+		if strings.EqualFold(strings.TrimSpace(language), target) {
+			return true
+		}
+	}
+	return false
 }
 
 func (u *AppUsecase) defaultDisclaimerByLanguage(language string) string {
@@ -762,6 +863,55 @@ func (u *AppUsecase) defaultDisclaimerByLanguage(language string) string {
 	default:
 		return "本回答由 PandaWiki 基于 AI 生成，仅供参考。"
 	}
+}
+
+func isBrandSettingsConfigured(brand domain.BrandSettings) bool {
+	return brand.HideCopyright || strings.TrimSpace(brand.CopyrightInfo) != "" || strings.TrimSpace(brand.PoweredByLabel) != ""
+}
+
+func isConversationCopyrightConfigured(conversation domain.ConversationSetting) bool {
+	return conversation.CopyrightHideEnabled || strings.TrimSpace(conversation.CopyrightInfo) != ""
+}
+
+func isWidgetCopyrightConfigured(widget domain.WidgetBotSettings) bool {
+	return widget.CopyrightHideEnabled || strings.TrimSpace(widget.CopyrightInfo) != ""
+}
+
+func (u *AppUsecase) syncBrandAndLegacyCopyrightSettings(settings *domain.AppSettings) {
+	if settings == nil {
+		return
+	}
+
+	brandSettings := settings.BrandSettings
+	if !isBrandSettingsConfigured(brandSettings) {
+		switch {
+		case isConversationCopyrightConfigured(settings.ConversationSetting):
+			brandSettings.HideCopyright = settings.ConversationSetting.CopyrightHideEnabled
+			brandSettings.CopyrightInfo = settings.ConversationSetting.CopyrightInfo
+		case isWidgetCopyrightConfigured(settings.WidgetBotSettings):
+			brandSettings.HideCopyright = settings.WidgetBotSettings.CopyrightHideEnabled
+			brandSettings.CopyrightInfo = settings.WidgetBotSettings.CopyrightInfo
+		}
+	}
+
+	settings.BrandSettings = brandSettings
+	settings.ConversationSetting.CopyrightHideEnabled = brandSettings.HideCopyright
+	settings.ConversationSetting.CopyrightInfo = brandSettings.CopyrightInfo
+	settings.WidgetBotSettings.CopyrightHideEnabled = brandSettings.HideCopyright
+	settings.WidgetBotSettings.CopyrightInfo = brandSettings.CopyrightInfo
+}
+
+func (u *AppUsecase) applyCopyrightLimitForResponse(settings *domain.AppSettingsResp) {
+	if settings == nil {
+		return
+	}
+
+	settings.BrandSettings.HideCopyright = false
+	settings.BrandSettings.CopyrightInfo = domain.SettingCopyrightInfo
+	settings.ConversationSetting.CopyrightHideEnabled = false
+	settings.ConversationSetting.CopyrightInfo = domain.SettingCopyrightInfo
+	settings.WidgetBotSettings.CopyrightHideEnabled = false
+	settings.WidgetBotSettings.CopyrightInfo = domain.SettingCopyrightInfo
 }
 
 func (u *AppUsecase) GetWechatAppInfo(ctx context.Context, kbID string) (*v1.WechatAppInfoResp, error) {

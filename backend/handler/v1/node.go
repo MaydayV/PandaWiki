@@ -53,6 +53,15 @@ func NewNodeHandler(
 	group.GET("/permission", h.NodePermission)
 	group.PATCH("/permission/edit", h.NodePermissionEdit)
 
+	proGroup := echo.Group("/api/pro/v1/node", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage))
+	proGroup.POST("/translation/auto", h.AutoTranslateNode)
+
+	proReleaseGroup := echo.Group("/api/pro/v1/node/release", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage))
+	proReleaseGroup.GET("/list", h.GetProNodeReleaseList)
+	proReleaseGroup.GET("/detail", h.GetProNodeReleaseDetail)
+	proReleaseGroup.POST("/rollback", h.RollbackProNodeRelease)
+	proReleaseGroup.GET("/diff", h.GetProNodeReleaseDiff)
+
 	return h
 }
 
@@ -268,6 +277,31 @@ func (h *NodeHandler) SummaryNode(c echo.Context) error {
 	})
 }
 
+func (h *NodeHandler) AutoTranslateNode(c echo.Context) error {
+	ctx := c.Request().Context()
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return h.NewResponseWithError(c, "authInfo not found in context", nil)
+	}
+
+	req := &v1.NodeAutoTranslateReq{}
+	if err := c.Bind(req); err != nil {
+		return h.NewResponseWithError(c, "request body is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request body failed", err)
+	}
+
+	resp, err := h.usecase.AutoTranslateNode(ctx, req, authInfo.UserId)
+	if err != nil {
+		if errors.Is(err, domain.ErrModelNotConfigured) {
+			return h.NewResponseWithError(c, "请前往管理后台，点击右上角的“系统设置”配置推理大模型。", err)
+		}
+		return h.NewResponseWithError(c, "auto translate node failed", err)
+	}
+	return h.NewResponseWithData(c, resp)
+}
+
 // RecommendNodes
 //
 //	@Summary		Recommend Nodes
@@ -319,6 +353,76 @@ func (h *NodeHandler) BatchMoveNode(c echo.Context) error {
 		return h.NewResponseWithError(c, "batch move node failed", err)
 	}
 	return h.NewResponseWithData(c, nil)
+}
+
+func (h *NodeHandler) GetProNodeReleaseList(c echo.Context) error {
+	var req domain.GetNodeReleaseListReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request params is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request params failed", err)
+	}
+
+	items, err := h.usecase.GetProNodeReleaseList(c.Request().Context(), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "get node release list failed", err)
+	}
+	return h.NewResponseWithData(c, items)
+}
+
+func (h *NodeHandler) GetProNodeReleaseDetail(c echo.Context) error {
+	var req domain.GetNodeReleaseDetailReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request params is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request params failed", err)
+	}
+
+	item, err := h.usecase.GetProNodeReleaseDetail(c.Request().Context(), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "get node release detail failed", err)
+	}
+	return h.NewResponseWithData(c, item)
+}
+
+func (h *NodeHandler) RollbackProNodeRelease(c echo.Context) error {
+	ctx := c.Request().Context()
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return h.NewResponseWithError(c, "authInfo not found in context", nil)
+	}
+
+	var req domain.RollbackNodeReleaseReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request body is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request body failed", err)
+	}
+
+	resp, err := h.usecase.RollbackNodeRelease(ctx, &req, authInfo.UserId)
+	if err != nil {
+		return h.NewResponseWithError(c, "rollback node release failed", err)
+	}
+	return h.NewResponseWithData(c, resp)
+}
+
+func (h *NodeHandler) GetProNodeReleaseDiff(c echo.Context) error {
+	var req domain.GetNodeReleaseDiffReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request params is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request params failed", err)
+	}
+
+	resp, err := h.usecase.GetNodeReleaseDiff(c.Request().Context(), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "get node release diff failed", err)
+	}
+	return h.NewResponseWithData(c, resp)
 }
 
 // NodePermission 文档授权信息获取

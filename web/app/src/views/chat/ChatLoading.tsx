@@ -6,12 +6,13 @@ import { useI18n } from '@/i18n/useI18n';
 
 interface ChatLoadingProps {
   thinking: keyof ReturnType<typeof getAnswerStatus>;
+  statusText?: ReturnType<typeof getAnswerStatus>;
   onClick?: () => void;
 }
 
-const ChatLoading = ({ thinking, onClick }: ChatLoadingProps) => {
+const ChatLoading = ({ thinking, statusText, onClick }: ChatLoadingProps) => {
   const { t } = useI18n();
-  const answerStatus = getAnswerStatus(t);
+  const answerStatus = statusText || getAnswerStatus(t);
   return (
     <Stack
       direction={onClick ? 'row-reverse' : 'row'}

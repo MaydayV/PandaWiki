@@ -65,3 +65,19 @@ type NodeRestudyReq struct {
 
 type NodeRestudyResp struct {
 }
+
+type NodeAutoTranslateReq struct {
+	KBID                   string   `json:"kb_id" validate:"required"`
+	NodeID                 string   `json:"node_id" validate:"required"`
+	TargetLanguages        []string `json:"target_languages" validate:"required,min=1,dive,required"`
+	PublishToLatestRelease bool     `json:"publish_to_latest_release"`
+	Overwrite              bool     `json:"overwrite"`
+}
+
+type NodeAutoTranslateResp struct {
+	NodeID              string   `json:"node_id"`
+	TranslatedLanguages []string `json:"translated_languages"`
+	SkippedLanguages    []string `json:"skipped_languages"`
+	AvailableLanguages  []string `json:"available_languages"`
+	Published           bool     `json:"published"`
+}

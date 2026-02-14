@@ -3,6 +3,7 @@ package share
 import (
 	"github.com/labstack/echo/v4"
 
+	shareV1 "github.com/chaitin/panda-wiki/api/share/v1"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
@@ -77,24 +78,36 @@ func (h *ShareNodeHandler) GetNodeDetail(c echo.Context) error {
 	if kbID == "" {
 		return h.NewResponseWithError(c, "kb_id is required", nil)
 	}
-	id := c.QueryParam("id")
-	if id == "" {
-		return h.NewResponseWithError(c, "id is required", nil)
+
+	req := &shareV1.GetShareNodeDetailReq{}
+	if err := c.Bind(req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request failed", err)
 	}
 
-	errCode := h.usecase.ValidateNodePerm(c.Request().Context(), kbID, id, domain.GetAuthID(c))
+	errCode := h.usecase.ValidateNodePerm(c.Request().Context(), kbID, req.ID, domain.GetAuthID(c))
 	if errCode != nil {
 		return h.NewResponseWithErrCode(c, *errCode)
 	}
 
-	node, err := h.usecase.GetNodeReleaseDetailByKBIDAndID(c.Request().Context(), kbID, id, c.QueryParam("format"))
+	node, err := h.usecase.GetNodeReleaseDetailByKBIDAndIDWithLanguage(
+		c.Request().Context(),
+		kbID,
+		req.ID,
+		req.Format,
+		req.Lang,
+		req.Language,
+		c.Request().Header.Get("Accept-Language"),
+	)
 	if err != nil {
 		return h.NewResponseWithError(c, "failed to get node detail", err)
 	}
 
 	// If the node is a folder, return the list of child nodes
 	if node.Type == domain.NodeTypeFolder {
-		childNodes, err := h.usecase.GetNodeReleaseListByParentID(c.Request().Context(), kbID, id, domain.GetAuthID(c))
+		childNodes, err := h.usecase.GetNodeReleaseListByParentID(c.Request().Context(), kbID, req.ID, domain.GetAuthID(c))
 		if err != nil {
 			return h.NewResponseWithError(c, "failed to get child nodes", err)
 		}

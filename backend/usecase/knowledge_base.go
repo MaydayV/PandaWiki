@@ -2,10 +2,13 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	v1 "github.com/chaitin/panda-wiki/api/kb/v1"
 	"github.com/chaitin/panda-wiki/config"
@@ -19,26 +22,28 @@ import (
 )
 
 type KnowledgeBaseUsecase struct {
-	repo     *pg.KnowledgeBaseRepository
-	nodeRepo *pg.NodeRepository
-	ragRepo  *mq.RAGRepository
-	userRepo *pg.UserRepository
-	rag      rag.RAGService
-	kbCache  *cache.KBRepo
-	logger   *log.Logger
-	config   *config.Config
+	repo      *pg.KnowledgeBaseRepository
+	nodeRepo  *pg.NodeRepository
+	ragRepo   *mq.RAGRepository
+	userRepo  *pg.UserRepository
+	tokenRepo *pg.APITokenRepo
+	rag       rag.RAGService
+	kbCache   *cache.KBRepo
+	logger    *log.Logger
+	config    *config.Config
 }
 
-func NewKnowledgeBaseUsecase(repo *pg.KnowledgeBaseRepository, nodeRepo *pg.NodeRepository, ragRepo *mq.RAGRepository, userRepo *pg.UserRepository, rag rag.RAGService, kbCache *cache.KBRepo, logger *log.Logger, config *config.Config) (*KnowledgeBaseUsecase, error) {
+func NewKnowledgeBaseUsecase(repo *pg.KnowledgeBaseRepository, nodeRepo *pg.NodeRepository, ragRepo *mq.RAGRepository, userRepo *pg.UserRepository, tokenRepo *pg.APITokenRepo, rag rag.RAGService, kbCache *cache.KBRepo, logger *log.Logger, config *config.Config) (*KnowledgeBaseUsecase, error) {
 	u := &KnowledgeBaseUsecase{
-		repo:     repo,
-		nodeRepo: nodeRepo,
-		ragRepo:  ragRepo,
-		userRepo: userRepo,
-		rag:      rag,
-		logger:   logger.WithModule("usecase.knowledge_base"),
-		config:   config,
-		kbCache:  kbCache,
+		repo:      repo,
+		nodeRepo:  nodeRepo,
+		ragRepo:   ragRepo,
+		userRepo:  userRepo,
+		tokenRepo: tokenRepo,
+		rag:       rag,
+		logger:    logger.WithModule("usecase.knowledge_base"),
+		config:    config,
+		kbCache:   kbCache,
 	}
 	return u, nil
 }
@@ -282,5 +287,117 @@ func (u *KnowledgeBaseUsecase) KBUserDelete(ctx context.Context, req v1.KBUserDe
 		return err
 	}
 
+	return nil
+}
+
+func (u *KnowledgeBaseUsecase) CreateAPIToken(ctx context.Context, req *domain.CreateAPITokenReq) (*domain.APITokenListItem, error) {
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return nil, fmt.Errorf("authInfo not found in context")
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		return nil, fmt.Errorf("api token name is required")
+	}
+
+	token, err := domain.GenerateAPITokenValue()
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	apiToken := &domain.APIToken{
+		ID:                 uuid.New().String(),
+		Name:               req.Name,
+		UserID:             authInfo.UserId,
+		Token:              token,
+		KbId:               req.KBID,
+		Permission:         req.Permission,
+		RateLimitPerMinute: req.RateLimitPerMinute,
+		DailyQuota:         req.DailyQuota,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+
+	if err := u.tokenRepo.Create(ctx, apiToken); err != nil {
+		return nil, err
+	}
+
+	return &domain.APITokenListItem{
+		ID:                 apiToken.ID,
+		Name:               apiToken.Name,
+		Token:              apiToken.Token,
+		Permission:         apiToken.Permission,
+		RateLimitPerMinute: apiToken.RateLimitPerMinute,
+		DailyQuota:         apiToken.DailyQuota,
+		CreatedAt:          apiToken.CreatedAt,
+		UpdatedAt:          apiToken.UpdatedAt,
+	}, nil
+}
+
+func (u *KnowledgeBaseUsecase) ListAPIToken(ctx context.Context, req domain.APITokenListReq) ([]*domain.APITokenListItem, error) {
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return nil, fmt.Errorf("authInfo not found in context")
+	}
+	apiTokens, err := u.tokenRepo.ListByKBAndUser(ctx, req.KBID, authInfo.UserId)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*domain.APITokenListItem, 0, len(apiTokens))
+	for _, item := range apiTokens {
+		items = append(items, &domain.APITokenListItem{
+			ID:                 item.ID,
+			Name:               item.Name,
+			Token:              item.Token,
+			Permission:         item.Permission,
+			RateLimitPerMinute: item.RateLimitPerMinute,
+			DailyQuota:         item.DailyQuota,
+			CreatedAt:          item.CreatedAt,
+			UpdatedAt:          item.UpdatedAt,
+		})
+	}
+	return items, nil
+}
+
+func (u *KnowledgeBaseUsecase) UpdateAPIToken(ctx context.Context, req *domain.UpdateAPITokenReq) error {
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return fmt.Errorf("authInfo not found in context")
+	}
+	if !req.HasUpdates() {
+		return fmt.Errorf("nothing to update")
+	}
+
+	if req.Name != nil {
+		trimmedName := strings.TrimSpace(*req.Name)
+		if trimmedName == "" {
+			return fmt.Errorf("api token name is required")
+		}
+		req.Name = &trimmedName
+	}
+
+	if err := u.tokenRepo.Update(ctx, req, authInfo.UserId); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("api token not found")
+		}
+		return err
+	}
+	return nil
+}
+
+func (u *KnowledgeBaseUsecase) DeleteAPIToken(ctx context.Context, req domain.DeleteAPITokenReq) error {
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return fmt.Errorf("authInfo not found in context")
+	}
+	if err := u.tokenRepo.Delete(ctx, req.ID, req.KBID, authInfo.UserId); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("api token not found")
+		}
+		return err
+	}
 	return nil
 }

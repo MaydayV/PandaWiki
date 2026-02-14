@@ -2,9 +2,11 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -41,6 +43,23 @@ const (
 	summaryChunkTokenLimit = 30720 // 30KB tokens per chunk
 	summaryMaxChunks       = 4     // max chunks to process for summary
 )
+
+const nodeTranslationSystemPrompt = `你是专业文档翻译助手。请将输入文档翻译为目标语言，并严格遵循以下规则：
+1. 输出必须是 JSON 对象，且仅包含键 name/content/summary，不允许附加任何解释。
+2. 必须保留 Markdown/HTML 结构：标题层级、列表、表格、链接 URL、HTML 标签、代码块、行内代码、占位符变量都不能被破坏。
+3. 代码块与行内代码内容不翻译；链接地址、路径、ID、变量名不翻译。
+4. 仅翻译自然语言文本，保持原始语义。
+5. 若输入字段为空字符串，输出对应字段也必须为空字符串。`
+
+var promptTemplateVariablePattern = regexp.MustCompile(`\{\{([^{}]+)\}\}`)
+
+var promptTemplateVariableWhitelistSet = func() map[string]struct{} {
+	set := make(map[string]struct{}, len(domain.PromptTemplateVariableWhitelist))
+	for _, variable := range domain.PromptTemplateVariableWhitelist {
+		set[variable] = struct{}{}
+	}
+	return set
+}()
 
 func NewLLMUsecase(config *config.Config, rag rag.RAGService, conversationRepo *pg.ConversationRepository, kbRepo *pg.KnowledgeBaseRepository, nodeRepo *pg.NodeRepository, modelRepo *pg.ModelRepository, promptRepo *pg.PromptRepo, logger *log.Logger) *LLMUsecase {
 	tiktoken.SetBpeLoader(&utils.Localloader{})
@@ -256,6 +275,66 @@ func (u *LLMUsecase) SummaryNode(ctx context.Context, kbID string, model *domain
 	return finalSummary, nil
 }
 
+func (u *LLMUsecase) TranslateNode(ctx context.Context, model *domain.Model, sourceLanguage, targetLanguage, name, content, summary string) (*domain.NodeTranslationContent, error) {
+	modelkitModel, err := model.ToModelkitModel()
+	if err != nil {
+		return nil, err
+	}
+	chatModel, err := u.modelkit.GetChatModel(ctx, modelkitModel)
+	if err != nil {
+		return nil, err
+	}
+
+	payload, err := json.Marshal(map[string]string{
+		"source_language": sourceLanguage,
+		"target_language": targetLanguage,
+		"name":            name,
+		"content":         content,
+		"summary":         summary,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := u.Generate(ctx, chatModel, []*schema.Message{
+		{
+			Role:    "system",
+			Content: nodeTranslationSystemPrompt,
+		},
+		{
+			Role:    "user",
+			Content: string(payload),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	normalized := strings.TrimSpace(u.trimThinking(result))
+	normalized = trimJSONCodeFence(normalized)
+
+	var translated domain.NodeTranslationContent
+	if err := json.Unmarshal([]byte(normalized), &translated); err != nil {
+		jsonPayload, extractErr := extractJSONObject(normalized)
+		if extractErr != nil {
+			return nil, fmt.Errorf("parse translation result failed: %w", err)
+		}
+		if err := json.Unmarshal([]byte(jsonPayload), &translated); err != nil {
+			return nil, fmt.Errorf("parse translation result failed: %w", err)
+		}
+	}
+	if name != "" && strings.TrimSpace(translated.Name) == "" {
+		translated.Name = name
+	}
+	if content != "" && strings.TrimSpace(translated.Content) == "" {
+		translated.Content = content
+	}
+	if summary != "" && strings.TrimSpace(translated.Summary) == "" {
+		translated.Summary = summary
+	}
+	return &translated, nil
+}
+
 func (u *LLMUsecase) GetPromptSettings(ctx context.Context, kbID string) (*domain.Prompt, error) {
 	promptSetting, found, err := u.promptRepo.GetPromptSettings(ctx, kbID)
 	if err != nil {
@@ -282,24 +361,168 @@ func (u *LLMUsecase) GetPromptSettings(ctx context.Context, kbID string) (*domai
 	}, nil
 }
 
-func (u *LLMUsecase) UpdatePromptSettings(ctx context.Context, req *domain.UpdatePromptReq) (*domain.Prompt, error) {
+func (u *LLMUsecase) GetPromptVersionList(ctx context.Context, req *domain.PromptVersionListReq) ([]*domain.PromptVersionListItem, error) {
+	versions, err := u.promptRepo.GetPromptVersionList(ctx, req.KBID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*domain.PromptVersionListItem, 0, len(versions))
+	for _, version := range versions {
+		items = append(items, &domain.PromptVersionListItem{
+			ID:             version.ID,
+			Version:        version.Version,
+			OperatorUserID: version.OperatorUserID,
+			CreatedAt:      version.CreatedAt,
+		})
+	}
+
+	return items, nil
+}
+
+func (u *LLMUsecase) GetPromptVersionDetail(ctx context.Context, req *domain.PromptVersionDetailReq) (*domain.PromptVersionDetail, error) {
+	version, err := u.promptRepo.GetPromptVersionDetail(ctx, req.KBID, req.Version)
+	if err != nil {
+		return nil, err
+	}
+	if version == nil {
+		return nil, domain.ErrPromptVersionNotFound
+	}
+
+	return &domain.PromptVersionDetail{
+		ID:             version.ID,
+		Version:        version.Version,
+		Content:        version.Content,
+		SummaryContent: version.SummaryContent,
+		OperatorUserID: version.OperatorUserID,
+		CreatedAt:      version.CreatedAt,
+	}, nil
+}
+
+func (u *LLMUsecase) UpdatePromptSettings(ctx context.Context, req *domain.UpdatePromptReq, operatorUserID string) (*domain.Prompt, error) {
 	promptSetting, _, err := u.promptRepo.GetPromptSettings(ctx, req.KBID)
 	if err != nil {
 		return nil, err
 	}
 
 	if req.Content != nil {
+		if err := u.validatePromptTemplateVariables(*req.Content); err != nil {
+			return nil, err
+		}
 		promptSetting.Content = *req.Content
 	}
 	if req.SummaryContent != nil {
+		if err := u.validatePromptTemplateVariables(*req.SummaryContent); err != nil {
+			return nil, err
+		}
 		promptSetting.SummaryContent = *req.SummaryContent
 	}
+	if strings.TrimSpace(promptSetting.Content) == "" {
+		promptSetting.Content = domain.SystemDefaultPrompt
+	}
+	if strings.TrimSpace(promptSetting.SummaryContent) == "" {
+		promptSetting.SummaryContent = domain.SystemDefaultSummaryPrompt
+	}
 
-	if err := u.promptRepo.UpsertPrompt(ctx, req.KBID, promptSetting); err != nil {
+	if _, err := u.promptRepo.UpsertPromptWithVersion(ctx, req.KBID, promptSetting.Content, promptSetting.SummaryContent, operatorUserID); err != nil {
 		return nil, err
 	}
 
 	return u.GetPromptSettings(ctx, req.KBID)
+}
+
+func (u *LLMUsecase) RollbackPromptVersion(ctx context.Context, req *domain.RollbackPromptVersionReq, operatorUserID string) (*domain.RollbackPromptVersionResp, error) {
+	version, err := u.promptRepo.GetPromptVersionDetail(ctx, req.KBID, req.Version)
+	if err != nil {
+		return nil, err
+	}
+	if version == nil {
+		return nil, domain.ErrPromptVersionNotFound
+	}
+
+	newVersion, err := u.promptRepo.UpsertPromptWithVersion(ctx, req.KBID, version.Content, version.SummaryContent, operatorUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.RollbackPromptVersionResp{
+		Version: newVersion,
+		Prompt: &domain.Prompt{
+			Content:        version.Content,
+			SummaryContent: version.SummaryContent,
+		},
+	}, nil
+}
+
+func (u *LLMUsecase) validatePromptTemplateVariables(content string) error {
+	if !strings.Contains(content, "{{") {
+		return nil
+	}
+
+	allowed := formatPromptTemplateVariables(domain.PromptTemplateVariableWhitelist)
+	if strings.Count(content, "{{") != strings.Count(content, "}}") {
+		return fmt.Errorf("%w: malformed template variable syntax, allowed variables: %s", domain.ErrInvalidPromptTemplateVariable, allowed)
+	}
+
+	matches := promptTemplateVariablePattern.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		return fmt.Errorf("%w: malformed template variable syntax, allowed variables: %s", domain.ErrInvalidPromptTemplateVariable, allowed)
+	}
+
+	invalidMap := make(map[string]struct{})
+	for _, match := range matches {
+		expr := strings.TrimSpace(match[1])
+		if _, ok := promptTemplateVariableWhitelistSet[expr]; ok {
+			continue
+		}
+		invalidMap[expr] = struct{}{}
+	}
+	if len(invalidMap) == 0 {
+		return nil
+	}
+
+	invalid := lo.Keys(invalidMap)
+	slices.Sort(invalid)
+	return fmt.Errorf(
+		"%w: unsupported template variable(s): %s, allowed variables: %s",
+		domain.ErrInvalidPromptTemplateVariable,
+		formatPromptTemplateVariables(invalid),
+		allowed,
+	)
+}
+
+func formatPromptTemplateVariables(variables []string) string {
+	formatted := make([]string, 0, len(variables))
+	for _, variable := range variables {
+		formatted = append(formatted, "{{"+variable+"}}")
+	}
+	return strings.Join(formatted, ", ")
+}
+
+func trimJSONCodeFence(content string) string {
+	trimmed := strings.TrimSpace(content)
+	if !strings.HasPrefix(trimmed, "```") {
+		return trimmed
+	}
+
+	trimmed = strings.TrimPrefix(trimmed, "```json")
+	trimmed = strings.TrimPrefix(trimmed, "```JSON")
+	trimmed = strings.TrimPrefix(trimmed, "```")
+	trimmed = strings.TrimSpace(trimmed)
+
+	if idx := strings.LastIndex(trimmed, "```"); idx >= 0 {
+		trimmed = trimmed[:idx]
+	}
+	return strings.TrimSpace(trimmed)
+}
+
+func extractJSONObject(content string) (string, error) {
+	start := strings.Index(content, "{")
+	end := strings.LastIndex(content, "}")
+	if start < 0 || end < 0 || end <= start {
+		return "", fmt.Errorf("json object not found")
+	}
+	return strings.TrimSpace(content[start : end+1]), nil
 }
 
 func (u *LLMUsecase) trimThinking(summary string) string {

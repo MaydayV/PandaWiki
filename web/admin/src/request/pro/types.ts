@@ -538,24 +538,30 @@ export type GithubComChaitinPandaWikiProApiShareV1WecomCallbackResp = Record<
 
 export interface GithubComChaitinPandaWikiProApiTokenV1APITokenListItem {
   created_at?: string;
+  daily_quota?: number;
   id?: string;
   name?: string;
   permission?: ConstsUserKBPermission;
+  rate_limit_per_minute?: number;
   token?: string;
   updated_at?: string;
 }
 
 export interface GithubComChaitinPandaWikiProApiTokenV1CreateAPITokenReq {
+  daily_quota?: number;
   kb_id: string;
   name: string;
   permission: "full_control" | "doc_manage" | "data_operate";
+  rate_limit_per_minute?: number;
 }
 
 export interface GithubComChaitinPandaWikiProApiTokenV1UpdateAPITokenReq {
+  daily_quota?: number;
   id: string;
   kb_id: string;
   name?: string;
   permission?: "full_control" | "doc_manage" | "data_operate";
+  rate_limit_per_minute?: number;
 }
 
 export interface GithubComChaitinPandaWikiProDomainBlockWords {
@@ -666,9 +672,33 @@ export interface GetApiProV1NodeReleaseListParams {
   node_id: string;
 }
 
+export interface PostApiProV1NodeReleaseRollbackParams {
+  id: string;
+  kb_id: string;
+}
+
 export interface GetApiProV1PromptParams {
   /** knowledge base ID */
   kb_id: string;
+}
+
+export interface GetApiProV1PromptVersionListParams {
+  /** knowledge base ID */
+  kb_id: string;
+}
+
+export interface GetApiProV1PromptVersionDetailParams {
+  /** knowledge base ID */
+  kb_id: string;
+  /** prompt version */
+  version: number;
+}
+
+export interface PostApiProV1PromptVersionRollbackParams {
+  /** knowledge base ID */
+  kb_id: string;
+  /** prompt version */
+  version: number;
 }
 
 export interface DeleteApiProV1TokenDeleteParams {

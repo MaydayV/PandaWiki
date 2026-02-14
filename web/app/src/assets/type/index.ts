@@ -1,8 +1,10 @@
 import {
   ConstsCopySetting,
   ConstsWatermarkSetting,
+  DomainBrandSettings,
   DomainDisclaimerSettings,
   DomainConversationSetting,
+  DomainSEOSettings,
   DomainWebAppLandingConfig,
 } from '@/request/types';
 
@@ -61,6 +63,7 @@ export interface KBDetail {
   base_url?: string;
   settings: {
     conversation_setting: DomainConversationSetting;
+    brand_settings?: DomainBrandSettings;
     title: string;
     btns: NavBtn[];
     icon: string;
@@ -71,6 +74,7 @@ export interface KBDetail {
     recommend_node_ids: string[];
     desc: string;
     keyword: string;
+    seo_settings?: DomainSEOSettings;
     head_code: string;
     body_code: string;
     theme_mode?: 'light' | 'dark';
@@ -106,6 +110,7 @@ export interface DomainSocialMediaAccount {
 export type WidgetInfo = {
   recommend_nodes: RecommendNode[];
   settings: {
+    brand_settings?: DomainBrandSettings;
     title: string;
     icon: string;
     language?: string;

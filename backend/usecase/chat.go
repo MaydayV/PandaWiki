@@ -301,6 +301,14 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 			eventCh <- domain.SSEEvent{Type: "error", Content: "对话失败，请稍后再试"}
 			return
 		}
+		eventCh <- domain.SSEEvent{
+			Type: "usage",
+			Usage: &domain.SSETokenUsage{
+				PromptTokens:     int(usage.PromptTokens),
+				CompletionTokens: int(usage.CompletionTokens),
+				TotalTokens:      int(usage.TotalTokens),
+			},
+		}
 		eventCh <- domain.SSEEvent{Type: "done"}
 	}()
 	return eventCh, nil

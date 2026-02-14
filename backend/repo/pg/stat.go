@@ -18,6 +18,12 @@ type StatRepository struct {
 	cache *cache.Cache
 }
 
+type SourceConversionStat struct {
+	RefererHost string
+	Visits      int64
+	Conversions int64
+}
+
 func NewStatRepository(db *pg.DB, cahe *cache.Cache) *StatRepository {
 	return &StatRepository{
 		db:    db,
@@ -116,6 +122,26 @@ func (r *StatRepository) GetHotBrowsers(ctx context.Context, kbID string) (*doma
 	}
 
 	return hotBrowsers, nil
+}
+
+func (r *StatRepository) GetSourceConversionStats(ctx context.Context, kbID string) ([]SourceConversionStat, error) {
+	stats := make([]SourceConversionStat, 0)
+	if err := r.db.WithContext(ctx).Model(&domain.StatPage{}).
+		Where("kb_id = ?", kbID).
+		Where("referer_host != '' ").
+		Where("created_at > now() - interval '24h'").
+		Select(`
+			referer_host,
+			COUNT(*) as visits,
+			SUM(CASE WHEN scene = ? THEN 1 ELSE 0 END) as conversions
+		`, domain.StatPageSceneChat).
+		Group("referer_host").
+		Order("visits DESC").
+		Limit(20).
+		Scan(&stats).Error; err != nil {
+		return nil, err
+	}
+	return stats, nil
 }
 
 func (r *StatRepository) GetStatPageCount(ctx context.Context, kbID string) (*v1.StatCountResp, error) {

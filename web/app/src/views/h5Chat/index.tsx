@@ -175,6 +175,7 @@ const SOURCE_TO_API = {
 };
 
 const ChatLoading = ({ onClick }: { onClick: () => void }) => {
+  const { t } = useI18n();
   return (
     <Stack
       direction='row'

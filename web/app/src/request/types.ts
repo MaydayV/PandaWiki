@@ -308,9 +308,18 @@ export interface DomainAppInfoResp {
   settings?: DomainAppSettingsResp;
 }
 
+export interface DomainSEOSettings {
+  canonical_url?: string;
+  json_ld?: string;
+  og_image?: string;
+  robots?: string;
+  twitter_card?: string;
+}
+
 export interface DomainAppSettings {
   /** AI feedback */
   ai_feedback_settings?: DomainAIFeedbackSettings;
+  brand_settings?: DomainBrandSettings;
   body_code?: string;
   btns?: unknown[];
   /** catalog settings */
@@ -349,6 +358,8 @@ export interface DomainAppSettings {
   mcp_server_settings?: DomainMCPServerSettings;
   /** OpenAI API Bot settings */
   openai_api_bot_settings?: DomainOpenAIAPIBotSettings;
+  /** advanced seo settings */
+  seo_settings?: DomainSEOSettings;
   recommend_node_ids?: string[];
   recommend_questions?: string[];
   search_placeholder?: string;
@@ -400,6 +411,7 @@ export interface DomainAppSettings {
 export interface DomainAppSettingsResp {
   /** AI feedback */
   ai_feedback_settings?: DomainAIFeedbackSettings;
+  brand_settings?: DomainBrandSettings;
   body_code?: string;
   btns?: unknown[];
   /** catalog settings */
@@ -438,6 +450,8 @@ export interface DomainAppSettingsResp {
   mcp_server_settings?: DomainMCPServerSettings;
   /** OpenAI API settings */
   openai_api_bot_settings?: DomainOpenAIAPIBotSettings;
+  /** advanced seo settings */
+  seo_settings?: DomainSEOSettings;
   recommend_node_ids?: string[];
   recommend_questions?: string[];
   search_placeholder?: string;
@@ -721,6 +735,12 @@ export interface DomainConversationReference {
   name?: string;
   node_id?: string;
   url?: string;
+}
+
+export interface DomainBrandSettings {
+  copyright_info?: string;
+  hide_copyright?: boolean;
+  powered_by_label?: string;
 }
 
 export interface DomainConversationSetting {

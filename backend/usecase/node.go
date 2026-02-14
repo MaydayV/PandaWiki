@@ -5,10 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	"github.com/google/uuid"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/samber/lo"
 	"gorm.io/gorm"
@@ -207,6 +211,10 @@ func (u *NodeUsecase) ValidateNodePerm(ctx context.Context, kbID, nodeId string,
 }
 
 func (u *NodeUsecase) GetNodeReleaseDetailByKBIDAndID(ctx context.Context, kbID, nodeId, format string) (*shareV1.ShareNodeDetailResp, error) {
+	return u.GetNodeReleaseDetailByKBIDAndIDWithLanguage(ctx, kbID, nodeId, format, "", "", "")
+}
+
+func (u *NodeUsecase) GetNodeReleaseDetailByKBIDAndIDWithLanguage(ctx context.Context, kbID, nodeId, format, lang, language, acceptLanguage string) (*shareV1.ShareNodeDetailResp, error) {
 	node, err := u.nodeRepo.GetNodeReleaseDetailByKBIDAndID(ctx, kbID, nodeId)
 	if err != nil {
 		return nil, err
@@ -226,6 +234,15 @@ func (u *NodeUsecase) GetNodeReleaseDetailByKBIDAndID(ctx context.Context, kbID,
 		node.PublisherAccount = account
 	}
 
+	defaultLanguage, supportedLanguages, followBrowser := u.resolveKBI18nSettings(ctx, kbID)
+	preferredLanguage := u.resolvePreferredLanguage(lang, language, acceptLanguage, defaultLanguage, supportedLanguages, followBrowser)
+	servedLanguage := defaultLanguage
+	if u.applyTranslatedNode(node, preferredLanguage) {
+		servedLanguage = preferredLanguage
+	}
+	node.ServedLanguage = servedLanguage
+	node.AvailableLanguages = u.collectAvailableLanguages(node.Meta, defaultLanguage, supportedLanguages)
+
 	if domain.GetBaseEditionLimitation(ctx).AllowNodeStats {
 		webApp, err := u.appRepo.GetOrCreateAppByKBIDAndType(ctx, kbID, domain.AppTypeWeb)
 		if err != nil {
@@ -244,7 +261,6 @@ func (u *NodeUsecase) GetNodeReleaseDetailByKBIDAndID(ctx context.Context, kbID,
 	if node.Meta.ContentType == domain.ContentTypeMD {
 		return node, nil
 	}
-	// just for info
 	if format != "raw" {
 		if !utils.IsLikelyHTML(node.Content) {
 			node.Content = u.convertMDToHTML(node.Content)
@@ -383,6 +399,86 @@ func (u *NodeUsecase) GetNodeReleaseListByKBID(ctx context.Context, kbID string,
 	}
 
 	return items, nil
+}
+
+func (u *NodeUsecase) GetProNodeReleaseList(ctx context.Context, req *domain.GetNodeReleaseListReq) ([]*domain.NodeReleaseListItem, error) {
+	items, err := u.nodeRepo.GetProNodeReleaseList(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		return make([]*domain.NodeReleaseListItem, 0), nil
+	}
+	return items, nil
+}
+
+func (u *NodeUsecase) GetProNodeReleaseDetail(ctx context.Context, req *domain.GetNodeReleaseDetailReq) (*domain.GetNodeReleaseDetailResp, error) {
+	return u.nodeRepo.GetProNodeReleaseDetail(ctx, req.KBID, req.ID)
+}
+
+func (u *NodeUsecase) RollbackNodeRelease(ctx context.Context, req *domain.RollbackNodeReleaseReq, userID string) (*domain.RollbackNodeReleaseResp, error) {
+	nodeID, err := u.nodeRepo.RollbackNodeRelease(ctx, req.KBID, req.ID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.RollbackNodeReleaseResp{
+		NodeID: nodeID,
+	}, nil
+}
+
+func (u *NodeUsecase) GetNodeReleaseDiff(ctx context.Context, req *domain.GetNodeReleaseDiffReq) (*domain.GetNodeReleaseDiffResp, error) {
+	current, err := u.nodeRepo.GetProNodeReleaseDetail(ctx, req.KBID, req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var previous *domain.GetNodeReleaseDetailResp
+	if req.PrevID != "" {
+		previous, err = u.nodeRepo.GetProNodeReleaseDetail(ctx, req.KBID, req.PrevID)
+		if err != nil {
+			return nil, err
+		}
+		if previous.NodeID != current.NodeID {
+			return nil, fmt.Errorf("current and previous release belong to different nodes")
+		}
+	} else {
+		prevRelease, err := u.nodeRepo.GetPrevNodeReleaseByID(ctx, req.KBID, req.ID)
+		if err != nil {
+			return nil, err
+		}
+		if prevRelease != nil {
+			previous, err = u.nodeRepo.GetProNodeReleaseDetail(ctx, req.KBID, prevRelease.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	changedFields := make([]string, 0)
+	if previous != nil {
+		if previous.Name != current.Name {
+			changedFields = append(changedFields, "name")
+		}
+		if previous.Content != current.Content {
+			changedFields = append(changedFields, "content")
+		}
+		if previous.Meta.Summary != current.Meta.Summary {
+			changedFields = append(changedFields, "summary")
+		}
+		if previous.Meta.Emoji != current.Meta.Emoji {
+			changedFields = append(changedFields, "emoji")
+		}
+		if previous.Meta.ContentType != current.Meta.ContentType {
+			changedFields = append(changedFields, "content_type")
+		}
+	}
+
+	return &domain.GetNodeReleaseDiffResp{
+		Current:       current,
+		Previous:      previous,
+		HasDiff:       len(changedFields) > 0,
+		ChangedFields: changedFields,
+	}, nil
 }
 
 func (u *NodeUsecase) GetNodeReleaseListByParentID(ctx context.Context, kbID, parentID string, authId uint) ([]*domain.ShareNodeDetailItem, error) {
@@ -709,4 +805,236 @@ func (u *NodeUsecase) NodeRestudy(ctx context.Context, req *v1.NodeRestudyReq) e
 	}
 
 	return nil
+}
+
+func (u *NodeUsecase) AutoTranslateNode(ctx context.Context, req *v1.NodeAutoTranslateReq, userID string) (*v1.NodeAutoTranslateResp, error) {
+	node, err := u.nodeRepo.GetByID(ctx, req.NodeID, req.KBID)
+	if err != nil {
+		return nil, err
+	}
+
+	defaultLanguage, supportedLanguages, _ := u.resolveKBI18nSettings(ctx, req.KBID)
+	targetLanguages := utils.UniqueLanguages(req.TargetLanguages)
+	if len(targetLanguages) == 0 {
+		return nil, fmt.Errorf("target_languages is required")
+	}
+	for _, language := range targetLanguages {
+		if !utils.ContainsLanguage(supportedLanguages, language) {
+			return nil, fmt.Errorf("target language %s is not enabled in i18n settings", language)
+		}
+	}
+
+	model, err := u.modelUsecase.GetChatModel(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrModelNotConfigured
+		}
+		return nil, err
+	}
+
+	normalizedTranslations := make(map[string]domain.NodeTranslationContent, len(node.Meta.Translations))
+	for language, translated := range node.Meta.Translations {
+		normalized := utils.NormalizeLanguageCode(language)
+		if normalized == "" {
+			continue
+		}
+		normalizedTranslations[normalized] = translated
+	}
+
+	translatedLanguages := make([]string, 0, len(targetLanguages))
+	skippedLanguages := make([]string, 0)
+	for _, targetLanguage := range targetLanguages {
+		if targetLanguage == defaultLanguage {
+			skippedLanguages = append(skippedLanguages, targetLanguage)
+			continue
+		}
+		existing, exists := normalizedTranslations[targetLanguage]
+		if exists && !req.Overwrite && hasTranslationContent(existing) {
+			skippedLanguages = append(skippedLanguages, targetLanguage)
+			continue
+		}
+
+		translated, err := u.llmUsecase.TranslateNode(
+			ctx,
+			model,
+			defaultLanguage,
+			targetLanguage,
+			node.Name,
+			node.Content,
+			node.Meta.Summary,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("translate node to %s failed: %w", targetLanguage, err)
+		}
+		normalizedTranslations[targetLanguage] = *translated
+		translatedLanguages = append(translatedLanguages, targetLanguage)
+	}
+
+	published := false
+	if len(translatedLanguages) > 0 {
+		node.Meta.Translations = normalizedTranslations
+		updateMap := map[string]any{
+			"meta":      node.Meta,
+			"editor_id": userID,
+		}
+		if node.Status != domain.NodeStatusUnreleased {
+			updateMap["status"] = domain.NodeStatusDraft
+			updateMap["edit_time"] = time.Now()
+		}
+		if err := u.nodeRepo.UpdateNodeByKbID(ctx, req.NodeID, req.KBID, updateMap); err != nil {
+			return nil, err
+		}
+
+		if req.PublishToLatestRelease {
+			releaseIDs, err := u.nodeRepo.CreateNodeReleases(ctx, req.KBID, userID, []string{req.NodeID})
+			if err != nil {
+				return nil, fmt.Errorf("create node release failed: %w", err)
+			}
+			if len(releaseIDs) > 0 {
+				nodeContentVectorRequests := make([]*domain.NodeReleaseVectorRequest, 0, len(releaseIDs))
+				for _, releaseID := range releaseIDs {
+					nodeContentVectorRequests = append(nodeContentVectorRequests, &domain.NodeReleaseVectorRequest{
+						KBID:          req.KBID,
+						NodeReleaseID: releaseID,
+						Action:        "upsert",
+					})
+				}
+				if err := u.ragRepo.AsyncUpdateNodeReleaseVector(ctx, nodeContentVectorRequests); err != nil {
+					return nil, err
+				}
+			}
+
+			release := &domain.KBRelease{
+				ID:          uuid.New().String(),
+				KBID:        req.KBID,
+				Tag:         fmt.Sprintf("auto-translation-%s", time.Now().Format("20060102150405")),
+				Message:     fmt.Sprintf("Auto publish translated content for node %s", req.NodeID),
+				PublisherId: userID,
+				CreatedAt:   time.Now(),
+			}
+			if err := u.kbRepo.CreateKBRelease(ctx, release); err != nil {
+				return nil, fmt.Errorf("create kb release failed: %w", err)
+			}
+			published = true
+		}
+	}
+
+	return &v1.NodeAutoTranslateResp{
+		NodeID:              req.NodeID,
+		TranslatedLanguages: translatedLanguages,
+		SkippedLanguages:    skippedLanguages,
+		AvailableLanguages:  u.collectAvailableLanguages(node.Meta, defaultLanguage, supportedLanguages),
+		Published:           published,
+	}, nil
+}
+
+func (u *NodeUsecase) resolveKBI18nSettings(ctx context.Context, kbID string) (string, []string, bool) {
+	defaultLanguage := domain.SettingDefaultLanguage
+	supportedLanguages := []string{"zh-CN", "en-US"}
+	followBrowser := false
+
+	webApp, err := u.appRepo.GetOrCreateAppByKBIDAndType(ctx, kbID, domain.AppTypeWeb)
+	if err != nil {
+		u.logger.Warn("resolve kb i18n settings failed", log.String("kb_id", kbID), log.Error(err))
+		return defaultLanguage, supportedLanguages, followBrowser
+	}
+	followBrowser = webApp.Settings.I18nSettings.FollowBrowser || strings.EqualFold(strings.TrimSpace(webApp.Settings.Language), "auto")
+
+	i18nDefault := utils.NormalizeLanguageCode(webApp.Settings.I18nSettings.DefaultLanguage)
+	if i18nDefault == "" {
+		i18nDefault = utils.NormalizeLanguageCode(webApp.Settings.Language)
+	}
+	if i18nDefault == "" {
+		i18nDefault = domain.SettingDefaultLanguage
+	}
+
+	normalizedSupported := utils.UniqueLanguages(webApp.Settings.I18nSettings.SupportedLanguages)
+	if len(normalizedSupported) == 0 {
+		normalizedSupported = []string{"zh-CN", "en-US"}
+	}
+	if !utils.ContainsLanguage(normalizedSupported, i18nDefault) {
+		normalizedSupported = append([]string{i18nDefault}, normalizedSupported...)
+	}
+	return i18nDefault, normalizedSupported, followBrowser
+}
+
+func (u *NodeUsecase) resolvePreferredLanguage(lang, language, acceptLanguage, defaultLanguage string, supportedLanguages []string, followBrowser bool) string {
+	candidates := make([]string, 0, 4)
+	if lang != "" {
+		candidates = append(candidates, lang)
+	}
+	if language != "" {
+		candidates = append(candidates, language)
+	}
+	if followBrowser {
+		candidates = append(candidates, utils.ParseAcceptLanguage(acceptLanguage)...)
+	}
+	candidates = append(candidates, defaultLanguage)
+
+	for _, candidate := range utils.UniqueLanguages(candidates) {
+		if len(supportedLanguages) == 0 || utils.ContainsLanguage(supportedLanguages, candidate) {
+			return candidate
+		}
+	}
+	return defaultLanguage
+}
+
+func (u *NodeUsecase) applyTranslatedNode(node *shareV1.ShareNodeDetailResp, language string) bool {
+	if node == nil {
+		return false
+	}
+	targetLanguage := utils.NormalizeLanguageCode(language)
+	if targetLanguage == "" {
+		return false
+	}
+	for lang, translated := range node.Meta.Translations {
+		if utils.NormalizeLanguageCode(lang) != targetLanguage {
+			continue
+		}
+		if !hasTranslationContent(translated) {
+			return false
+		}
+		if strings.TrimSpace(translated.Name) != "" {
+			node.Name = translated.Name
+		}
+		if strings.TrimSpace(translated.Content) != "" {
+			node.Content = translated.Content
+		}
+		if strings.TrimSpace(translated.Summary) != "" {
+			node.Meta.Summary = translated.Summary
+		}
+		return true
+	}
+	return false
+}
+
+func (u *NodeUsecase) collectAvailableLanguages(meta domain.NodeMeta, defaultLanguage string, supportedLanguages []string) []string {
+	languages := make([]string, 0, len(meta.Translations)+1)
+	if normalizedDefault := utils.NormalizeLanguageCode(defaultLanguage); normalizedDefault != "" {
+		languages = append(languages, normalizedDefault)
+	}
+
+	translatedLanguages := make([]string, 0, len(meta.Translations))
+	for language, translated := range meta.Translations {
+		if !hasTranslationContent(translated) {
+			continue
+		}
+		normalized := utils.NormalizeLanguageCode(language)
+		if normalized == "" {
+			continue
+		}
+		if len(supportedLanguages) > 0 && !utils.ContainsLanguage(supportedLanguages, normalized) {
+			continue
+		}
+		translatedLanguages = append(translatedLanguages, normalized)
+	}
+	sort.Strings(translatedLanguages)
+	languages = append(languages, translatedLanguages...)
+	return utils.UniqueLanguages(languages)
+}
+
+func hasTranslationContent(translated domain.NodeTranslationContent) bool {
+	return strings.TrimSpace(translated.Name) != "" ||
+		strings.TrimSpace(translated.Content) != "" ||
+		strings.TrimSpace(translated.Summary) != ""
 }

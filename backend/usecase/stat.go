@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 
@@ -47,6 +48,14 @@ func NewStatUseCase(repo *pg.StatRepository, nodeRepo *pg.NodeRepository, conver
 }
 
 func (u *StatUseCase) RecordPage(ctx context.Context, stat *domain.StatPage) error {
+	webApp, err := u.appRepo.GetOrCreateAppByKBIDAndType(ctx, stat.KBID, domain.AppTypeWeb)
+	if err != nil {
+		return err
+	}
+	if !webApp.Settings.StatsSetting.PVEnable {
+		return nil
+	}
+
 	if err := u.repo.CreateStatPage(ctx, stat); err != nil {
 		return err
 	}
@@ -233,6 +242,86 @@ func (u *StatUseCase) GetStatCount(ctx context.Context, kbID string, day consts.
 	}
 
 	return count, nil
+}
+
+func (u *StatUseCase) GetStatFunnel(ctx context.Context, kbID string, day consts.StatDay) (*v1.StatFunnelResp, error) {
+	count, err := u.GetStatCount(ctx, kbID, day)
+	if err != nil {
+		return nil, err
+	}
+
+	globalConversionRate := getConversionRate(count.ConversationCount, count.PageVisitCount)
+	resp := &v1.StatFunnelResp{
+		Funnel: v1.StatFunnelData{
+			Visits:         count.PageVisitCount,
+			PageVisitCount: count.PageVisitCount,
+			Sessions:       count.SessionCount,
+			Conversations:  count.ConversationCount,
+			ConversionRate: globalConversionRate,
+		},
+		Sources: make([]v1.StatSourceItem, 0),
+	}
+
+	switch day {
+	case consts.StatDay1:
+		sourceStats, err := u.repo.GetSourceConversionStats(ctx, kbID)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range sourceStats {
+			if item.RefererHost == "" || item.Visits == 0 {
+				continue
+			}
+			resp.Sources = append(resp.Sources, v1.StatSourceItem{
+				RefererHost:    item.RefererHost,
+				Visits:         item.Visits,
+				ConversionRate: getConversionRate(item.Conversions, item.Visits),
+				Estimated:      false,
+			})
+		}
+
+		sort.Slice(resp.Sources, func(i, j int) bool {
+			if resp.Sources[i].ConversionRate == resp.Sources[j].ConversionRate {
+				return resp.Sources[i].Visits > resp.Sources[j].Visits
+			}
+			return resp.Sources[i].ConversionRate > resp.Sources[j].ConversionRate
+		})
+	case consts.StatDay7, consts.StatDay30, consts.StatDay90:
+		sourceCountMap, err := u.repo.GetHotRefererHostsByHour(ctx, kbID, int64(day)*24)
+		if err != nil {
+			return nil, err
+		}
+		for host, visits := range sourceCountMap {
+			if host == "" || visits == 0 {
+				continue
+			}
+			resp.Sources = append(resp.Sources, v1.StatSourceItem{
+				RefererHost:    host,
+				Visits:         visits,
+				ConversionRate: globalConversionRate,
+				Estimated:      true,
+			})
+		}
+		sort.Slice(resp.Sources, func(i, j int) bool {
+			return resp.Sources[i].Visits > resp.Sources[j].Visits
+		})
+	default:
+		return nil, errors.New("invalid stat day")
+	}
+
+	if len(resp.Sources) > 10 {
+		resp.Sources = resp.Sources[:10]
+	}
+
+	return resp, nil
+}
+
+func getConversionRate(numerator, denominator int64) float64 {
+	if denominator == 0 {
+		return 0
+	}
+	rate := float64(numerator) / float64(denominator)
+	return math.Round(rate*10000) / 10000
 }
 
 func (u *StatUseCase) GetInstantCount(ctx context.Context, kbID string) ([]*domain.InstantCountResp, error) {

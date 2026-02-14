@@ -89,7 +89,7 @@ type AppSettings struct {
 	Icon  string `json:"icon,omitempty"`
 	// language
 	Language string `json:"language,omitempty"`
-	Btns  []any  `json:"btns,omitempty"`
+	Btns     []any  `json:"btns,omitempty"`
 	// welcome
 	WelcomeStr         string   `json:"welcome_str,omitempty"`
 	SearchPlaceholder  string   `json:"search_placeholder,omitempty"`
@@ -98,6 +98,8 @@ type AppSettings struct {
 	// seo
 	Desc    string `json:"desc,omitempty"`
 	Keyword string `json:"keyword,omitempty"`
+	// advanced seo settings
+	SEOSettings SEOSettings `json:"seo_settings,omitempty"`
 	// inject code
 	HeadCode string `json:"head_code,omitempty"`
 	BodyCode string `json:"body_code,omitempty"`
@@ -174,6 +176,10 @@ type AppSettings struct {
 	// MCP Server Settings
 	MCPServerSettings MCPServerSettings `json:"mcp_server_settings,omitempty"`
 	StatsSetting      StatsSetting      `json:"stats_setting"`
+	AnalyticsSettings AnalyticsSettings `json:"analytics_settings,omitempty"`
+	SecuritySettings  SecuritySettings  `json:"security_settings,omitempty"`
+	BrandSettings     BrandSettings     `json:"brand_settings,omitempty"`
+	I18nSettings      I18nSettings      `json:"i18n_settings,omitempty"`
 }
 
 type WeChatAppAdvancedSetting struct {
@@ -186,6 +192,39 @@ type WeChatAppAdvancedSetting struct {
 
 type StatsSetting struct {
 	PVEnable bool `json:"pv_enable"`
+}
+
+type SEOSettings struct {
+	CanonicalURL string `json:"canonical_url,omitempty"`
+	Robots       string `json:"robots,omitempty"`
+	OGImage      string `json:"og_image,omitempty"`
+	TwitterCard  string `json:"twitter_card,omitempty"`
+	JSONLD       string `json:"json_ld,omitempty"`
+}
+
+type AnalyticsSettings struct {
+	IsEnabled         bool   `json:"is_enabled"`
+	Provider          string `json:"provider,omitempty"`
+	TrackingID        string `json:"tracking_id,omitempty"`
+	EventSamplingRate int    `json:"event_sampling_rate,omitempty"`
+}
+
+type SecuritySettings struct {
+	CopyProtectionMode   string `json:"copy_protection_mode,omitempty"`
+	WatermarkTraceEnable bool   `json:"watermark_trace_enable"`
+	StrictNoCopy         bool   `json:"strict_no_copy"`
+}
+
+type BrandSettings struct {
+	CopyrightInfo  string `json:"copyright_info,omitempty"`
+	HideCopyright  bool   `json:"hide_copyright"`
+	PoweredByLabel string `json:"powered_by_label,omitempty"`
+}
+
+type I18nSettings struct {
+	DefaultLanguage    string   `json:"default_language,omitempty"`
+	SupportedLanguages []string `json:"supported_languages,omitempty"`
+	FollowBrowser      bool     `json:"follow_browser"`
 }
 
 type ConversationSetting struct {
@@ -492,7 +531,7 @@ type AppSettingsResp struct {
 	Icon  string `json:"icon,omitempty"`
 	// language
 	Language string `json:"language,omitempty"`
-	Btns  []any  `json:"btns,omitempty"`
+	Btns     []any  `json:"btns,omitempty"`
 	// welcome
 	WelcomeStr         string   `json:"welcome_str,omitempty"`
 	SearchPlaceholder  string   `json:"search_placeholder,omitempty"`
@@ -501,6 +540,8 @@ type AppSettingsResp struct {
 	// seo
 	Desc    string `json:"desc,omitempty"`
 	Keyword string `json:"keyword,omitempty"`
+	// advanced seo settings
+	SEOSettings SEOSettings `json:"seo_settings,omitempty"`
 	// inject code
 	HeadCode string `json:"head_code,omitempty"`
 	BodyCode string `json:"body_code,omitempty"`
@@ -579,6 +620,10 @@ type AppSettingsResp struct {
 	// MCP Server Settings
 	MCPServerSettings MCPServerSettings `json:"mcp_server_settings,omitempty"`
 	StatsSetting      StatsSetting      `json:"stats_setting"`
+	AnalyticsSettings AnalyticsSettings `json:"analytics_settings,omitempty"`
+	SecuritySettings  SecuritySettings  `json:"security_settings,omitempty"`
+	BrandSettings     BrandSettings     `json:"brand_settings,omitempty"`
+	I18nSettings      I18nSettings      `json:"i18n_settings,omitempty"`
 }
 
 type WebAppLandingConfigResp struct {

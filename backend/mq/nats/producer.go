@@ -8,6 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/chaitin/panda-wiki/config"
+	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
 )
 
@@ -24,7 +25,10 @@ func (p *MQProducer) EnsureStreams() error {
 	}{
 		{
 			name:     "task",
-			subjects: []string{"apps.panda-wiki.summary.task", "apps.panda-wiki.vector.task"},
+			subjects: []string{
+				"apps.panda-wiki.summary.task",
+				domain.VectorTaskTopic,
+			},
 		},
 		{
 			name:     "scraper",

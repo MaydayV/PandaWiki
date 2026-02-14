@@ -104,6 +104,10 @@ const CardRobotWebComponent = ({ kb }: CardRobotWebComponentProps) => {
     getApiV1AppDetail({ kb_id: kb.id!, type: '2' }).then(res => {
       setDetail(res);
       const widget = res.settings?.widget_bot_settings;
+      const brand = res.settings?.brand_settings;
+      const hideCopyright =
+        brand?.hide_copyright ?? widget?.copyright_hide_enabled ?? false;
+      const copyrightInfo = brand?.copyright_info ?? widget?.copyright_info;
       reset({
         is_open: widget?.is_open ? 1 : 0,
         theme_mode: widget?.theme_mode || 'light',
@@ -116,9 +120,8 @@ const CardRobotWebComponent = ({ kb }: CardRobotWebComponentProps) => {
         search_mode: widget?.search_mode || 'all',
         placeholder: widget?.placeholder || '',
         disclaimer: widget?.disclaimer || '',
-        copyright_hide_enabled:
-          widget?.copyright_hide_enabled === true ? '1' : '0',
-        copyright_info: widget?.copyright_info || '',
+        copyright_hide_enabled: hideCopyright ? '1' : '0',
+        copyright_info: copyrightInfo || '',
         recommend_questions: widget?.recommend_questions || [],
         // recommend_node_ids:  widget?.recommend_node_ids || [],
       });
@@ -128,16 +131,21 @@ const CardRobotWebComponent = ({ kb }: CardRobotWebComponentProps) => {
 
   const onSubmit = handleSubmit(data => {
     if (!detail) return;
+    const hideCopyright = data.copyright_hide_enabled === '1';
     putApiV1App(
       { id: detail.id! },
       {
         kb_id,
         settings: {
+          brand_settings: {
+            ...(detail.settings?.brand_settings || {}),
+            hide_copyright: hideCopyright,
+            copyright_info: data.copyright_info,
+          },
           widget_bot_settings: {
             ...data,
             is_open: data.is_open === 1 ? true : false,
-            copyright_hide_enabled:
-              data.copyright_hide_enabled === '1' ? true : false,
+            copyright_hide_enabled: hideCopyright,
           },
         },
       },

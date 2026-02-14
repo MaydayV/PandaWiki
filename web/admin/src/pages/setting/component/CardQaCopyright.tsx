@@ -3,6 +3,7 @@ import { putApiV1App } from '@/request/App';
 import { FormItem, SettingCardItem } from './Common';
 import {
   DomainAppDetailResp,
+  DomainBrandSettings,
   DomainConversationSetting,
 } from '@/request/types';
 import { ALL_VERSION_PERMISSION } from '@/constant/version';
@@ -45,9 +46,21 @@ const CardQaCopyright = ({
   const copyright_hide_enabled = watch('copyright_hide_enabled');
 
   const onSubmit = handleSubmit(value => {
+    const brandSettings: DomainBrandSettings = {
+      ...(data.settings?.brand_settings || {}),
+      hide_copyright: value.copyright_hide_enabled,
+      copyright_info: value.copyright_info,
+    };
     putApiV1App(
       { id: data.id! },
-      { settings: { ...data.settings, conversation_setting: value }, kb_id },
+      {
+        settings: {
+          ...data.settings,
+          brand_settings: brandSettings,
+          conversation_setting: value,
+        },
+        kb_id,
+      },
     ).then(() => {
       refresh(value);
       message.success('保存成功');
@@ -58,11 +71,15 @@ const CardQaCopyright = ({
   useEffect(() => {
     setValue(
       'copyright_hide_enabled',
-      data.settings?.conversation_setting?.copyright_hide_enabled ?? false,
+      data.settings?.brand_settings?.hide_copyright ??
+        data.settings?.conversation_setting?.copyright_hide_enabled ??
+        false,
     );
     setValue(
       'copyright_info',
-      data.settings?.conversation_setting?.copyright_info ?? '',
+      data.settings?.brand_settings?.copyright_info ??
+        data.settings?.conversation_setting?.copyright_info ??
+        '',
     );
   }, [data]);
 

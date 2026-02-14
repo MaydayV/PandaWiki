@@ -2,6 +2,7 @@ package pg
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -478,6 +479,187 @@ func (r *NodeRepository) GetLatestNodeReleaseWithPublishAccount(ctx context.Cont
 	return nodeRelease, nil
 }
 
+func (r *NodeRepository) GetProNodeReleaseList(ctx context.Context, req *domain.GetNodeReleaseListReq) ([]*domain.NodeReleaseListItem, error) {
+	items := make([]*domain.NodeReleaseListItem, 0)
+	if err := r.db.WithContext(ctx).
+		Table("kb_release_node_releases AS krnr").
+		Select(`
+			nr.id,
+			nr.node_id,
+			nr.name,
+			nr.meta,
+			nr.updated_at,
+			n.creator_id AS creator_id,
+			creator.account AS creator_account,
+			nr.editor_id AS editor_id,
+			editor.account AS editor_account,
+			nr.publisher_id AS publisher_id,
+			publisher.account AS publisher_account,
+			kr.id AS release_id,
+			kr.tag AS release_name,
+			kr.message AS release_message
+		`).
+		Joins("INNER JOIN node_releases AS nr ON nr.id = krnr.node_release_id").
+		Joins("INNER JOIN kb_releases AS kr ON kr.id = krnr.release_id").
+		Joins("LEFT JOIN nodes AS n ON n.id = krnr.node_id").
+		Joins("LEFT JOIN users AS creator ON creator.id = n.creator_id").
+		Joins("LEFT JOIN users AS editor ON editor.id = nr.editor_id").
+		Joins("LEFT JOIN users AS publisher ON publisher.id = nr.publisher_id").
+		Where("krnr.kb_id = ?", req.KBID).
+		Where("krnr.node_id = ?", req.NodeID).
+		Order("kr.created_at DESC").
+		Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (r *NodeRepository) GetProNodeReleaseDetail(ctx context.Context, kbID, releaseID string) (*domain.GetNodeReleaseDetailResp, error) {
+	item := &domain.GetNodeReleaseDetailResp{}
+	if err := r.db.WithContext(ctx).
+		Table("node_releases AS nr").
+		Select(`
+			nr.node_id,
+			nr.name,
+			nr.content,
+			nr.meta,
+			n.creator_id AS creator_id,
+			creator.account AS creator_account,
+			nr.editor_id AS editor_id,
+			editor.account AS editor_account,
+			nr.publisher_id AS publisher_id,
+			publisher.account AS publisher_account
+		`).
+		Joins("LEFT JOIN nodes AS n ON n.id = nr.node_id").
+		Joins("LEFT JOIN users AS creator ON creator.id = n.creator_id").
+		Joins("LEFT JOIN users AS editor ON editor.id = nr.editor_id").
+		Joins("LEFT JOIN users AS publisher ON publisher.id = nr.publisher_id").
+		Where("nr.kb_id = ?", kbID).
+		Where("nr.id = ?", releaseID).
+		First(item).Error; err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (r *NodeRepository) GetPrevNodeReleaseByID(ctx context.Context, kbID, releaseID string) (*domain.NodeRelease, error) {
+	var current domain.NodeRelease
+	if err := r.db.WithContext(ctx).
+		Model(&domain.NodeRelease{}).
+		Where("kb_id = ?", kbID).
+		Where("id = ?", releaseID).
+		First(&current).Error; err != nil {
+		return nil, err
+	}
+
+	var prev domain.NodeRelease
+	if err := r.db.WithContext(ctx).
+		Model(&domain.NodeRelease{}).
+		Where("kb_id = ?", current.KBID).
+		Where("node_id = ?", current.NodeID).
+		Where("(updated_at < ?) OR (updated_at = ? AND id < ?)", current.UpdatedAt, current.UpdatedAt, current.ID).
+		Order("updated_at DESC, id DESC").
+		First(&prev).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &prev, nil
+}
+
+func (r *NodeRepository) RollbackNodeRelease(ctx context.Context, kbID, releaseID, editorID string) (string, error) {
+	nodeID := ""
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var nodeRelease domain.NodeRelease
+		if err := tx.WithContext(ctx).
+			Model(&domain.NodeRelease{}).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("kb_id = ?", kbID).
+			Where("id = ?", releaseID).
+			First(&nodeRelease).Error; err != nil {
+			return err
+		}
+
+		var node domain.Node
+		if err := tx.WithContext(ctx).
+			Model(&domain.Node{}).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("kb_id = ?", kbID).
+			Where("id = ?", nodeRelease.NodeID).
+			First(&node).Error; err != nil {
+			return err
+		}
+
+		var sourceVersion *string
+		var latestNodeRelease domain.NodeRelease
+		if err := tx.WithContext(ctx).
+			Model(&domain.NodeRelease{}).
+			Select("id").
+			Where("kb_id = ?", kbID).
+			Where("node_id = ?", nodeRelease.NodeID).
+			Order("updated_at DESC, id DESC").
+			First(&latestNodeRelease).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		} else {
+			latestReleaseID := latestNodeRelease.ID
+			sourceVersion = &latestReleaseID
+		}
+
+		if err := tx.WithContext(ctx).
+			Model(&domain.Node{}).
+			Where("kb_id = ?", kbID).
+			Where("id = ?", nodeRelease.NodeID).
+			Updates(map[string]any{
+				"type":      nodeRelease.Type,
+				"name":      nodeRelease.Name,
+				"content":   nodeRelease.Content,
+				"meta":      nodeRelease.Meta,
+				"parent_id": nodeRelease.ParentID,
+				"position":  nodeRelease.Position,
+				"status":    domain.NodeStatusDraft,
+				"editor_id": editorID,
+				"edit_time": time.Now(),
+			}).Error; err != nil {
+			return err
+		}
+
+		targetVersion := nodeRelease.ID
+		detail, err := json.Marshal(map[string]any{
+			"release_id":      nodeRelease.ID,
+			"node_release_id": nodeRelease.ID,
+			"node_id":         nodeRelease.NodeID,
+			"editor_id":       editorID,
+			"publisher_id":    nodeRelease.PublisherId,
+			"source": map[string]any{
+				"flow": "RollbackNodeRelease",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		if err := tx.WithContext(ctx).Create(&domain.NodeReleaseAudit{
+			KBID:           kbID,
+			NodeID:         nodeRelease.NodeID,
+			Action:         domain.NodeReleaseAuditActionRollback,
+			OperatorUserID: editorID,
+			SourceVersion:  sourceVersion,
+			TargetVersion:  &targetVersion,
+			Detail:         detail,
+		}).Error; err != nil {
+			return err
+		}
+
+		nodeID = nodeRelease.NodeID
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	return nodeID, nil
+}
+
 // GetNodeReleaseWithDirPathByID gets a node release by ID and includes its directory path
 func (r *NodeRepository) GetNodeReleaseWithDirPathByID(ctx context.Context, id string) (*domain.NodeReleaseWithDirPath, error) {
 	// First get the node release
@@ -886,7 +1068,26 @@ func (r *NodeRepository) CreateNodeReleases(ctx context.Context, kbID, userId st
 		if len(updatedNodes) == 0 {
 			return nil
 		}
+
+		previousReleaseByNodeID := make(map[string]string)
+		nodeIDList := lo.Map(updatedNodes, func(node *domain.Node, _ int) string {
+			return node.ID
+		})
+		var previousReleases []*domain.NodeRelease
+		if err := tx.Model(&domain.NodeRelease{}).
+			Select("DISTINCT ON (node_id) id, node_id").
+			Where("kb_id = ?", kbID).
+			Where("node_id IN ?", nodeIDList).
+			Order("node_id, updated_at DESC, id DESC").
+			Find(&previousReleases).Error; err != nil {
+			return err
+		}
+		for _, previousRelease := range previousReleases {
+			previousReleaseByNodeID[previousRelease.NodeID] = previousRelease.ID
+		}
+
 		nodeReleases := make([]*domain.NodeRelease, len(updatedNodes))
+		nodeReleaseAudits := make([]*domain.NodeReleaseAudit, 0, len(updatedNodes))
 		for i, updatedNode := range updatedNodes {
 			// create node release
 			nodeRelease := &domain.NodeRelease{
@@ -906,9 +1107,41 @@ func (r *NodeRepository) CreateNodeReleases(ctx context.Context, kbID, userId st
 			}
 			nodeReleases[i] = nodeRelease
 			releaseIDs = append(releaseIDs, nodeRelease.ID)
+
+			targetVersion := nodeRelease.ID
+			var sourceVersion *string
+			if previousReleaseID, ok := previousReleaseByNodeID[updatedNode.ID]; ok && previousReleaseID != "" {
+				previousReleaseIDCopy := previousReleaseID
+				sourceVersion = &previousReleaseIDCopy
+			}
+			detail, err := json.Marshal(map[string]any{
+				"release_id":      nodeRelease.ID,
+				"node_release_id": nodeRelease.ID,
+				"node_id":         updatedNode.ID,
+				"editor_id":       updatedNode.EditorId,
+				"publisher_id":    userId,
+				"source": map[string]any{
+					"flow": "CreateNodeReleases",
+				},
+			})
+			if err != nil {
+				return err
+			}
+			nodeReleaseAudits = append(nodeReleaseAudits, &domain.NodeReleaseAudit{
+				KBID:           kbID,
+				NodeID:         updatedNode.ID,
+				Action:         domain.NodeReleaseAuditActionPublish,
+				OperatorUserID: userId,
+				SourceVersion:  sourceVersion,
+				TargetVersion:  &targetVersion,
+				Detail:         detail,
+			})
 		}
 
 		if err := tx.CreateInBatches(&nodeReleases, 100).Error; err != nil {
+			return err
+		}
+		if err := tx.CreateInBatches(nodeReleaseAudits, 100).Error; err != nil {
 			return err
 		}
 		return nil

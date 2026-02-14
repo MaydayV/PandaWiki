@@ -285,14 +285,14 @@ const DocContent = ({
           {(info.pv ?? 0) > 0 && (
             <>
               <Box>·</Box>
-              <Box>{t('node.views', { count: info.pv })}</Box>
+              <Box>{t('node.views', { count: info.pv ?? 0 })}</Box>
             </>
           )}
         </Stack>
         {info?.type === 2 &&
           kbDetail?.settings?.copy_setting !==
             ConstsCopySetting.CopySettingDisabled && (
-            <Tooltip title='复制 MarkDown 格式' arrow placement='top'>
+            <Tooltip title={t('node.copyMarkdownFormat')} arrow placement='top'>
               <IconButton size='small' onClick={onCopyDocMd}>
                 <IconFuzhi sx={{ fontSize: 16 }} />
               </IconButton>

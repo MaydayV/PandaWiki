@@ -48,6 +48,13 @@ import {
 type ApiTokenPermission =
   GithubComChaitinPandaWikiProApiTokenV1CreateAPITokenReq['permission'];
 
+interface APITokenFormValues {
+  name: string;
+  perm: ConstsUserKBPermission;
+  rate_limit_per_minute: number;
+  daily_quota: number;
+}
+
 function maskString(str: string) {
   const start = str.slice(0, 6);
   const end = str.slice(-6);
@@ -69,10 +76,12 @@ const ApiToken = () => {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm({
+  } = useForm<APITokenFormValues>({
     defaultValues: {
       name: '',
       perm: ConstsUserKBPermission.UserKBPermissionFullControl,
+      rate_limit_per_minute: 0,
+      daily_quota: 0,
     },
   });
   const isBusiness = useMemo(() => {
@@ -122,6 +131,8 @@ const ApiToken = () => {
       kb_id,
       name: data.name,
       permission: data.perm as ApiTokenPermission,
+      rate_limit_per_minute: Number(data.rate_limit_per_minute) || 0,
+      daily_quota: Number(data.daily_quota) || 0,
     }).then(() => {
       getApiTokenList();
       setAddOpen(false);
@@ -275,6 +286,23 @@ const ApiToken = () => {
               </Tooltip>
             </Stack>
 
+            <Box
+              sx={{
+                minWidth: 220,
+                fontSize: 12,
+                color: 'text.tertiary',
+                textAlign: 'right',
+                lineHeight: '18px',
+              }}
+            >
+              <Box>
+                限流: {it.rate_limit_per_minute || 0} 次/分钟
+              </Box>
+              <Box>
+                配额: {it.daily_quota || 0} 次/天
+              </Box>
+            </Box>
+
             <Tooltip title={user.role !== 'admin' && ''} placement='top' arrow>
               <IconIcon_tool_close
                 sx={{
@@ -377,6 +405,56 @@ const ApiToken = () => {
                 );
               }}
             ></Controller>
+          </FormItem>
+
+          <FormItem label='每分钟请求上限'>
+            <Controller
+              control={control}
+              name='rate_limit_per_minute'
+              rules={{
+                min: {
+                  value: 0,
+                  message: '每分钟请求上限不能小于 0',
+                },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  type='number'
+                  fullWidth
+                  inputProps={{ min: 0 }}
+                  placeholder='0 表示不限'
+                  helperText={errors.rate_limit_per_minute?.message}
+                  error={!!errors.rate_limit_per_minute}
+                  onChange={e => field.onChange(Number(e.target.value))}
+                />
+              )}
+            />
+          </FormItem>
+
+          <FormItem label='每日请求配额'>
+            <Controller
+              control={control}
+              name='daily_quota'
+              rules={{
+                min: {
+                  value: 0,
+                  message: '每日请求配额不能小于 0',
+                },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  type='number'
+                  fullWidth
+                  inputProps={{ min: 0 }}
+                  placeholder='0 表示不限'
+                  helperText={errors.daily_quota?.message}
+                  error={!!errors.daily_quota}
+                  onChange={e => field.onChange(Number(e.target.value))}
+                />
+              )}
+            />
           </FormItem>
         </Form>
       </Modal>

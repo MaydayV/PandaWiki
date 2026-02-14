@@ -16,6 +16,9 @@ import {
   DomainPWResponse,
   DomainPrompt,
   GetApiProV1PromptParams,
+  GetApiProV1PromptVersionDetailParams,
+  GetApiProV1PromptVersionListParams,
+  PostApiProV1PromptVersionRollbackParams,
 } from "./types";
 
 /**
@@ -71,6 +74,72 @@ export const postApiProV1Prompt = (
     }
   >({
     path: `/api/pro/v1/prompt`,
+    method: "POST",
+    body: req,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description Get prompt version list
+ *
+ * @tags prompt
+ * @name GetApiProV1PromptVersionList
+ * @summary Get prompt version list
+ * @request GET:/api/pro/v1/prompt/version/list
+ * @response `200` `DomainPWResponse` OK
+ */
+export const getApiProV1PromptVersionList = (
+  query: GetApiProV1PromptVersionListParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<DomainPWResponse>({
+    path: `/api/pro/v1/prompt/version/list`,
+    method: "GET",
+    query: query,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description Get prompt version detail
+ *
+ * @tags prompt
+ * @name GetApiProV1PromptVersionDetail
+ * @summary Get prompt version detail
+ * @request GET:/api/pro/v1/prompt/version/detail
+ * @response `200` `DomainPWResponse` OK
+ */
+export const getApiProV1PromptVersionDetail = (
+  query: GetApiProV1PromptVersionDetailParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<DomainPWResponse>({
+    path: `/api/pro/v1/prompt/version/detail`,
+    method: "GET",
+    query: query,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description Rollback prompt version
+ *
+ * @tags prompt
+ * @name PostApiProV1PromptVersionRollback
+ * @summary Rollback prompt version
+ * @request POST:/api/pro/v1/prompt/version/rollback
+ * @response `200` `DomainPWResponse` OK
+ */
+export const postApiProV1PromptVersionRollback = (
+  req: PostApiProV1PromptVersionRollbackParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<DomainPWResponse>({
+    path: `/api/pro/v1/prompt/version/rollback`,
     method: "POST",
     body: req,
     type: ContentType.Json,

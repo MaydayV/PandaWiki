@@ -1,6 +1,7 @@
 package share
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,8 +13,11 @@ import (
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
+	pgrepo "github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/usecase"
 )
+
+const openAICompletionsEndpoint = "/share/v1/chat/completions"
 
 type ShareChatHandler struct {
 	*handler.BaseHandler
@@ -23,6 +27,8 @@ type ShareChatHandler struct {
 	authUsecase         *usecase.AuthUsecase
 	conversationUsecase *usecase.ConversationUsecase
 	modelUsecase        *usecase.ModelUsecase
+	apiTokenRepo        *pgrepo.APITokenRepo
+	apiCallAuditRepo    *pgrepo.APICallAuditRepo
 }
 
 func NewShareChatHandler(
@@ -34,6 +40,8 @@ func NewShareChatHandler(
 	authUsecase *usecase.AuthUsecase,
 	conversationUsecase *usecase.ConversationUsecase,
 	modelUsecase *usecase.ModelUsecase,
+	apiTokenRepo *pgrepo.APITokenRepo,
+	apiCallAuditRepo *pgrepo.APICallAuditRepo,
 ) *ShareChatHandler {
 	h := &ShareChatHandler{
 		BaseHandler:         baseHandler,
@@ -43,6 +51,8 @@ func NewShareChatHandler(
 		authUsecase:         authUsecase,
 		conversationUsecase: conversationUsecase,
 		modelUsecase:        modelUsecase,
+		apiTokenRepo:        apiTokenRepo,
+		apiCallAuditRepo:    apiCallAuditRepo,
 	}
 
 	share := e.Group("share/v1/chat",
@@ -263,65 +273,86 @@ func (h *ShareChatHandler) FeedBack(c echo.Context) error {
 //	@Failure		400		{object}	domain.OpenAIErrorResponse
 //	@Router			/share/v1/chat/completions [post]
 func (h *ShareChatHandler) ChatCompletions(c echo.Context) error {
+	startedAt := time.Now()
+	auditMeta := openAIAuditMeta{
+		KBID:      strings.TrimSpace(c.Request().Header.Get("X-KB-ID")),
+		Endpoint:  openAICompletionsEndpoint,
+		RemoteIP:  c.RealIP(),
+		RequestID: h.resolveRequestID(c),
+	}
+
 	var req domain.OpenAICompletionsRequest
 	if err := c.Bind(&req); err != nil {
 		h.logger.Error("parse OpenAI request failed", log.Error(err))
-		return h.sendOpenAIError(c, "parse request failed", "invalid_request_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "parse request failed", "invalid_request_error", startedAt)
 	}
+	auditMeta.Model = strings.TrimSpace(req.Model)
 
 	// get kb id from header
-	kbID := c.Request().Header.Get("X-KB-ID")
+	kbID := auditMeta.KBID
 	if kbID == "" {
-		return h.sendOpenAIError(c, "X-KB-ID header is required", "invalid_request_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "X-KB-ID header is required", "invalid_request_error", startedAt)
 	}
 
 	if err := c.Validate(&req); err != nil {
 		h.logger.Error("validate OpenAI request failed", log.Error(err))
-		return h.sendOpenAIError(c, "validate request failed", "invalid_request_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "validate request failed", "invalid_request_error", startedAt)
 	}
 
 	// validate messages
 	if len(req.Messages) == 0 {
-		return h.sendOpenAIError(c, "messages cannot be empty", "invalid_request_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "messages cannot be empty", "invalid_request_error", startedAt)
 	}
 
-	// use last user message as message
-	var lastUserMessage string
-	for i := len(req.Messages) - 1; i >= 0; i-- {
-		if req.Messages[i].Role == "user" {
-			if req.Messages[i].Content != nil {
-				lastUserMessage = req.Messages[i].Content.String()
-			}
-			break
-		}
-	}
-	if lastUserMessage == "" {
-		return h.sendOpenAIError(c, "no user message found", "invalid_request_error")
+	promptMessage, err := buildOpenAIChatMessage(req.Messages)
+	if err != nil {
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "no user message found", "invalid_request_error", startedAt)
 	}
 
 	// validate api bot settings
 	appBot, err := h.appUsecase.GetOpenAIAPIAppInfo(c.Request().Context(), kbID)
 	if err != nil {
-		return h.sendOpenAIError(c, err.Error(), "internal_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, err.Error(), "internal_error", startedAt)
 	}
 	if !appBot.Settings.OpenAIAPIBotSettings.IsEnabled {
-		return h.sendOpenAIError(c, "API Bot is not enabled", "forbidden")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "API Bot is not enabled", "forbidden", startedAt)
 	}
 
 	secretKeyHeader := c.Request().Header.Get("Authorization")
 	if secretKeyHeader == "" {
-		return h.sendOpenAIError(c, "Authorization header is required", "invalid_request_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "Authorization header is required", "invalid_request_error", startedAt)
 	}
-	if secretKey, found := strings.CutPrefix(secretKeyHeader, "Bearer "); !found {
-		return h.sendOpenAIError(c, "Invalid Authorization key format", "invalid_request_error")
-	} else {
-		if appBot.Settings.OpenAIAPIBotSettings.SecretKey != secretKey {
-			return h.sendOpenAIError(c, "Invalid Authorization key", "unauthorized")
+	secretKey, found := strings.CutPrefix(secretKeyHeader, "Bearer ")
+	if !found {
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "Invalid Authorization key format", "invalid_request_error", startedAt)
+	}
+	secretKey = strings.TrimSpace(secretKey)
+	if secretKey == "" {
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "Invalid Authorization key format", "invalid_request_error", startedAt)
+	}
+
+	apiToken := h.resolveAPIToken(c.Request().Context(), secretKey, kbID)
+	if apiToken != nil {
+		tokenID := apiToken.ID
+		auditMeta.APITokenID = &tokenID
+	}
+
+	authorizedByAppSecret := appBot.Settings.OpenAIAPIBotSettings.SecretKey == secretKey
+	authorizedByAPIToken := apiToken != nil
+	if !authorizedByAppSecret && !authorizedByAPIToken {
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, "Invalid Authorization key", "unauthorized", startedAt)
+	}
+
+	if authorizedByAPIToken {
+		if errorType, err := h.checkAPITokenGovernance(c.Request().Context(), apiToken, startedAt); err != nil {
+			h.logger.Warn("check api token governance failed", log.Error(err))
+		} else if errorType != "" {
+			return h.sendOpenAIErrorWithAudit(c, auditMeta, openAIGovernanceErrorMessage(errorType), errorType, startedAt)
 		}
 	}
 
 	chatReq := &domain.ChatRequest{
-		Message:  lastUserMessage,
+		Message:  promptMessage,
 		KBID:     kbID,
 		AppType:  domain.AppTypeOpenAIAPI,
 		RemoteIP: c.RealIP(),
@@ -337,32 +368,90 @@ func (h *ShareChatHandler) ChatCompletions(c echo.Context) error {
 
 	eventCh, err := h.chatUsecase.Chat(c.Request().Context(), chatReq)
 	if err != nil {
-		return h.sendOpenAIError(c, err.Error(), "internal_error")
+		return h.sendOpenAIErrorWithAudit(c, auditMeta, err.Error(), "internal_error", startedAt)
 	}
 
 	// handle stream response
 	if req.Stream {
-		return h.handleOpenAIStreamResponse(c, eventCh, req.Model)
+		return h.handleOpenAIStreamResponse(c, eventCh, auditMeta, req.StreamOptions, startedAt)
 	} else {
-		return h.handleOpenAINonStreamResponse(c, eventCh, req.Model)
+		return h.handleOpenAINonStreamResponse(c, eventCh, auditMeta, startedAt)
 	}
 }
 
-func (h *ShareChatHandler) handleOpenAIStreamResponse(c echo.Context, eventCh <-chan domain.SSEEvent, model string) error {
+func buildOpenAIChatMessage(messages []domain.OpenAIMessage) (string, error) {
+	systemMessages := make([]string, 0)
+	historyMessages := make([]string, 0)
+	lastUserMessage := ""
+
+	for idx, message := range messages {
+		content := ""
+		if message.Content != nil {
+			content = strings.TrimSpace(message.Content.StringWithImages())
+		}
+		if content == "" {
+			continue
+		}
+
+		switch strings.ToLower(strings.TrimSpace(message.Role)) {
+		case "system":
+			systemMessages = append(systemMessages, content)
+		case "user":
+			lastUserMessage = content
+			if idx != len(messages)-1 {
+				historyMessages = append(historyMessages, "user: "+content)
+			}
+		case "assistant", "tool":
+			historyMessages = append(historyMessages, message.Role+": "+content)
+		default:
+			historyMessages = append(historyMessages, message.Role+": "+content)
+		}
+	}
+
+	if lastUserMessage == "" {
+		return "", fmt.Errorf("no user message")
+	}
+
+	var builder strings.Builder
+	if len(systemMessages) > 0 {
+		builder.WriteString("System Instructions:\n")
+		builder.WriteString(strings.Join(systemMessages, "\n"))
+		builder.WriteString("\n\n")
+	}
+
+	if len(historyMessages) > 0 {
+		builder.WriteString("Conversation History:\n")
+		builder.WriteString(strings.Join(historyMessages, "\n"))
+		builder.WriteString("\n\n")
+	}
+
+	builder.WriteString("Current User Question:\n")
+	builder.WriteString(lastUserMessage)
+	return builder.String(), nil
+}
+
+func (h *ShareChatHandler) handleOpenAIStreamResponse(
+	c echo.Context,
+	eventCh <-chan domain.SSEEvent,
+	auditMeta openAIAuditMeta,
+	streamOptions *domain.OpenAIStreamOptions,
+	startedAt time.Time,
+) error {
 	responseID := "chatcmpl-" + generateID()
 	created := time.Now().Unix()
+	var usage *domain.OpenAIUsage
 
 	for event := range eventCh {
 		switch event.Type {
 		case "error":
-			return h.sendOpenAIError(c, event.Content, "internal_error")
+			return h.sendOpenAIErrorWithAudit(c, auditMeta, event.Content, "internal_error", startedAt)
 		case "data":
 			// send stream response
 			streamResp := domain.OpenAIStreamResponse{
 				ID:      responseID,
 				Object:  "chat.completion.chunk",
 				Created: created,
-				Model:   model,
+				Model:   auditMeta.Model,
 				Choices: []domain.OpenAIStreamChoice{
 					{
 						Index: 0,
@@ -375,7 +464,16 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(c echo.Context, eventCh <-
 			}
 
 			if err := h.writeOpenAIStreamEvent(c, streamResp); err != nil {
+				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
 				return err
+			}
+		case "usage":
+			if event.Usage != nil {
+				usage = &domain.OpenAIUsage{
+					PromptTokens:     event.Usage.PromptTokens,
+					CompletionTokens: event.Usage.CompletionTokens,
+					TotalTokens:      event.Usage.TotalTokens,
+				}
 			}
 		case "done":
 			// send done event
@@ -383,7 +481,7 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(c echo.Context, eventCh <-
 				ID:      responseID,
 				Object:  "chat.completion.chunk",
 				Created: created,
-				Model:   model,
+				Model:   auditMeta.Model,
 				Choices: []domain.OpenAIStreamChoice{
 					{
 						Index:        0,
@@ -392,30 +490,68 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(c echo.Context, eventCh <-
 					},
 				},
 			}
-			return h.writeOpenAIStreamEvent(c, streamResp)
+			if err := h.writeOpenAIStreamEvent(c, streamResp); err != nil {
+				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				return err
+			}
+			if streamOptions != nil && streamOptions.IncludeUsage && usage != nil {
+				usageResp := domain.OpenAIStreamResponse{
+					ID:      responseID,
+					Object:  "chat.completion.chunk",
+					Created: created,
+					Model:   auditMeta.Model,
+					Choices: []domain.OpenAIStreamChoice{},
+					Usage:   usage,
+				}
+				if err := h.writeOpenAIStreamEvent(c, usageResp); err != nil {
+					h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+					return err
+				}
+			}
+			if err := h.writeOpenAIDoneEvent(c); err != nil {
+				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				return err
+			}
+			h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusOK, usage, "", "", startedAt)
+			return nil
 		}
 	}
+	h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", "stream ended without done event", startedAt)
 	return nil
 }
 
-func (h *ShareChatHandler) handleOpenAINonStreamResponse(c echo.Context, eventCh <-chan domain.SSEEvent, model string) error {
+func (h *ShareChatHandler) handleOpenAINonStreamResponse(
+	c echo.Context,
+	eventCh <-chan domain.SSEEvent,
+	auditMeta openAIAuditMeta,
+	startedAt time.Time,
+) error {
 	responseID := "chatcmpl-" + generateID()
 	created := time.Now().Unix()
 
 	var content string
+	var usage *domain.OpenAIUsage
 	for event := range eventCh {
 		switch event.Type {
 		case "error":
-			return h.sendOpenAIError(c, event.Content, "internal_error")
+			return h.sendOpenAIErrorWithAudit(c, auditMeta, event.Content, "internal_error", startedAt)
 		case "data":
 			content += event.Content
+		case "usage":
+			if event.Usage != nil {
+				usage = &domain.OpenAIUsage{
+					PromptTokens:     event.Usage.PromptTokens,
+					CompletionTokens: event.Usage.CompletionTokens,
+					TotalTokens:      event.Usage.TotalTokens,
+				}
+			}
 		case "done":
 			// send complete response
 			resp := domain.OpenAICompletionsResponse{
 				ID:      responseID,
 				Object:  "chat.completion",
 				Created: created,
-				Model:   model,
+				Model:   auditMeta.Model,
 				Choices: []domain.OpenAIChoice{
 					{
 						Index: 0,
@@ -426,10 +562,17 @@ func (h *ShareChatHandler) handleOpenAINonStreamResponse(c echo.Context, eventCh
 						FinishReason: "stop",
 					},
 				},
+				Usage: usage,
 			}
-			return c.JSON(http.StatusOK, resp)
+			if err := c.JSON(http.StatusOK, resp); err != nil {
+				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				return err
+			}
+			h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusOK, usage, "", "", startedAt)
+			return nil
 		}
 	}
+	h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", "stream ended without done event", startedAt)
 	return nil
 }
 
@@ -440,7 +583,7 @@ func (h *ShareChatHandler) sendOpenAIError(c echo.Context, message, errorType st
 			Type:    errorType,
 		},
 	}
-	return c.JSON(http.StatusBadRequest, errResp)
+	return c.JSON(openAIErrorStatusCode(errorType), errResp)
 }
 
 func (h *ShareChatHandler) writeOpenAIStreamEvent(c echo.Context, data domain.OpenAIStreamResponse) error {
@@ -457,12 +600,192 @@ func (h *ShareChatHandler) writeOpenAIStreamEvent(c echo.Context, data domain.Op
 	return nil
 }
 
+func (h *ShareChatHandler) writeOpenAIDoneEvent(c echo.Context) error {
+	if _, err := c.Response().Write([]byte("data: [DONE]\n\n")); err != nil {
+		return err
+	}
+	c.Response().Flush()
+	return nil
+}
+
 func generateID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
 func stringPtr(s string) *string {
 	return &s
+}
+
+type openAIAuditMeta struct {
+	KBID       string
+	APITokenID *string
+	Endpoint   string
+	Model      string
+	RemoteIP   string
+	RequestID  *string
+}
+
+func (h *ShareChatHandler) sendOpenAIErrorWithAudit(
+	c echo.Context,
+	auditMeta openAIAuditMeta,
+	message, errorType string,
+	startedAt time.Time,
+) error {
+	h.recordOpenAIAudit(
+		c.Request().Context(),
+		auditMeta,
+		openAIErrorStatusCode(errorType),
+		nil,
+		errorType,
+		message,
+		startedAt,
+	)
+	return h.sendOpenAIError(c, message, errorType)
+}
+
+func (h *ShareChatHandler) checkAPITokenGovernance(ctx context.Context, apiToken *domain.APIToken, now time.Time) (string, error) {
+	if apiToken == nil || h.apiCallAuditRepo == nil {
+		return "", nil
+	}
+
+	var (
+		minuteCount int64
+		dailyCount  int64
+	)
+
+	if apiToken.RateLimitPerMinute > 0 {
+		count, err := h.apiCallAuditRepo.CountByTokenSince(ctx, apiToken.ID, openAICompletionsEndpoint, now.Add(-time.Minute))
+		if err != nil {
+			return "", err
+		}
+		minuteCount = count
+	}
+
+	if apiToken.DailyQuota > 0 {
+		dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		count, err := h.apiCallAuditRepo.CountByTokenSince(ctx, apiToken.ID, openAICompletionsEndpoint, dayStart)
+		if err != nil {
+			return "", err
+		}
+		dailyCount = count
+	}
+
+	return evaluateAPITokenGovernanceViolation(apiToken, minuteCount, dailyCount), nil
+}
+
+func evaluateAPITokenGovernanceViolation(apiToken *domain.APIToken, minuteCount, dailyCount int64) string {
+	if apiToken == nil {
+		return ""
+	}
+	if apiToken.RateLimitPerMinute > 0 && minuteCount >= int64(apiToken.RateLimitPerMinute) {
+		return "rate_limit_error"
+	}
+	if apiToken.DailyQuota > 0 && dailyCount >= int64(apiToken.DailyQuota) {
+		return "insufficient_quota"
+	}
+	return ""
+}
+
+func openAIGovernanceErrorMessage(errorType string) string {
+	switch errorType {
+	case "rate_limit_error":
+		return "Rate limit exceeded for this API token"
+	case "insufficient_quota":
+		return "Daily quota exceeded for this API token"
+	default:
+		return "API token governance check failed"
+	}
+}
+
+func (h *ShareChatHandler) recordOpenAIAudit(
+	ctx context.Context,
+	auditMeta openAIAuditMeta,
+	statusCode int,
+	usage *domain.OpenAIUsage,
+	errorType, errorMessage string,
+	startedAt time.Time,
+) {
+	if h.apiCallAuditRepo == nil {
+		return
+	}
+
+	latencyMS := time.Since(startedAt).Milliseconds()
+	if latencyMS < 0 {
+		latencyMS = 0
+	}
+
+	audit := &domain.APICallAudit{
+		KBID:         auditMeta.KBID,
+		APITokenID:   auditMeta.APITokenID,
+		Endpoint:     auditMeta.Endpoint,
+		Model:        auditMeta.Model,
+		StatusCode:   statusCode,
+		ErrorType:    errorType,
+		ErrorMessage: errorMessage,
+		LatencyMS:    latencyMS,
+		RemoteIP:     auditMeta.RemoteIP,
+		RequestID:    auditMeta.RequestID,
+	}
+	if usage != nil {
+		audit.PromptTokens = usage.PromptTokens
+		audit.CompletionTokens = usage.CompletionTokens
+		audit.TotalTokens = usage.TotalTokens
+	}
+	if err := h.apiCallAuditRepo.Create(ctx, audit); err != nil {
+		h.logger.Warn("create api call audit failed",
+			log.Error(err),
+			log.String("kb_id", auditMeta.KBID),
+			log.String("endpoint", auditMeta.Endpoint),
+			log.Int("status_code", statusCode))
+	}
+}
+
+func (h *ShareChatHandler) resolveAPIToken(ctx context.Context, token, kbID string) *domain.APIToken {
+	if h.apiTokenRepo == nil || token == "" {
+		return nil
+	}
+	apiToken, err := h.apiTokenRepo.GetByTokenWithCache(ctx, token)
+	if err != nil {
+		h.logger.Warn("get api token for audit failed", log.Error(err))
+		return nil
+	}
+	if apiToken == nil || apiToken.ID == "" {
+		return nil
+	}
+	if kbID != "" && apiToken.KbId != "" && apiToken.KbId != kbID {
+		return nil
+	}
+	return apiToken
+}
+
+func (h *ShareChatHandler) resolveRequestID(c echo.Context) *string {
+	candidates := []string{
+		strings.TrimSpace(c.Request().Header.Get(echo.HeaderXRequestID)),
+		strings.TrimSpace(c.Request().Header.Get("X-Request-ID")),
+		strings.TrimSpace(c.Response().Header().Get(echo.HeaderXRequestID)),
+	}
+	for _, candidate := range candidates {
+		if candidate != "" {
+			requestID := candidate
+			return &requestID
+		}
+	}
+	return nil
+}
+
+func openAIErrorStatusCode(errorType string) int {
+	switch errorType {
+	case "unauthorized":
+		return http.StatusUnauthorized
+	case "forbidden":
+		return http.StatusForbidden
+	case "rate_limit_error", "insufficient_quota":
+		return http.StatusTooManyRequests
+	case "internal_error":
+		return http.StatusInternalServerError
+	default:
+		return http.StatusBadRequest
+	}
 }
 
 // ChatSearch searches chat messages in shared knowledge base

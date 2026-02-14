@@ -26,9 +26,11 @@ import {
   GetApiV1StatHotPagesParams,
   GetApiV1StatInstantCountParams,
   GetApiV1StatInstantPagesParams,
+  GetApiV1StatFunnelParams,
   GetApiV1StatRefererHostsParams,
   V1StatConversationDistributionResp,
   V1StatCountResp,
+  V1StatFunnelResp,
 } from "./types";
 
 /**
@@ -272,6 +274,38 @@ export const getApiV1StatRefererHosts = (
     }
   >({
     path: `/api/v1/stat/referer_hosts`,
+    method: "GET",
+    query: query,
+    secure: true,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description 漏斗和来源转化统计
+ *
+ * @tags stat
+ * @name GetApiV1StatFunnel
+ * @summary 漏斗和来源转化统计
+ * @request GET:/api/v1/stat/funnel
+ * @secure
+ * @response `200` `(DomainResponse & {
+    data?: V1StatFunnelResp,
+
+})` OK
+ */
+
+export const getApiV1StatFunnel = (
+  query: GetApiV1StatFunnelParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<
+    DomainResponse & {
+      data?: V1StatFunnelResp;
+    }
+  >({
+    path: `/api/v1/stat/funnel`,
     method: "GET",
     query: query,
     secure: true,

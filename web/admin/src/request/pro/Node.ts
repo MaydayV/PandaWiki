@@ -17,6 +17,7 @@ import {
   DomainPWResponse,
   GetApiProV1NodeReleaseDetailParams,
   GetApiProV1NodeReleaseListParams,
+  PostApiProV1NodeReleaseRollbackParams,
 } from "./types";
 
 /**
@@ -74,6 +75,29 @@ export const getApiProV1NodeReleaseList = (
     path: `/api/pro/v1/node/release/list`,
     method: "GET",
     query: query,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description Rollback Node Release
+ *
+ * @tags node
+ * @name PostApiProV1NodeReleaseRollback
+ * @summary Rollback Node Release
+ * @request POST:/api/pro/v1/node/release/rollback
+ * @response `200` `DomainPWResponse` OK
+ */
+
+export const postApiProV1NodeReleaseRollback = (
+  request: PostApiProV1NodeReleaseRollbackParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<DomainPWResponse>({
+    path: `/api/pro/v1/node/release/rollback`,
+    method: "POST",
+    body: request,
     type: ContentType.Json,
     format: "json",
     ...params,

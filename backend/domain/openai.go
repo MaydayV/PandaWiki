@@ -110,6 +110,35 @@ func (mc *MessageContent) String() string {
 	return builder.String()
 }
 
+// StringWithImages returns content text plus lightweight image_url markers.
+func (mc *MessageContent) StringWithImages() string {
+	if mc.isString {
+		return mc.strValue
+	}
+
+	var builder strings.Builder
+	for _, part := range mc.arrValue {
+		switch part.Type {
+		case "text":
+			if builder.Len() > 0 && part.Text != "" {
+				builder.WriteString(" ")
+			}
+			builder.WriteString(part.Text)
+		case "image_url":
+			if part.ImageURL == nil || strings.TrimSpace(part.ImageURL.URL) == "" {
+				continue
+			}
+			if builder.Len() > 0 {
+				builder.WriteString(" ")
+			}
+			builder.WriteString("[image_url:")
+			builder.WriteString(strings.TrimSpace(part.ImageURL.URL))
+			builder.WriteString("]")
+		}
+	}
+	return builder.String()
+}
+
 type OpenAIMessage struct {
 	Role       string           `json:"role" validate:"required"`
 	Content    *MessageContent  `json:"content,omitempty"`
@@ -190,6 +219,27 @@ type OpenAIStreamChoice struct {
 	Index        int           `json:"index"`
 	Delta        OpenAIMessage `json:"delta"`
 	FinishReason *string       `json:"finish_reason,omitempty"`
+}
+
+// APICallAudit records OpenAI-compatible API call audit info.
+type APICallAudit struct {
+	KBID             string  `json:"kb_id"`
+	APITokenID       *string `json:"api_token_id,omitempty"`
+	Endpoint         string  `json:"endpoint"`
+	Model            string  `json:"model"`
+	StatusCode       int     `json:"status_code"`
+	ErrorType        string  `json:"error_type,omitempty"`
+	ErrorMessage     string  `json:"error_message,omitempty"`
+	PromptTokens     int     `json:"prompt_tokens"`
+	CompletionTokens int     `json:"completion_tokens"`
+	TotalTokens      int     `json:"total_tokens"`
+	LatencyMS        int64   `json:"latency_ms"`
+	RemoteIP         string  `json:"remote_ip"`
+	RequestID        *string `json:"request_id,omitempty"`
+}
+
+func (APICallAudit) TableName() string {
+	return "api_call_audits"
 }
 
 // OpenAI 错误响应结构体

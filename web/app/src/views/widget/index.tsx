@@ -85,6 +85,22 @@ const Widget = () => {
     return widget?.settings?.widget_bot_settings?.recommend_questions || [];
   }, [widget]);
 
+  const hideCopyright = useMemo(() => {
+    return (
+      widget?.settings?.brand_settings?.hide_copyright ??
+      widget?.settings?.widget_bot_settings?.copyright_hide_enabled ??
+      false
+    );
+  }, [widget]);
+
+  const copyrightText = useMemo(() => {
+    return (
+      widget?.settings?.brand_settings?.copyright_info ||
+      widget?.settings?.widget_bot_settings?.copyright_info ||
+      t('brand.defaultCopyright')
+    );
+  }, [widget, t]);
+
   // modal打开时自动聚焦
   useEffect(() => {
     setTimeout(() => {
@@ -196,7 +212,7 @@ const Widget = () => {
       >
         <SearchDocContent inputRef={inputRef} placeholder={placeholder} />
       </Box>
-      {!widget?.settings?.widget_bot_settings?.copyright_hide_enabled && (
+      {!hideCopyright && (
         <Box
           sx={{
             px: 3,
@@ -216,10 +232,7 @@ const Widget = () => {
               gap: 1,
             }}
           >
-            <Box>
-              {widget?.settings?.widget_bot_settings?.copyright_info ||
-                t('brand.defaultCopyright')}
-            </Box>
+            <Box>{copyrightText}</Box>
           </Typography>
         </Box>
       )}
