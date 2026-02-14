@@ -6,6 +6,7 @@ import businessVersion from '@/assets/images/business-version.png';
 import enterpriseVersion from '@/assets/images/enterprise-version.png';
 
 export const PROFESSION_VERSION_PERMISSION = [
+  ConstsLicenseEdition.LicenseEditionFree,
   ConstsLicenseEdition.LicenseEditionProfession,
   ConstsLicenseEdition.LicenseEditionBusiness,
   ConstsLicenseEdition.LicenseEditionEnterprise,
@@ -19,21 +20,26 @@ export const ALL_VERSION_PERMISSION = [
 ];
 
 export const BUSINESS_VERSION_PERMISSION = [
+  ConstsLicenseEdition.LicenseEditionFree,
+  ConstsLicenseEdition.LicenseEditionProfession,
   ConstsLicenseEdition.LicenseEditionBusiness,
   ConstsLicenseEdition.LicenseEditionEnterprise,
 ];
 
 export const ENTERPRISE_VERSION_PERMISSION = [
+  ConstsLicenseEdition.LicenseEditionFree,
+  ConstsLicenseEdition.LicenseEditionProfession,
+  ConstsLicenseEdition.LicenseEditionBusiness,
   ConstsLicenseEdition.LicenseEditionEnterprise,
 ];
 
 export const VersionInfoMap = {
   [ConstsLicenseEdition.LicenseEditionFree]: {
     permission: ConstsLicenseEdition.LicenseEditionFree,
-    label: '开源版',
+    label: '二开版',
     image: freeVersion,
     bgColor: '#8E9DAC',
-    nextVersion: ConstsLicenseEdition.LicenseEditionProfession,
+    nextVersion: undefined,
   },
   [ConstsLicenseEdition.LicenseEditionProfession]: {
     permission: ConstsLicenseEdition.LicenseEditionProfession,
@@ -134,30 +140,30 @@ export interface VersionInfo {
  */
 export const VERSION_INFO: Record<ConstsLicenseEdition, VersionInfo> = {
   [ConstsLicenseEdition.LicenseEditionFree]: {
-    label: '开源版',
+    label: '二开版',
     features: {
-      wikiCount: 1,
+      wikiCount: Infinity,
       docCountPerWiki: Infinity,
-      adminCount: 1,
-      adminPermissionControl: FeatureStatus.NOT_SUPPORTED,
-      seoConfig: FeatureStatus.BASIC,
-      multiLanguage: FeatureStatus.NOT_SUPPORTED,
-      customCopyright: FeatureStatus.NOT_SUPPORTED,
-      trafficAnalysis: FeatureStatus.BASIC,
-      customAIPrompt: FeatureStatus.NOT_SUPPORTED,
-      ssoLogin: 0,
-      visitorPermissionControl: FeatureStatus.NOT_SUPPORTED,
-      pageWatermark: FeatureStatus.NOT_SUPPORTED,
-      contentNoCopy: FeatureStatus.NOT_SUPPORTED,
-      sensitiveContentFilter: FeatureStatus.NOT_SUPPORTED,
-      webWidgetRobot: FeatureStatus.BASIC,
-      feishuQARobot: FeatureStatus.BASIC,
-      dingtalkQARobot: FeatureStatus.BASIC,
-      wecomQARobot: FeatureStatus.BASIC,
-      wecomServiceRobot: FeatureStatus.BASIC,
-      discordQARobot: FeatureStatus.BASIC,
-      docVersionHistory: FeatureStatus.NOT_SUPPORTED,
-      apiCall: FeatureStatus.NOT_SUPPORTED,
+      adminCount: Infinity,
+      adminPermissionControl: FeatureStatus.SUPPORTED,
+      seoConfig: FeatureStatus.ADVANCED,
+      multiLanguage: FeatureStatus.SUPPORTED,
+      customCopyright: FeatureStatus.SUPPORTED,
+      trafficAnalysis: FeatureStatus.ADVANCED,
+      customAIPrompt: FeatureStatus.SUPPORTED,
+      ssoLogin: Infinity,
+      visitorPermissionControl: FeatureStatus.SUPPORTED,
+      pageWatermark: FeatureStatus.SUPPORTED,
+      contentNoCopy: FeatureStatus.SUPPORTED,
+      sensitiveContentFilter: FeatureStatus.SUPPORTED,
+      webWidgetRobot: FeatureStatus.ADVANCED,
+      feishuQARobot: FeatureStatus.ADVANCED,
+      dingtalkQARobot: FeatureStatus.ADVANCED,
+      wecomQARobot: FeatureStatus.ADVANCED,
+      wecomServiceRobot: FeatureStatus.ADVANCED,
+      discordQARobot: FeatureStatus.ADVANCED,
+      docVersionHistory: FeatureStatus.SUPPORTED,
+      apiCall: FeatureStatus.SUPPORTED,
       sourceCode: FeatureStatus.SUPPORTED,
     },
   },

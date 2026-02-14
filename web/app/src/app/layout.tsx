@@ -2,7 +2,6 @@ import ErrorComponent from '@/components/error';
 import StoreProvider from '@/provider';
 import { ThemeStoreProvider } from '@/provider/themeStore';
 import { getShareV1AppWebInfo } from '@/request/ShareApp';
-import { getShareProV1AuthInfo } from '@/request/pro/ShareAuth';
 import Script from 'next/script';
 import { Box } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
@@ -156,6 +155,44 @@ const parseJsonLd = (value: unknown) => {
   return null;
 };
 
+const getShareAuthInfo = async (kbId?: string) => {
+  const target = process.env.TARGET;
+  if (!target) return undefined;
+
+  const query = kbId ? `?kb_id=${encodeURIComponent(kbId)}` : '';
+  const url = `${target}/share/pro/v1/auth/info${query}`;
+
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    let body: any = {};
+    try {
+      body = await response.json();
+    } catch {}
+
+    if (response.status === 403) {
+      throw {
+        ...body,
+        code: 403,
+      };
+    }
+
+    if (
+      !response.ok ||
+      (body.code !== undefined && body.code !== 0) ||
+      (body.success !== undefined && !body.success)
+    ) {
+      return undefined;
+    }
+
+    return body.data;
+  } catch (error: any) {
+    if (error?.code === 403) {
+      throw error;
+    }
+    return undefined;
+  }
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const kbDetail: any = await getShareV1AppWebInfo();
@@ -222,21 +259,18 @@ const Layout = async ({
 
   let error: any = null;
 
-  const [kbDetailResolve, authInfoResolve] = await Promise.allSettled([
-    getShareV1AppWebInfo(),
-    getShareProV1AuthInfo({}),
-  ]);
-
-  const authInfo: any =
-    authInfoResolve.status === 'fulfilled' ? authInfoResolve.value : undefined;
+  const [kbDetailResolve] = await Promise.allSettled([getShareV1AppWebInfo()]);
   const kbDetail: any =
     kbDetailResolve.status === 'fulfilled' ? kbDetailResolve.value : undefined;
-
-  if (
-    authInfoResolve.status === 'rejected' &&
-    authInfoResolve.reason.code === 403
-  ) {
-    error = authInfoResolve.reason;
+  let authInfo: any = undefined;
+  if (!error) {
+    try {
+      authInfo = await getShareAuthInfo(kbDetail?.id);
+    } catch (e: any) {
+      if (e?.code === 403) {
+        error = e;
+      }
+    }
   }
 
   const { isMobile } = getSelectorsByUserAgent(userAgent || '') || {

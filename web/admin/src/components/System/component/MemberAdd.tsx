@@ -5,14 +5,13 @@ import { copyText, generatePassword } from '@/utils';
 import { CheckCircle } from '@mui/icons-material';
 import { Box, Button, MenuItem, Select, Stack, TextField } from '@mui/material';
 import { FormItem } from '@/components/Form';
-import { Modal, message } from '@ctzhian/ui';
+import { Modal } from '@ctzhian/ui';
 import { useState, useMemo, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useAppSelector } from '@/store';
 import { PROFESSION_VERSION_PERMISSION } from '@/constant/version';
 import { VersionCanUse } from '@/components/VersionMask';
 import { ConstsUserKBPermission, V1KBUserInviteReq } from '@/request/types';
-import { ConstsLicenseEdition } from '@/request/pro/types';
 
 type Role = 'admin' | 'user';
 
@@ -22,24 +21,9 @@ const PERM_MAP = {
   [ConstsUserKBPermission.UserKBPermissionDataOperate]: '数据运营',
 };
 
-const VERSION_MAP = {
-  [ConstsLicenseEdition.LicenseEditionFree]: {
-    message: '开源版只支持 1 个管理员',
-    max: 1,
-  },
-  [ConstsLicenseEdition.LicenseEditionProfession]: {
-    message: '专业版最多支持 20 个管理员',
-    max: 20,
-  },
-  [ConstsLicenseEdition.LicenseEditionBusiness]: {
-    message: '商业版最多支持 50 个管理员',
-    max: 50,
-  },
-};
-
 const MemberAdd = ({
   refresh,
-  userLen,
+  userLen: _userLen,
 }: {
   refresh: () => void;
   userLen: number;
@@ -130,12 +114,6 @@ const MemberAdd = ({
         size='small'
         variant='outlined'
         onClick={() => {
-          const versionLimit =
-            VERSION_MAP[license.edition as keyof typeof VERSION_MAP];
-          if (versionLimit && userLen >= versionLimit.max) {
-            message.error(versionLimit.message);
-            return;
-          }
           setAddMember(true);
         }}
       >
