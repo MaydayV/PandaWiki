@@ -42,7 +42,7 @@ interface DocPropertiesModalProps {
 }
 
 interface GroupOption {
-  id: number | string;
+  id: number;
   path: string;
 }
 
@@ -133,13 +133,13 @@ const DocPropertiesModal = ({
           visible: values.visible as ConstsNodeAccessPerm,
         },
         answerable_groups: isBusiness
-          ? values.answerable_groups.map(item => item.id!)
+          ? values.answerable_groups.map(item => Number(item.id))
           : undefined,
         visitable_groups: isBusiness
-          ? values.visitable_groups.map(item => item.id!)
+          ? values.visitable_groups.map(item => Number(item.id))
           : undefined,
         visible_groups: isBusiness
-          ? values.visible_groups.map(item => item.id!)
+          ? values.visible_groups.map(item => Number(item.id))
           : undefined,
       }),
 
@@ -180,18 +180,18 @@ const DocPropertiesModal = ({
         }
         const answerableGroups = (res.answerable_groups || []).map(
           (item: any) => ({
-            id: item.auth_group_id,
+            id: Number(item.auth_group_id),
             path: item.path || item.name,
           }),
         );
         const visitableGroups = (res.visitable_groups || []).map(
           (item: any) => ({
-            id: item.auth_group_id,
+            id: Number(item.auth_group_id),
             path: item.path || item.name,
           }),
         );
         const visibleGroups = (res.visible_groups || []).map((item: any) => ({
-          id: item.auth_group_id,
+          id: Number(item.auth_group_id),
           path: item.path || item.name,
         }));
 

@@ -209,7 +209,7 @@ const VersionInspect = ({
         dataSource={tab === 'docs' ? detail?.docs || [] : detail?.diff || []}
         rowKey='node_id'
         size='small'
-        height={430}
+        height='430px'
         renderEmpty={
           loading ? (
             <Box></Box>
@@ -222,7 +222,7 @@ const VersionInspect = ({
         sx={{
           overflow: 'hidden',
           '.MuiTableContainer-root': {
-            height: 430,
+            height: '430px',
           },
         }}
       />
