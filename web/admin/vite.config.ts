@@ -1,8 +1,51 @@
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, loadEnv, Plugin } from 'vite';
 import { execSync } from 'child_process';
+
+const FLY_VERSION_RULE = {
+  major: 2,
+  feature: 5,
+  featureStartCommit: '82e76a1f',
+};
+
+function readUpstreamVersion() {
+  try {
+    const pkgPath = path.resolve(__dirname, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
+      version?: string;
+    };
+    return pkg.version || '2.11.1';
+  } catch {
+    return '2.11.1';
+  }
+}
+
+function readFeatureCommitCount() {
+  try {
+    const output = execSync(
+      `git rev-list --count ${FLY_VERSION_RULE.featureStartCommit}..HEAD`,
+      {
+        cwd: __dirname,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    )
+      .toString()
+      .trim();
+    const count = Number(output);
+    return Number.isFinite(count) && count > 0 ? count : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function buildFlyVersion() {
+  const upstreamVersion = readUpstreamVersion();
+  const commit = readFeatureCommitCount();
+  return `FV${FLY_VERSION_RULE.major}.${FLY_VERSION_RULE.feature}.${commit}.${upstreamVersion.replace(/\./g, '')}`;
+}
 
 // 创建路由生成插件
 function generateRoutesPlugin(): Plugin {
@@ -48,7 +91,12 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const shouldAnalyze =
     process.argv.includes('--analyze') || env.ANALYZE === 'true';
+  const flyVersion = buildFlyVersion();
+
   return {
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(flyVersion),
+    },
     build: {
       assetsDir: 'panda-wiki-admin-assets',
     },

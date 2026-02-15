@@ -1,12 +1,12 @@
 import { Box, Stack } from '@mui/material';
 import { useState } from 'react';
-import packageJson from '../../../package.json';
 import AuthTypeModal from './AuthTypeModal';
 import { useVersionInfo } from '@/hooks';
+import { FLY_VERSION } from '@/constant/version';
 
 const Version = () => {
   const versionInfo = useVersionInfo();
-  const curVersion = import.meta.env.VITE_APP_VERSION || packageJson.version;
+  const curVersion = FLY_VERSION;
   const [typeOpen, setTypeOpen] = useState(false);
 
   return (

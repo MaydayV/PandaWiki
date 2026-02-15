@@ -1,5 +1,4 @@
 import Logo from '@/assets/images/logo.png';
-import Qrcode from '@/assets/images/qrcode.png';
 
 import { Box, Button, Stack, Typography, useTheme } from '@mui/material';
 import { ConstsUserKBPermission } from '@/request/types';
@@ -10,7 +9,6 @@ import Avatar from '../Avatar';
 import Version from './Version';
 import { useAppSelector } from '@/store';
 import {
-  IconBangzhuwendang1,
   IconNeirongguanli,
   IconTongjifenxi1,
   IconJushou,
@@ -220,34 +218,6 @@ const Sidebar = () => {
             pl: 1.5,
             gap: 0.5,
             justifyContent: 'flex-start',
-            border: `1px solid ${theme.palette.divider}`,
-            '.MuiButton-startIcon': {
-              mr: '3px',
-            },
-            '&:hover': {
-              color: 'primary.main',
-            },
-          }}
-          startIcon={
-            <IconBangzhuwendang1 sx={{ fontSize: '14px !important' }} />
-          }
-          onClick={() =>
-            window.open('https://pandawiki.docs.baizhi.cloud/', '_blank')
-          }
-        >
-          帮助文档
-        </Button>
-        <Button
-          variant='outlined'
-          color='dark'
-          sx={{
-            fontSize: 14,
-            flexShrink: 0,
-            fontWeight: 400,
-            pr: 1.5,
-            pl: 1.5,
-            gap: 0.5,
-            justifyContent: 'flex-start',
             textTransform: 'none',
             border: `1px solid ${theme.palette.divider}`,
             '.MuiButton-startIcon': {
@@ -262,7 +232,7 @@ const Sidebar = () => {
             window.open('https://github.com/chaitin/PandaWiki', '_blank')
           }
         >
-          GitHub
+          原版仓库
         </Button>
         <Button
           variant='outlined'
@@ -295,133 +265,68 @@ const Sidebar = () => {
         onCancel={() => setShowQrcode(false)}
         title='在线支持'
         footer={null}
-        width={600}
+        width={640}
       >
         <Box sx={{ p: 2 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-            {/* Enterprise WeChat Group */}
-            <Box sx={{ flex: 1, display: 'flex' }}>
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  background:
-                    'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-                  textAlign: 'center',
-                  width: '100%',
-                  height: 280,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <Stack alignItems='center' spacing={1.5}>
-                  <Typography
-                    variant='subtitle1'
-                    sx={{ fontWeight: 600, color: '#2d3748' }}
-                  >
-                    企业微信交流群
-                  </Typography>
-                  <Box
-                    component='img'
-                    src={Qrcode}
-                    sx={{
-                      width: 120,
-                      height: 120,
-                      borderRadius: 2,
-                      border: '2px solid white',
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
-                    }}
-                  />
-                  <Typography
-                    variant='body2'
-                    sx={{ color: '#4a5568', fontSize: 13 }}
-                  >
-                    扫码加入企业微信交流群
-                  </Typography>
-                </Stack>
-              </Box>
-            </Box>
-
-            {/* Divider */}
+          <Stack spacing={2}>
             <Box
               sx={{
-                display: { xs: 'none', sm: 'flex' },
-                alignItems: 'center',
-                justifyContent: 'center',
+                p: 2,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%)',
+                border: '1px solid #c7d2fe',
               }}
             >
-              <Box
-                sx={{
-                  width: 1,
-                  height: '60%',
-                  background:
-                    'linear-gradient(to bottom, transparent, #e2e8f0, transparent)',
-                }}
-              />
+              <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 1 }}>
+                乘风版支持说明
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                乘风版基于 PandaWiki 开源项目进行深度二次开发，功能边界与技术实现已和原版存在差异。
+                为了保护原作者宝贵时间，也为了你能更快拿到可执行的修复，请按下方指引反馈问题。
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: '1px dashed #f59e0b',
+                backgroundColor: '#fffaf0',
+              }}
+            >
+              <Typography
+                component='div'
+                sx={{ fontSize: 13, color: 'text.secondary', lineHeight: 1.9 }}
+              >
+                1. 乘风版里遇到的报错、功能差异、升级问题，请提交到乘风版仓库。
+                <br />
+                2. 请不要拿乘风版问题去原版仓库提 issue，别让原作者“在线背锅”。
+                <br />
+                3. 如果你确认是原版问题，请先在原版环境复现后，再联系原版开发者。
+              </Typography>
             </Box>
 
-            {/* Community Forum */}
-            <Box sx={{ flex: 1, display: 'flex' }}>
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  background:
-                    'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-                  textAlign: 'center',
-                  width: '100%',
-                  height: 280,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Button
+                fullWidth
+                variant='contained'
+                onClick={() =>
+                  window.open('https://github.com/MaydayV/PandaWiki', '_blank')
+                }
+                sx={{ textTransform: 'none' }}
               >
-                <Stack alignItems='center' spacing={2}>
-                  <Typography
-                    variant='subtitle1'
-                    sx={{ fontWeight: 600, color: '#2d3748' }}
-                  >
-                    社区论坛
-                  </Typography>
-                  <Button
-                    variant='contained'
-                    onClick={() =>
-                      window.open(
-                        'https://bbs.baizhi.cloud?ref=PandaWiki',
-                        '_blank',
-                      )
-                    }
-                    sx={{
-                      px: 3,
-                      py: 1,
-                      fontSize: 13,
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      background:
-                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                      '&:hover': {
-                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.5)',
-                        transform: 'translateY(-1px)',
-                      },
-                      transition: 'all 0.3s ease',
-                    }}
-                  >
-                    访问官方论坛
-                  </Button>
-                  <Typography
-                    variant='body2'
-                    sx={{ color: '#4a5568', fontSize: 13, textAlign: 'center' }}
-                  >
-                    查看更多技术讨论和社区动态
-                  </Typography>
-                </Stack>
-              </Box>
-            </Box>
+                反馈乘风版问题
+              </Button>
+              <Button
+                fullWidth
+                variant='outlined'
+                onClick={() =>
+                  window.open('https://github.com/chaitin/PandaWiki', '_blank')
+                }
+                sx={{ textTransform: 'none' }}
+              >
+                致谢并查看原版仓库
+              </Button>
+            </Stack>
           </Stack>
         </Box>
       </Modal>

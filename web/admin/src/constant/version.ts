@@ -5,6 +5,28 @@ import proVersion from '@/assets/images/pro-version.png';
 import businessVersion from '@/assets/images/business-version.png';
 import enterpriseVersion from '@/assets/images/enterprise-version.png';
 
+/**
+ * 乘风版版本号规范
+ * FV{大版本}.{功能序号}.{提交序号}.{原版版本号去点}
+ * 例如：FV2.5.4.2111
+ */
+export const FLY_VERSION_META = {
+  major: 2,
+  feature: 5,
+  /**
+   * 第5个功能阶段起点：
+   * 82e76a1f 优化站管理员添加流程并将产品型号文案更新为乘风版
+   * 提交序号由构建阶段基于 git rev-list --count <start>..HEAD 自动计算
+   */
+  featureStartCommit: '82e76a1f',
+  upstreamVersion: '2.11.1',
+};
+
+export const FLY_VERSION_FALLBACK = `FV${FLY_VERSION_META.major}.${FLY_VERSION_META.feature}.1.${FLY_VERSION_META.upstreamVersion.replace(/\./g, '')}`;
+
+export const FLY_VERSION =
+  import.meta.env.VITE_APP_VERSION || FLY_VERSION_FALLBACK;
+
 export const PROFESSION_VERSION_PERMISSION = [
   ConstsLicenseEdition.LicenseEditionFree,
   ConstsLicenseEdition.LicenseEditionProfession,
