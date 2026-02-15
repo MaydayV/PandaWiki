@@ -173,6 +173,8 @@ const CardCustom = ({ kb, refresh, info }: CardCustomProps) => {
               type='url'
               accept='image/png'
               width={80}
+              requireSquare
+              squareErrorMessage='Logo 必须是 1:1 比例的 PNG 图片'
               onChange={(url: string) => {
                 field.onChange(url);
                 setIsEdit(true);

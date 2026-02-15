@@ -31,14 +31,17 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const rewritesPath = [];
+    const staticFileTarget = process.env.STATIC_FILE_TARGET || process.env.TARGET;
+    if (staticFileTarget) {
+      rewritesPath.push({
+        source: '/static-file/:path*',
+        destination: `${staticFileTarget}/static-file/:path*`,
+        basePath: false as const,
+      });
+    }
     if (process.env.NODE_ENV === 'development') {
       rewritesPath.push(
         ...[
-          {
-            source: '/static-file/:path*',
-            destination: `${process.env.STATIC_FILE_TARGET}/static-file/:path*`,
-            basePath: false as const,
-          },
           {
             source: '/share/v1/:path*',
             destination: `${process.env.TARGET}/share/v1/:path*`,

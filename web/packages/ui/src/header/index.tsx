@@ -154,7 +154,15 @@ const Header = React.memo(
                 '&:hover': { color: 'primary.main' },
               }}
             >
-              {logo && <img src={logo} alt='logo' height={36} />}
+              {logo && (
+                <img
+                  src={logo}
+                  alt='logo'
+                  width={36}
+                  height={36}
+                  style={{ objectFit: 'contain', display: 'block' }}
+                />
+              )}
               <Box
                 sx={{
                   fontSize: 20,

@@ -17,6 +17,9 @@ interface UploadFileProps {
   width?: number;
   height?: number;
   label?: string;
+  requireSquare?: boolean;
+  squareTolerance?: number;
+  squareErrorMessage?: string;
 }
 
 const UploadFile = ({
@@ -30,6 +33,9 @@ const UploadFile = ({
   height,
   disabled = false,
   label = '点击上传',
+  requireSquare = false,
+  squareTolerance = 0.01,
+  squareErrorMessage = '请上传 1:1 比例的图片',
 }: UploadFileProps) => {
   const [preview, setPreview] = useState<string>(value);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -41,6 +47,22 @@ const UploadFile = ({
     setPreview(value);
   }, [value]);
 
+  const getImageRatio = (file: File): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.naturalWidth / img.naturalHeight;
+        URL.revokeObjectURL(objectUrl);
+        resolve(ratio);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('读取图片尺寸失败'));
+      };
+      img.src = objectUrl;
+    });
+
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -51,6 +73,22 @@ const UploadFile = ({
     // 如果正在上传其他文件，先取消
     if (isUploading && abortControllerRef.current) {
       abortControllerRef.current.abort();
+    }
+
+    if (requireSquare) {
+      try {
+        const ratio = await getImageRatio(file);
+        if (Math.abs(ratio - 1) > squareTolerance) {
+          message.error(squareErrorMessage);
+          clearInputValue();
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+        message.error('读取图片失败');
+        clearInputValue();
+        return;
+      }
     }
 
     if (currentPreviewUrl.current) {
