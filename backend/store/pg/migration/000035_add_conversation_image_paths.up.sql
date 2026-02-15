@@ -1,1 +1,0 @@
-ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS image_paths text[] NOT NULL DEFAULT '{}'

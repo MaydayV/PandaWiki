@@ -1,1 +1,0 @@
-ALTER TABLE contributes DROP COLUMN IF EXISTS remote_ip;

@@ -1,1 +1,0 @@
-ALTER TABLE "public"."conversation_messages" DROP IF EXISTS COLUMN "image_paths";

@@ -1,1 +1,0 @@
-DROP Table document_feedbacks;

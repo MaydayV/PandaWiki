@@ -1,1 +1,0 @@
-ALTER TABLE nodes DROP COLUMN IF EXISTS rag_info;

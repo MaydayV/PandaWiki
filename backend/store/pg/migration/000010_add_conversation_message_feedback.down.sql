@@ -1,1 +1,0 @@
-ALTER TABLE conversation_messages DROP COLUMN info;

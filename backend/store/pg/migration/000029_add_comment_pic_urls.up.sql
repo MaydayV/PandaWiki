@@ -1,1 +1,0 @@
-ALTER TABLE comments ADD COLUMN IF NOT EXISTS pic_urls text[] not null default ARRAY[]::text[];
