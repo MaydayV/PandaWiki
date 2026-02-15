@@ -36,7 +36,7 @@ export const ENTERPRISE_VERSION_PERMISSION = [
 export const VersionInfoMap = {
   [ConstsLicenseEdition.LicenseEditionFree]: {
     permission: ConstsLicenseEdition.LicenseEditionFree,
-    label: '二开版',
+    label: '乘风版',
     image: freeVersion,
     bgColor: '#8E9DAC',
     nextVersion: undefined,
@@ -140,7 +140,7 @@ export interface VersionInfo {
  */
 export const VERSION_INFO: Record<ConstsLicenseEdition, VersionInfo> = {
   [ConstsLicenseEdition.LicenseEditionFree]: {
-    label: '二开版',
+    label: '乘风版',
     features: {
       wikiCount: Infinity,
       docCountPerWiki: Infinity,

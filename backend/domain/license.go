@@ -24,7 +24,7 @@ type BaseEditionLimitation struct {
 }
 
 var baseEditionLimitationDefault = BaseEditionLimitation{
-	// 二开版默认全量开放能力，避免受原版授权档位限制。
+	// 乘风版默认全量开放能力，避免受原版授权档位限制。
 	MaxKb:                  1000000,
 	MaxNode:                1000000,
 	MaxSSOUser:             1000000,

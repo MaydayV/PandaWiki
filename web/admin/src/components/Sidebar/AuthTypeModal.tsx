@@ -23,7 +23,9 @@ const AuthTypeModal = ({ open, onClose, curVersion }: AuthTypeModalProps) => {
           <Box>{versionInfo.label}</Box>
         </Stack>
         <Box sx={{ color: 'text.secondary', fontSize: 13 }}>
-          当前系统为二开版本，已移除原版在线更新检测、授权激活和授权解绑流程。
+          乘风版基于 PandaWiki 开源项目持续演进，借助开源基础拓展了更多实用能力。
+          当前版本已移除原商业授权体系相关的在线更新检测、授权激活和授权解绑流程。
+          感谢原作者与开源社区的长期贡献，让我们能够站在巨人的肩膀上持续前行。
         </Box>
         <Stack direction='row' gap={1}>
           <Button
@@ -32,7 +34,15 @@ const AuthTypeModal = ({ open, onClose, curVersion }: AuthTypeModalProps) => {
               window.open('https://github.com/MaydayV/PandaWiki', '_blank');
             }}
           >
-            打开二开仓库
+            打开乘风版仓库
+          </Button>
+          <Button
+            size='small'
+            onClick={() => {
+              window.open('https://github.com/chaitin/PandaWiki', '_blank');
+            }}
+          >
+            致谢原开源项目
           </Button>
         </Stack>
       </Stack>

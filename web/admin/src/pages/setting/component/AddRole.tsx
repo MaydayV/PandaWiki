@@ -1,8 +1,18 @@
-import { Box, Tooltip, Stack, Select, MenuItem, Radio } from '@mui/material';
-import { getApiV1UserList } from '@/request/User';
+import {
+  Box,
+  Tooltip,
+  Stack,
+  Select,
+  MenuItem,
+  Radio,
+  Button,
+  TextField,
+} from '@mui/material';
+import { getApiV1UserList, postApiV1UserCreate } from '@/request/User';
 import { postApiV1KnowledgeBaseUserInvite } from '@/request/KnowledgeBase';
 import {
   ConstsUserKBPermission,
+  ConstsUserRole,
   V1KBUserInviteReq,
   V1UserListItemResp,
 } from '@/request/types';
@@ -16,6 +26,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppSelector } from '@/store';
 import { VersionCanUse } from '@/components/VersionMask';
 import { PROFESSION_VERSION_PERMISSION } from '@/constant/version';
+import { copyText, generatePassword } from '@/utils';
 
 interface AddRoleProps {
   open: boolean;
@@ -33,6 +44,11 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
   const [perm, setPerm] = useState<V1KBUserInviteReq['perm']>(
     ConstsUserKBPermission.UserKBPermissionFullControl,
   );
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [newAccount, setNewAccount] = useState('');
+  const [createdAccount, setCreatedAccount] = useState('');
+  const [createdPassword, setCreatedPassword] = useState('');
 
   const columns: ColumnType<V1UserListItemResp>[] = [
     {
@@ -105,6 +121,49 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
       onOk();
       message.success('添加成功');
     });
+  };
+
+  const onCreateUser = () => {
+    const account = newAccount.trim();
+    if (!account) {
+      message.error('请输入用户名');
+      return;
+    }
+
+    const password = generatePassword(12);
+    setCreateLoading(true);
+    postApiV1UserCreate({
+      account,
+      password,
+      role: ConstsUserRole.UserRoleUser,
+    })
+      .then(res => {
+        message.success('用户创建成功');
+        setCreateOpen(false);
+        setNewAccount('');
+        setCreatedAccount(account);
+        setCreatedPassword(password);
+        getData();
+        const createdID = (res as any)?.id || (res as any)?.data?.id;
+        if (createdID) {
+          setSelectedRowKeys(createdID);
+        }
+      })
+      .finally(() => {
+        setCreateLoading(false);
+      });
+  };
+
+  const onCopyUserInfo = () => {
+    copyText(
+      `用户名: ${createdAccount}\n密码: ${createdPassword}`,
+      () => {
+        setCreatedAccount('');
+        setCreatedPassword('');
+      },
+      1.5,
+      '，请妥善保存',
+    );
   };
 
   useEffect(() => {
@@ -195,6 +254,23 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
           }
         />
       </Card>
+      <Stack
+        direction='row'
+        justifyContent='flex-end'
+        sx={{
+          mt: 1,
+        }}
+      >
+        <Button
+          size='small'
+          variant='outlined'
+          onClick={() => {
+            setCreateOpen(true);
+          }}
+        >
+          新建用户
+        </Button>
+      </Stack>
       <FormItem
         label={
           <Stack
@@ -242,6 +318,54 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
           </MenuItem>
         </Select>
       </FormItem>
+
+      <Modal
+        title='创建新用户'
+        open={createOpen}
+        onCancel={() => {
+          setCreateOpen(false);
+          setNewAccount('');
+        }}
+        onOk={onCreateUser}
+        okButtonProps={{ loading: createLoading }}
+      >
+        <FormItem label='用户名' required>
+          <TextField
+            fullWidth
+            autoFocus
+            value={newAccount}
+            placeholder='请输入用户名'
+            onChange={e => setNewAccount(e.target.value)}
+          />
+        </FormItem>
+        <Box sx={{ fontSize: 12, color: 'text.tertiary', mt: 1 }}>
+          系统会自动生成初始密码，创建成功后请复制保存。
+        </Box>
+      </Modal>
+
+      <Modal
+        title='用户创建成功'
+        open={!!createdPassword}
+        closable={false}
+        cancelText='关闭'
+        onCancel={() => {
+          setCreatedAccount('');
+          setCreatedPassword('');
+        }}
+        okText='复制账号密码'
+        onOk={onCopyUserInfo}
+      >
+        <Card sx={{ p: 2, fontSize: 14, bgcolor: 'background.paper3' }}>
+          <Stack direction='row'>
+            <Box sx={{ width: 80 }}>用户名</Box>
+            <Box sx={{ fontWeight: 700 }}>{createdAccount}</Box>
+          </Stack>
+          <Stack direction='row' sx={{ mt: 1 }}>
+            <Box sx={{ width: 80 }}>密码</Box>
+            <Box sx={{ fontWeight: 700 }}>{createdPassword}</Box>
+          </Stack>
+        </Card>
+      </Modal>
     </Modal>
   );
 };
