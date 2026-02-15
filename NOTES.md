@@ -137,3 +137,14 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 虚拟机构建注意：
   - `web/admin` 在 Debian 小内存环境下构建可能 OOM，需使用：
     - `NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build`
+
+## 追加记录（2026-02-16，安全设置页网络异常修复）
+- 根因：安全设置页“内容合规”初始化请求 `GET /api/pro/v1/block`，后端缺少对应路由，页面打开触发 404 并提示“网络异常”。
+- 修复：
+  - 新增后端接口：
+    - `GET /api/pro/v1/block?kb_id=...` 读取屏蔽词
+    - `POST /api/pro/v1/block` 保存屏蔽词
+  - 屏蔽词保存逻辑落到 `settings` 表 `key=block_words`，并在写入时去重、去空白。
+- 验证（VM）：
+  - 修复前：`/api/pro/v1/block` 返回 `404`
+  - 修复后：登录后 `GET` 返回 `200`，`POST` 保存后再次 `GET` 可读回数据。
