@@ -180,3 +180,49 @@ type GetKBReleaseListReq struct {
 }
 
 type GetKBReleaseListResp = PaginatedResult[[]KBReleaseListItemResp]
+
+type GetKBReleaseDocsReq struct {
+	KBID      string `json:"kb_id" query:"kb_id" validate:"required"`
+	ReleaseID string `json:"release_id" query:"release_id" validate:"required"`
+}
+
+type KBReleaseDocItem struct {
+	NodeID        string    `json:"node_id"`
+	NodeReleaseID string    `json:"node_release_id"`
+	Name          string    `json:"name"`
+	Type          NodeType  `json:"type"`
+	ParentID      string    `json:"parent_id"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type KBReleaseDocDiffType string
+
+const (
+	KBReleaseDocDiffAdded     KBReleaseDocDiffType = "added"
+	KBReleaseDocDiffRemoved   KBReleaseDocDiffType = "removed"
+	KBReleaseDocDiffChanged   KBReleaseDocDiffType = "changed"
+	KBReleaseDocDiffUnchanged KBReleaseDocDiffType = "unchanged"
+)
+
+type KBReleaseDocDiffItem struct {
+	NodeID                string               `json:"node_id"`
+	Name                  string               `json:"name"`
+	DiffType              KBReleaseDocDiffType `json:"diff_type"`
+	CurrentNodeReleaseID  string               `json:"current_node_release_id,omitempty"`
+	PreviousNodeReleaseID string               `json:"previous_node_release_id,omitempty"`
+}
+
+type KBReleaseDocDiffStats struct {
+	Added     int `json:"added"`
+	Removed   int `json:"removed"`
+	Changed   int `json:"changed"`
+	Unchanged int `json:"unchanged"`
+}
+
+type GetKBReleaseDocsResp struct {
+	CurrentReleaseID  string                  `json:"current_release_id"`
+	PreviousReleaseID string                  `json:"previous_release_id,omitempty"`
+	Docs              []*KBReleaseDocItem     `json:"docs"`
+	Diff              []*KBReleaseDocDiffItem `json:"diff"`
+	Stats             KBReleaseDocDiffStats   `json:"stats"`
+}

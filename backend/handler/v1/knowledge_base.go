@@ -61,6 +61,7 @@ func NewKnowledgeBaseHandler(
 	releaseGroup := group.Group("/release", h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage))
 	releaseGroup.POST("", h.CreateKBRelease)
 	releaseGroup.GET("/list", h.GetKBReleaseList)
+	releaseGroup.GET("/docs", h.GetKBReleaseDocs)
 
 	promptGroup := echo.Group("/api/pro/v1/prompt", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 	promptGroup.GET("", h.GetPromptSettings)
@@ -654,6 +655,34 @@ func (h *KnowledgeBaseHandler) GetKBReleaseList(c echo.Context) error {
 	resp, err := h.usecase.GetKBReleaseList(c.Request().Context(), &req)
 	if err != nil {
 		return h.NewResponseWithError(c, "get kb release list failed", err)
+	}
+
+	return h.NewResponseWithData(c, resp)
+}
+
+// GetKBReleaseDocs
+//
+//	@Summary		GetKBReleaseDocs
+//	@Description	GetKBReleaseDocs
+//	@Tags			knowledge_base
+//	@Accept			json
+//	@Produce		json
+//	@Param			kb_id		query		string	true	"Knowledge Base ID"
+//	@Param			release_id	query		string	true	"Release ID"
+//	@Success		200			{object}	domain.PWResponse{data=domain.GetKBReleaseDocsResp}
+//	@Router			/api/v1/knowledge_base/release/docs [get]
+func (h *KnowledgeBaseHandler) GetKBReleaseDocs(c echo.Context) error {
+	var req domain.GetKBReleaseDocsReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request params is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request params failed", err)
+	}
+
+	resp, err := h.usecase.GetKBReleaseDocs(c.Request().Context(), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "get kb release docs failed", err)
 	}
 
 	return h.NewResponseWithData(c, resp)

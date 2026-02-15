@@ -196,6 +196,23 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
           borderColor: 'divider',
         }}
       >
+        <Stack
+          direction='row'
+          justifyContent='space-between'
+          alignItems='center'
+          sx={{ px: 2, pb: 1 }}
+        >
+          <Box sx={{ fontSize: 13, color: 'text.secondary' }}>选择已有用户</Box>
+          <Button
+            size='small'
+            variant='outlined'
+            onClick={() => {
+              setCreateOpen(true);
+            }}
+          >
+            新建用户
+          </Button>
+        </Stack>
         <Table
           columns={columns}
           dataSource={list}
@@ -254,23 +271,6 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
           }
         />
       </Card>
-      <Stack
-        direction='row'
-        justifyContent='flex-end'
-        sx={{
-          mt: 1,
-        }}
-      >
-        <Button
-          size='small'
-          variant='outlined'
-          onClick={() => {
-            setCreateOpen(true);
-          }}
-        >
-          新建用户
-        </Button>
-      </Stack>
       <FormItem
         label={
           <Stack

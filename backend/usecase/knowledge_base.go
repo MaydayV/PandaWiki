@@ -198,6 +198,67 @@ func (u *KnowledgeBaseUsecase) GetKBReleaseList(ctx context.Context, req *domain
 	return domain.NewPaginatedResult(releases, uint64(total)), nil
 }
 
+func (u *KnowledgeBaseUsecase) GetKBReleaseDocs(ctx context.Context, req *domain.GetKBReleaseDocsReq) (*domain.GetKBReleaseDocsResp, error) {
+	previousReleaseID, docs, previousDocs, err := u.repo.GetKBReleaseDocs(ctx, req.KBID, req.ReleaseID)
+	if err != nil {
+		return nil, err
+	}
+
+	previousDocMap := make(map[string]*domain.KBReleaseDocItem, len(previousDocs))
+	for _, item := range previousDocs {
+		previousDocMap[item.NodeID] = item
+	}
+
+	currentDocMap := make(map[string]*domain.KBReleaseDocItem, len(docs))
+	diff := make([]*domain.KBReleaseDocDiffItem, 0, len(docs)+len(previousDocs))
+	stats := domain.KBReleaseDocDiffStats{}
+
+	for _, item := range docs {
+		currentDocMap[item.NodeID] = item
+
+		previousItem, exists := previousDocMap[item.NodeID]
+		diffItem := &domain.KBReleaseDocDiffItem{
+			NodeID:               item.NodeID,
+			Name:                 item.Name,
+			CurrentNodeReleaseID: item.NodeReleaseID,
+		}
+		if !exists {
+			diffItem.DiffType = domain.KBReleaseDocDiffAdded
+			stats.Added++
+		} else if previousItem.NodeReleaseID != item.NodeReleaseID {
+			diffItem.DiffType = domain.KBReleaseDocDiffChanged
+			diffItem.PreviousNodeReleaseID = previousItem.NodeReleaseID
+			stats.Changed++
+		} else {
+			diffItem.DiffType = domain.KBReleaseDocDiffUnchanged
+			diffItem.PreviousNodeReleaseID = previousItem.NodeReleaseID
+			stats.Unchanged++
+		}
+		diff = append(diff, diffItem)
+	}
+
+	for _, item := range previousDocs {
+		if _, exists := currentDocMap[item.NodeID]; exists {
+			continue
+		}
+		diff = append(diff, &domain.KBReleaseDocDiffItem{
+			NodeID:                item.NodeID,
+			Name:                  item.Name,
+			DiffType:              domain.KBReleaseDocDiffRemoved,
+			PreviousNodeReleaseID: item.NodeReleaseID,
+		})
+		stats.Removed++
+	}
+
+	return &domain.GetKBReleaseDocsResp{
+		CurrentReleaseID:  req.ReleaseID,
+		PreviousReleaseID: previousReleaseID,
+		Docs:              docs,
+		Diff:              diff,
+		Stats:             stats,
+	}, nil
+}
+
 func (u *KnowledgeBaseUsecase) GetKBUserList(ctx context.Context, req v1.KBUserListReq) ([]v1.KBUserListItemResp, error) {
 	users, err := u.repo.GetKBUserlist(ctx, req.KBId)
 	if err != nil {

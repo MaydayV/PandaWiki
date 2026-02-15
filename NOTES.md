@@ -160,3 +160,14 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
   - `settings.node_meta_settings.show_created_at`
   - `settings.node_meta_settings.show_updated_at`
   - `settings.node_meta_settings.show_word_count`
+
+## 追加记录（2026-02-16，管理员入口与发布页版本查看增强）
+- 管理员设置页：
+  - “新建用户”按钮移动到“选择已有用户”区域右上角，入口更直观。
+- 文档属性弹窗“网络异常”修复：
+  - 移除不存在的接口 `GET /api/pro/v1/auth/group/list` 调用，避免 404 触发全局错误提示。
+  - 分组选择改为优先读取当前文档已有分组并作为候选项回填，保证属性弹窗可稳定打开与保存。
+- 发布页面增强：
+  - 新增后端接口 `GET /api/v1/knowledge_base/release/docs`，返回指定版本文档快照及与上一版本对比结果（新增/删除/修改/未变更）。
+  - 发布页新增“查看版本”“文档对比”操作，支持在弹窗中查看版本内文档清单、版本差异统计与逐项对比。
+  - 本次按复杂度评估暂不新增“回退发布版本”功能，避免引入跨版本状态回写风险。

@@ -6,8 +6,6 @@ import {
   getApiV1NodePermission,
   patchApiV1NodePermissionEdit,
 } from '@/request/NodePermission';
-import { getApiProV1AuthGroupList } from '@/request/pro/AuthGroup';
-import { GithubComChaitinPandaWikiProApiAuthV1AuthGroupListItem } from '@/request/pro/types';
 import {
   ConstsNodeAccessPerm,
   DomainNodeListItemResp,
@@ -41,6 +39,11 @@ interface DocPropertiesModalProps {
   onOk: () => void;
   isBatch?: boolean;
   data: DomainNodeListItemResp[];
+}
+
+interface GroupOption {
+  id: number | string;
+  path: string;
 }
 
 const StyledText = styled('div')(({ theme }) => ({
@@ -77,9 +80,7 @@ const DocPropertiesModal = ({
 }: DocPropertiesModalProps) => {
   const { kb_id, license } = useAppSelector(state => state.config);
   const [loading, setLoading] = useState(false);
-  const [userGroups, setUserGroups] = useState<
-    GithubComChaitinPandaWikiProApiAuthV1AuthGroupListItem[]
-  >([]);
+  const [userGroups, setUserGroups] = useState<GroupOption[]>([]);
   const {
     control,
     handleSubmit,
@@ -94,12 +95,9 @@ const DocPropertiesModal = ({
       visitable: null as ConstsNodeAccessPerm | null,
       visible: null as ConstsNodeAccessPerm | null,
       summary: '',
-      answerable_groups:
-        [] as GithubComChaitinPandaWikiProApiAuthV1AuthGroupListItem[],
-      visitable_groups:
-        [] as GithubComChaitinPandaWikiProApiAuthV1AuthGroupListItem[],
-      visible_groups:
-        [] as GithubComChaitinPandaWikiProApiAuthV1AuthGroupListItem[],
+      answerable_groups: [] as GroupOption[],
+      visitable_groups: [] as GroupOption[],
+      visible_groups: [] as GroupOption[],
     },
   });
 
@@ -167,15 +165,6 @@ const DocPropertiesModal = ({
 
   useEffect(() => {
     if (open && data) {
-      if (isBusiness) {
-        getApiProV1AuthGroupList({
-          kb_id: kb_id!,
-          page: 1,
-          per_page: 9999,
-        }).then(res => {
-          setUserGroups(res.list || []);
-        });
-      }
       if (isBatch) return;
       setValue('name', data[0].name!);
       setValue('summary', data[0].summary!);
@@ -189,26 +178,43 @@ const DocPropertiesModal = ({
           setValue('visitable', permissions.visitable!);
           setValue('visible', permissions.visible!);
         }
-        setValue(
-          'answerable_groups',
-          (res.answerable_groups || []).map((item: any) => ({
+        const answerableGroups = (res.answerable_groups || []).map(
+          (item: any) => ({
             id: item.auth_group_id,
             path: item.path || item.name,
-          })),
+          }),
+        );
+        const visitableGroups = (res.visitable_groups || []).map(
+          (item: any) => ({
+            id: item.auth_group_id,
+            path: item.path || item.name,
+          }),
+        );
+        const visibleGroups = (res.visible_groups || []).map((item: any) => ({
+          id: item.auth_group_id,
+          path: item.path || item.name,
+        }));
+
+        // 后端未提供用户组列表接口时，使用当前文档已有分组作为可选项，避免属性弹窗报错。
+        const fallbackGroupsMap = new Map<string, GroupOption>();
+        [...answerableGroups, ...visitableGroups, ...visibleGroups].forEach(
+          item => {
+            fallbackGroupsMap.set(String(item.id), item);
+          },
+        );
+        setUserGroups(Array.from(fallbackGroupsMap.values()));
+
+        setValue(
+          'answerable_groups',
+          answerableGroups,
         );
         setValue(
           'visitable_groups',
-          (res.visitable_groups || []).map((item: any) => ({
-            id: item.auth_group_id,
-            path: item.path || item.name,
-          })),
+          visitableGroups,
         );
         setValue(
           'visible_groups',
-          (res.visible_groups || []).map((item: any) => ({
-            id: item.auth_group_id,
-            path: item.path || item.name,
-          })),
+          visibleGroups,
         );
       });
     }

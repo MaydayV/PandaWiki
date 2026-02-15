@@ -30,6 +30,43 @@ import {
   V1KBUserUpdateReq,
 } from "./types";
 
+export interface GetApiV1KnowledgeBaseReleaseDocsParams {
+  kb_id: string;
+  release_id: string;
+}
+
+export interface DomainKBReleaseDocItem {
+  node_id: string;
+  node_release_id: string;
+  name: string;
+  type: number;
+  parent_id: string;
+  updated_at: string;
+}
+
+export interface DomainKBReleaseDocDiffItem {
+  node_id: string;
+  name: string;
+  diff_type: "added" | "removed" | "changed" | "unchanged";
+  current_node_release_id?: string;
+  previous_node_release_id?: string;
+}
+
+export interface DomainKBReleaseDocDiffStats {
+  added: number;
+  removed: number;
+  changed: number;
+  unchanged: number;
+}
+
+export interface DomainGetKBReleaseDocsResp {
+  current_release_id: string;
+  previous_release_id?: string;
+  docs: DomainKBReleaseDocItem[];
+  diff: DomainKBReleaseDocDiffItem[];
+  stats: DomainKBReleaseDocDiffStats;
+}
+
 /**
  * @description CreateKnowledgeBase
  *
@@ -203,6 +240,36 @@ export const getApiV1KnowledgeBaseReleaseList = (
     }
   >({
     path: `/api/v1/knowledge_base/release/list`,
+    method: "GET",
+    query: query,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description GetKBReleaseDocs
+ *
+ * @tags knowledge_base
+ * @name GetApiV1KnowledgeBaseReleaseDocs
+ * @summary GetKBReleaseDocs
+ * @request GET:/api/v1/knowledge_base/release/docs
+ * @response `200` `(DomainPWResponse & {
+    data?: DomainGetKBReleaseDocsResp,
+
+})` OK
+ */
+
+export const getApiV1KnowledgeBaseReleaseDocs = (
+  query: GetApiV1KnowledgeBaseReleaseDocsParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<
+    DomainPWResponse & {
+      data?: DomainGetKBReleaseDocsResp;
+    }
+  >({
+    path: `/api/v1/knowledge_base/release/docs`,
     method: "GET",
     query: query,
     type: ContentType.Json,

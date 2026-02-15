@@ -1,4 +1,3 @@
-import { ReleaseListItem } from '@/api';
 import { getApiV1KnowledgeBaseReleaseList } from '@/request/KnowledgeBase';
 import { DomainKBReleaseListItemResp } from '@/request/types';
 import NoData from '@/assets/images/nodata.png';
@@ -9,9 +8,8 @@ import { Box, Button, Stack } from '@mui/material';
 import { Table } from '@ctzhian/ui';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
-import VersionDelete from './components/VersionDelete';
+import VersionInspect from './components/VersionInspect';
 import VersionPublish from './components/VersionPublish';
-import VersionReset from './components/VersionReset';
 
 const Release = () => {
   const { kb_id } = useAppSelector(state => state.config);
@@ -19,10 +17,12 @@ const Release = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
-  const [curData, setCurData] = useState<any>(null);
-  const [resetOpen, setResetOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [curData, setCurData] = useState<DomainKBReleaseListItemResp | null>(
+    null,
+  );
   const [publishOpen, setPublishOpen] = useState(false);
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const [inspectTab, setInspectTab] = useState<'docs' | 'diff'>('docs');
   const [curVersionId, setCurVersionId] = useState('');
 
   const [data, setData] = useState<DomainKBReleaseListItemResp[]>([]);
@@ -31,7 +31,7 @@ const Release = () => {
     {
       dataIndex: 'tag',
       title: '版本号',
-      render: (text: string, record: ReleaseListItem) => {
+      render: (text: string, record: DomainKBReleaseListItemResp) => {
         return (
           <Stack direction={'row'} alignItems={'center'} gap={1}>
             <Box>{text}</Box>
@@ -70,23 +70,37 @@ const Release = () => {
         return dayjs(text).fromNow();
       },
     },
-    // {
-    //   dataIndex: 'action',
-    //   title: '操作',
-    //   width: 120,
-    //   render: (text: string, record: ReleaseListItem) => {
-    //     return <Stack direction={'row'} gap={2}>
-    //       <Button sx={{ minWidth: 0, p: 0 }} size='small' onClick={() => {
-    //         setCurData(record)
-    //         setResetOpen(true)
-    //       }}>回滚</Button>
-    //       <Button sx={{ minWidth: 0, p: 0 }} size='small' color='error' onClick={() => {
-    //         setCurData(record)
-    //         setDeleteOpen(true)
-    //       }}>删除</Button>
-    //     </Stack>
-    //   }
-    // }
+    {
+      dataIndex: 'action',
+      title: '操作',
+      width: 180,
+      render: (_: string, record: DomainKBReleaseListItemResp) => (
+        <Stack direction={'row'} gap={1}>
+          <Button
+            sx={{ minWidth: 0, p: 0 }}
+            size='small'
+            onClick={() => {
+              setCurData(record);
+              setInspectTab('docs');
+              setInspectOpen(true);
+            }}
+          >
+            查看版本
+          </Button>
+          <Button
+            sx={{ minWidth: 0, p: 0 }}
+            size='small'
+            onClick={() => {
+              setCurData(record);
+              setInspectTab('diff');
+              setInspectOpen(true);
+            }}
+          >
+            文档对比
+          </Button>
+        </Stack>
+      ),
+    },
   ];
 
   const getData = () => {
@@ -178,20 +192,16 @@ const Release = () => {
           )
         }
       />
-      <VersionDelete
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        data={curData}
-      />
-      <VersionReset
-        open={resetOpen}
-        onClose={() => setResetOpen(false)}
-        data={curData}
-      />
       <VersionPublish
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
         refresh={getData}
+      />
+      <VersionInspect
+        open={inspectOpen}
+        onClose={() => setInspectOpen(false)}
+        data={curData}
+        defaultTab={inspectTab}
       />
     </Card>
   );

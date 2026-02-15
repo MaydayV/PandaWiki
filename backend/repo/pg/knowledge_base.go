@@ -689,6 +689,60 @@ func (r *KnowledgeBaseRepository) GetKBReleaseList(ctx context.Context, kbID str
 	return total, releases, nil
 }
 
+func (r *KnowledgeBaseRepository) GetKBReleaseDocs(ctx context.Context, kbID, releaseID string) (string, []*domain.KBReleaseDocItem, []*domain.KBReleaseDocItem, error) {
+	releaseIDs := make([]string, 0)
+	if err := r.db.WithContext(ctx).
+		Model(&domain.KBRelease{}).
+		Where("kb_id = ?", kbID).
+		Order("created_at DESC, id DESC").
+		Pluck("id", &releaseIDs).Error; err != nil {
+		return "", nil, nil, err
+	}
+
+	currentIndex := -1
+	for i, id := range releaseIDs {
+		if id == releaseID {
+			currentIndex = i
+			break
+		}
+	}
+	if currentIndex == -1 {
+		return "", nil, nil, gorm.ErrRecordNotFound
+	}
+
+	currentDocs, err := r.getKBReleaseDocsByReleaseID(ctx, kbID, releaseID)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	previousReleaseID := ""
+	previousDocs := make([]*domain.KBReleaseDocItem, 0)
+	if currentIndex+1 < len(releaseIDs) {
+		previousReleaseID = releaseIDs[currentIndex+1]
+		previousDocs, err = r.getKBReleaseDocsByReleaseID(ctx, kbID, previousReleaseID)
+		if err != nil {
+			return "", nil, nil, err
+		}
+	}
+
+	return previousReleaseID, currentDocs, previousDocs, nil
+}
+
+func (r *KnowledgeBaseRepository) getKBReleaseDocsByReleaseID(ctx context.Context, kbID, releaseID string) ([]*domain.KBReleaseDocItem, error) {
+	docs := make([]*domain.KBReleaseDocItem, 0)
+	if err := r.db.WithContext(ctx).
+		Table("kb_release_node_releases AS krnr").
+		Select("nr.node_id, nr.id AS node_release_id, nr.name, nr.type, nr.parent_id, nr.updated_at").
+		Joins("INNER JOIN node_releases AS nr ON nr.id = krnr.node_release_id").
+		Where("krnr.kb_id = ?", kbID).
+		Where("krnr.release_id = ?", releaseID).
+		Order("nr.type ASC, nr.updated_at DESC, nr.name ASC").
+		Find(&docs).Error; err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
 func (r *KnowledgeBaseRepository) GetLatestRelease(ctx context.Context, kbID string) (*domain.KBRelease, error) {
 	var release domain.KBRelease
 	if err := r.db.WithContext(ctx).
