@@ -93,6 +93,11 @@ git -C /home/deploy/pandawiki-src remote add sync /home/deploy/pandawiki-sync.gi
 git -C /home/deploy/pandawiki-src fetch sync deploy-sync
 git -C /home/deploy/pandawiki-src reset --hard sync/deploy-sync
 
+# 虚拟机：先构建 admin 前端产物（关键，admin 镜像只 COPY web/admin/dist）
+cd /home/deploy/pandawiki-src/web/admin
+pnpm install --frozen-lockfile
+NODE_OPTIONS=--max-old-space-size=4096 pnpm build
+
 # 虚拟机：重建并拉起核心服务
 cd /home/deploy/pandawiki-src/deploy
 sudo docker compose build panda-wiki-api panda-wiki-consumer panda-wiki-app panda-wiki-admin
