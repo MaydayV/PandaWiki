@@ -124,3 +124,16 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
   - 目录卡片“查看更多”改为可国际化文案。
 - 修复左侧目录英文换行问题：目录标题区域改为单行省略显示，避免 `Catalog` 被错误折行。
 - 新增设置项：`设置 -> 前台网站样式个性化` 增加“前台 Logo”上传（PNG），直接写入 `settings.icon`，前台头部和问答弹窗 logo 统一生效。
+
+## 追加记录（2026-02-15，Logo 上传与显示修复）
+- 修复 Logo 上传缺少比例校验的问题：
+  - `UploadFile` 组件新增可选参数 `requireSquare/squareTolerance/squareErrorMessage`。
+  - 前台 Logo 上传启用 1:1 校验，非正方形 PNG 直接提示并阻止上传。
+- 修复 Logo 上传后前台不显示的问题：
+  - `web/app/.env` 增加 `STATIC_FILE_TARGET=http://panda-wiki-minio:9000`，确保 `next build` 时生成 `/static-file` 正确转发。
+  - `web/app/next.config.ts` 的 `/static-file` 转发改为优先使用 `STATIC_FILE_TARGET`，缺失时回退 `TARGET`。
+- 前台 Logo 展示稳定性优化：
+  - 前台头部与欢迎页头部 Logo 改为固定 `36x36`，并使用 `object-fit: contain`，避免透明 PNG 被裁切或撑变形。
+- 虚拟机构建注意：
+  - `web/admin` 在 Debian 小内存环境下构建可能 OOM，需使用：
+    - `NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build`
