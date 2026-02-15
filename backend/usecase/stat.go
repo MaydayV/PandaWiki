@@ -158,7 +158,14 @@ func (u *StatUseCase) GetHotPages(ctx context.Context, kbID string, day consts.S
 func (u *StatUseCase) GetHotRefererHosts(ctx context.Context, kbID string, day consts.StatDay) ([]*domain.HotRefererHost, error) {
 	switch day {
 	case consts.StatDay1:
-		return u.repo.GetHotRefererHosts(ctx, kbID)
+		hotRefererHosts, err := u.repo.GetHotRefererHosts(ctx, kbID)
+		if err != nil {
+			return nil, err
+		}
+		if hotRefererHosts == nil {
+			hotRefererHosts = make([]*domain.HotRefererHost, 0)
+		}
+		return hotRefererHosts, nil
 	case consts.StatDay7, consts.StatDay30, consts.StatDay90:
 		refererHostMap, err := u.repo.GetHotRefererHostsByHour(ctx, kbID, int64(day)*24)
 		if err != nil {
@@ -166,7 +173,7 @@ func (u *StatUseCase) GetHotRefererHosts(ctx context.Context, kbID string, day c
 		}
 
 		// 转换 map 为 slice 并排序
-		var hotRefererHosts []*domain.HotRefererHost
+		hotRefererHosts := make([]*domain.HotRefererHost, 0, len(refererHostMap))
 		for host, count := range refererHostMap {
 			hotRefererHosts = append(hotRefererHosts, &domain.HotRefererHost{
 				RefererHost: host,
