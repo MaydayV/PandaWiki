@@ -52,6 +52,7 @@ const Footer = React.memo(
     customStyle,
     footerSetting,
     logo,
+    brandLabel,
   }: {
     mobile?: boolean;
     catalogWidth?: number;
@@ -61,6 +62,7 @@ const Footer = React.memo(
     customStyle?: CustomStyle;
     footerSetting?: FooterSetting;
     logo?: string;
+    brandLabel?: string;
   }) => {
     const [curOverlayType, setCurOverlayType] = useState('');
     const [open, setOpen] = useState(false);
@@ -349,7 +351,7 @@ const Footer = React.memo(
                       cursor: 'pointer',
                     }}
                   >
-                    <Box>{decodeBase64(PROJECT_NAME)}</Box>
+                    <Box>{brandLabel || decodeBase64(PROJECT_NAME)}</Box>
                     <img src={logo} alt='PandaWiki' width={0} height={0} />
                   </Stack>
                 </Link>
@@ -792,7 +794,7 @@ const Footer = React.memo(
                             },
                           }}
                         >
-                          <Box>{decodeBase64(PROJECT_NAME)}</Box>
+                          <Box>{brandLabel || decodeBase64(PROJECT_NAME)}</Box>
                           <img
                             src={logo}
                             alt='PandaWiki'

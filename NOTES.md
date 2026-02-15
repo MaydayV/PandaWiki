@@ -109,3 +109,18 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - `https://127.0.0.1:2443` 返回 `HTTP/2 200`（管理端 HTTPS 正常）。
 - `http://127.0.0.1:3010` 返回 `HTTP/1.1 200`（前台正常）。
 - `http://127.0.0.1:8000/share/v1/app/web/info` 返回 `HTTP/1.1 200`（API 可用）。
+
+## 追加记录（2026-02-15，前台多语言与样式修复）
+- 修复欢迎页配色保存后不生效问题：`/share/v1/app/web/info` 与 `/share/v1/app/widget/info` 在服务端读取改为 `no-store`，避免 SSR 缓存旧配置导致主题不刷新。
+- 修复文档页英文元信息显示：
+  - 统一改为 `Created {{time}} / Updated {{time}}`。
+  - 移除创建者/编辑者账号展示。
+  - 修复复制尾巴文案硬编码中文，改为走 i18n。
+- 修复英文环境残留中文：
+  - 顶部“智能问答”按钮文案改为可传入（header/welcomeHeader/banner）。
+  - 前台接入 `qa.chatTab` 作为按钮文案。
+  - 底部品牌文案改为可传入，并由前台语言配置输出（默认 `Powered by PandaWiki`）。
+  - 兼容历史默认中文版权文案（`本网站由 PandaWiki 提供技术支持`），英文环境自动替换为英文默认值。
+  - 目录卡片“查看更多”改为可国际化文案。
+- 修复左侧目录英文换行问题：目录标题区域改为单行省略显示，避免 `Catalog` 被错误折行。
+- 新增设置项：`设置 -> 前台网站样式个性化` 增加“前台 Logo”上传（PNG），直接写入 `settings.icon`，前台头部和问答弹窗 logo 统一生效。

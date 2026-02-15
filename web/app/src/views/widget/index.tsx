@@ -18,6 +18,8 @@ import AiQaContent from './AiQaContent';
 import SearchDocContent from './SearchDocContent';
 import { useI18n } from '@/i18n/useI18n';
 
+const LEGACY_DEFAULT_COPYRIGHT = '本网站由 PandaWiki 提供技术支持';
+
 const StyledTabs = styled(Tabs)(({ theme }) => ({
   minHeight: 'auto',
   position: 'relative',
@@ -94,11 +96,14 @@ const Widget = () => {
   }, [widget]);
 
   const copyrightText = useMemo(() => {
-    return (
+    const text =
       widget?.settings?.brand_settings?.copyright_info ||
       widget?.settings?.widget_bot_settings?.copyright_info ||
-      t('brand.defaultCopyright')
-    );
+      '';
+    if (!text || text === LEGACY_DEFAULT_COPYRIGHT) {
+      return t('brand.defaultCopyright');
+    }
+    return text;
   }, [widget, t]);
 
   // modal打开时自动聚焦

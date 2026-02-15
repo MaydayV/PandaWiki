@@ -19,6 +19,8 @@ import SearchDocContent from './SearchDocContent';
 import { useStore } from '@/provider';
 import { useI18n } from '@/i18n/useI18n';
 
+const LEGACY_DEFAULT_COPYRIGHT = '本网站由 PandaWiki 提供技术支持';
+
 interface SearchSuggestion {
   id: string;
   title: string;
@@ -110,11 +112,14 @@ const QaModal: React.FC<QaModalProps> = () => {
   }, [kbDetail]);
 
   const copyrightText = useMemo(() => {
-    return (
+    const text =
       kbDetail?.settings?.brand_settings?.copyright_info ||
       kbDetail?.settings?.conversation_setting?.copyright_info ||
-      t('brand.defaultCopyright')
-    );
+      '';
+    if (!text || text === LEGACY_DEFAULT_COPYRIGHT) {
+      return t('brand.defaultCopyright');
+    }
+    return text;
   }, [kbDetail, t]);
 
   // modal打开时自动聚焦

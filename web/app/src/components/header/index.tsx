@@ -75,6 +75,7 @@ const Header = ({ isDocPage = false, isWelcomePage = false }: HeaderProps) => {
     setQaModalOpen,
     authInfo,
   } = useStore();
+  const { t } = useI18n();
   const basePath = useBasePath();
   const docWidth = useMemo(() => {
     if (isWelcomePage) return 'full';
@@ -101,8 +102,10 @@ const Header = ({ isDocPage = false, isWelcomePage = false }: HeaderProps) => {
       logo={getImagePath(kbDetail?.settings?.icon || Logo.src, basePath)}
       title={kbDetail?.settings?.title}
       placeholder={
-        kbDetail?.settings?.web_app_custom_style?.header_search_placeholder
+        kbDetail?.settings?.web_app_custom_style?.header_search_placeholder ||
+        t('common.searchPlaceholder')
       }
+      qaLabel={t('qa.chatTab')}
       showSearch
       homePath={basePath || '/'}
       btns={
@@ -126,6 +129,7 @@ const Header = ({ isDocPage = false, isWelcomePage = false }: HeaderProps) => {
 
 export const WelcomeHeader = () => {
   const basePath = useBasePath();
+  const { t } = useI18n();
   const {
     mobile = false,
     kbDetail,
@@ -152,8 +156,10 @@ export const WelcomeHeader = () => {
       logo={getImagePath(kbDetail?.settings?.icon || Logo.src, basePath)}
       title={kbDetail?.settings?.title}
       placeholder={
-        kbDetail?.settings?.web_app_custom_style?.header_search_placeholder
+        kbDetail?.settings?.web_app_custom_style?.header_search_placeholder ||
+        t('common.searchPlaceholder')
       }
+      qaLabel={t('qa.chatTab')}
       showSearch
       homePath={basePath || '/'}
       btns={

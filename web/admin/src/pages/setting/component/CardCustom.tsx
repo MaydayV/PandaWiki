@@ -1,6 +1,7 @@
 import documentPng from '@/assets/images/document.png';
 import welcomePng from '@/assets/images/welcome.png';
 import CustomModal from '@/components/CustomModal';
+import UploadFile from '@/components/UploadFile';
 import { putApiV1App } from '@/request/App';
 import {
   ConstsHomePageSetting,
@@ -23,7 +24,7 @@ import { FormItem, SettingCardItem } from './Common';
 
 interface CardCustomProps {
   kb: DomainKnowledgeBaseDetail;
-  refresh: (value: { home_page_setting: ConstsHomePageSetting }) => void;
+  refresh: (value: any) => void;
   info: DomainAppDetailResp;
 }
 
@@ -37,10 +38,10 @@ const CardCustom = ({ kb, refresh, info }: CardCustomProps) => {
     control,
     setValue,
     handleSubmit,
-    formState: { errors },
   } = useForm({
     defaultValues: {
       home_page_setting: ConstsHomePageSetting.HomePageSettingDoc,
+      icon: '',
     },
   });
   const [isEdit, setIsEdit] = useState(false);
@@ -53,6 +54,7 @@ const CardCustom = ({ kb, refresh, info }: CardCustomProps) => {
         settings: {
           ...info.settings,
           home_page_setting: value.home_page_setting,
+          icon: value.icon,
         },
       },
     ).then(() => {
@@ -68,6 +70,7 @@ const CardCustom = ({ kb, refresh, info }: CardCustomProps) => {
       info?.settings?.home_page_setting ||
         ConstsHomePageSetting.HomePageSettingDoc,
     );
+    setValue('icon', info?.settings?.icon || '');
   }, [info]);
 
   useEffect(() => {
@@ -155,6 +158,26 @@ const CardCustom = ({ kb, refresh, info }: CardCustomProps) => {
                 />
               </Stack>
             </RadioGroup>
+          )}
+        />
+      </FormItem>
+      <FormItem label='前台 Logo'>
+        <Controller
+          control={control}
+          name='icon'
+          render={({ field }) => (
+            <UploadFile
+              {...field}
+              id='web_setting_front_logo'
+              name='web_setting_front_logo'
+              type='url'
+              accept='image/png'
+              width={80}
+              onChange={(url: string) => {
+                field.onChange(url);
+                setIsEdit(true);
+              }}
+            />
           )}
         />
       </FormItem>

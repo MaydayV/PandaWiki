@@ -55,6 +55,7 @@ interface HeaderProps {
   children?: React.ReactNode;
   onQaClick?: () => void;
   homePath?: string;
+  qaLabel?: string;
 }
 const Header = React.memo(
   ({
@@ -72,6 +73,7 @@ const Header = React.memo(
     children,
     onQaClick,
     homePath = '/',
+    qaLabel = '智能问答',
   }: HeaderProps) => {
     const [ctrlKShortcut, setCtrlKShortcut] = useState('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -265,7 +267,7 @@ const Header = React.memo(
                           {ctrlKShortcut}
                         </Box>
                         <StyledButton variant='contained'>
-                          智能问答
+                          {qaLabel}
                         </StyledButton>
                       </Stack>
                     ),

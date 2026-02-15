@@ -136,7 +136,11 @@ const Catalog = ({ sx }: { sx?: SxProps }) => {
           <Box
             sx={{
               fontWeight: 'bold',
-              width: '30px',
+              width: 'auto',
+              maxWidth: 'calc(100% - 28px)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
               wordBreak: 'keep-all',
             }}
           >

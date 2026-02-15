@@ -13,6 +13,9 @@
 import httpRequest, { ContentType, RequestParams } from "./httpClient";
 import { DomainAppInfoResp, DomainResponse } from "./types";
 
+const getServerNoStore = () =>
+  typeof window === "undefined" ? { cache: "no-store" as const } : {};
+
 /**
  * @description GetAppInfo
  *
@@ -36,6 +39,7 @@ export const getShareV1AppWebInfo = (params: RequestParams = {}) =>
     method: "GET",
     type: ContentType.Json,
     format: "json",
+    ...getServerNoStore(),
     ...params,
   });
 
@@ -55,5 +59,6 @@ export const getShareV1AppWidgetInfo = (params: RequestParams = {}) =>
     method: "GET",
     type: ContentType.Json,
     format: "json",
+    ...getServerNoStore(),
     ...params,
   });

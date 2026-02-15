@@ -3,6 +3,7 @@ import { useStore } from '@/provider';
 import { useMemo } from 'react';
 import { getImagePath } from '@/utils/getImagePath';
 import { useBasePath } from '@/hooks';
+import { useI18n } from '@/i18n/useI18n';
 
 import {
   Footer,
@@ -19,6 +20,7 @@ export const FooterProvider = ({
   isWelcomePage?: boolean;
 }) => {
   const { mobile = false, catalogWidth, kbDetail } = useStore();
+  const { t } = useI18n();
   const basePath = useBasePath();
   const docWidth = useMemo(() => {
     if (isWelcomePage) return 'full';
@@ -26,6 +28,9 @@ export const FooterProvider = ({
   }, [kbDetail, isWelcomePage]);
   const footerSetting = kbDetail?.settings?.footer_settings;
   const customStyle = kbDetail?.settings?.web_app_custom_style;
+  const brandLabel =
+    kbDetail?.settings?.brand_settings?.powered_by_label ||
+    t('brand.defaultCopyright');
 
   return (
     <Footer
@@ -34,6 +39,7 @@ export const FooterProvider = ({
       showBrand={showBrand}
       isDocPage={isDocPage}
       logo='https://release.baizhi.cloud/panda-wiki/icon.png'
+      brandLabel={brandLabel}
       docWidth={docWidth}
       footerSetting={
         footerSetting
@@ -62,9 +68,13 @@ export const WelcomeFooter = ({
   showBrand?: boolean;
 }) => {
   const { mobile = false, catalogWidth, kbDetail } = useStore();
+  const { t } = useI18n();
   const basePath = useBasePath();
   const footerSetting = kbDetail?.settings?.footer_settings;
   const customStyle = kbDetail?.settings?.web_app_custom_style;
+  const brandLabel =
+    kbDetail?.settings?.brand_settings?.powered_by_label ||
+    t('brand.defaultCopyright');
   return (
     <WelcomeFooterComponent
       mobile={mobile}
@@ -72,6 +82,7 @@ export const WelcomeFooter = ({
       showBrand={showBrand}
       isDocPage={false}
       logo='https://release.baizhi.cloud/panda-wiki/icon.png'
+      brandLabel={brandLabel}
       docWidth='full'
       footerSetting={
         footerSetting

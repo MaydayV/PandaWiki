@@ -138,6 +138,7 @@ interface BannerProps {
   onSearch?: (value: string, type?: 'search' | 'chat') => void;
   onSearchSuggestions?: (query: string) => Promise<SearchSuggestion[]>;
   basePath?: string;
+  chatLabel?: string;
 }
 
 const Banner = React.memo(
@@ -150,6 +151,7 @@ const Banner = React.memo(
     onSearch,
     onSearchSuggestions,
     basePath = '',
+    chatLabel = 'AI 智能问答',
   }: BannerProps) => {
     const [searchText, setSearchText] = useState('');
     const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -408,7 +410,7 @@ const Banner = React.memo(
                 }}
                 onClick={() => onSearch?.(searchText, 'chat')}
               >
-                AI 智能问答
+                {chatLabel}
               </Button>
             </Stack>
           </StyledSearchBox>

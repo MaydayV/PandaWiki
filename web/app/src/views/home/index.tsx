@@ -45,6 +45,7 @@ const handleDirDocProps = (
 ) => {
   return {
     title: config.title || labels.docDirCard,
+    viewMoreLabel: labels.viewMore,
     basePath,
     items:
       docs?.map(item => ({
@@ -91,7 +92,11 @@ const handleCarouselProps = (
   };
 };
 
-const handleBannerProps = (config: any = {}, basePath: string) => {
+const handleBannerProps = (
+  config: any = {},
+  basePath: string,
+  labels: HomeLabels,
+) => {
   return {
     title: {
       text: config.title,
@@ -104,6 +109,7 @@ const handleBannerProps = (config: any = {}, basePath: string) => {
       placeholder: config.placeholder,
       hot: config.hot_search,
     },
+    chatLabel: labels.chatTab,
   };
 };
 
@@ -225,6 +231,8 @@ const componentMap = {
 } as const;
 
 type HomeLabels = {
+  chatTab: string;
+  viewMore: string;
   linkGroup: string;
   docSummaryCard: string;
   noSummary: string;
@@ -248,6 +256,8 @@ const Welcome = () => {
   const { t } = useI18n();
   const settings = kbDetail?.settings;
   const labels: HomeLabels = {
+    chatTab: t('qa.chatTab'),
+    viewMore: t('common.viewMore'),
     linkGroup: t('home.linkGroup'),
     docSummaryCard: t('home.docSummaryCard'),
     noSummary: t('home.noSummary'),
@@ -315,7 +325,7 @@ const Welcome = () => {
         return handleCarouselProps(config, basePath, labels);
       case 'banner':
         return {
-          ...handleBannerProps(config, basePath),
+          ...handleBannerProps(config, basePath, labels),
           onSearch: onBannerSearch,
           btns: (config?.btns || []).map((item: any) => ({
             ...item,

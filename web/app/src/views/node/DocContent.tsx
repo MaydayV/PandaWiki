@@ -182,7 +182,7 @@ const DocContent = ({
     if (
       kbDetail?.settings?.copy_setting === ConstsCopySetting.CopySettingAppend
     ) {
-      context += `\n\n-----------------------------------------\n内容来自 ${typeof window !== 'undefined' ? window.location.href : ''}`;
+      context += `\n\n-----------------------------------------\n${t('node.contentFrom')} ${typeof window !== 'undefined' ? window.location.href : ''}`;
     }
     copyText(context);
   };
@@ -256,24 +256,12 @@ const DocContent = ({
           }}
         >
           {info?.created_at && (
-            <Box>
-              {info?.creator_account && info?.creator_account === 'admin'
-                ? t('node.admin')
-                : info?.creator_account}{' '}
-              {dayjs(info?.created_at).fromNow()}
-              {t('node.created')}
-            </Box>
+            <Box>{t('node.createdAgo', { time: dayjs(info.created_at).fromNow() })}</Box>
           )}
           {info?.updated_at && info.updated_at.slice(0, 1) !== '0' && (
             <>
               <Box>·</Box>
-              <Box>
-                {info?.editor_account && info?.editor_account === 'admin'
-                  ? t('node.admin')
-                  : info?.editor_account}{' '}
-                {dayjs(info.updated_at).fromNow()}
-                {t('node.updated')}
-              </Box>
+              <Box>{t('node.updatedAgo', { time: dayjs(info.updated_at).fromNow() })}</Box>
             </>
           )}
           {!!characterCount && characterCount > 0 && (
