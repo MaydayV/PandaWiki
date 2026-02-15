@@ -1,37 +1,71 @@
 package v1
 
-import "github.com/labstack/echo/v4"
+import (
+	"errors"
 
-type contributeListResp struct {
-	List  []map[string]any `json:"list"`
-	Total int64            `json:"total"`
-}
+	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 
-type contributeAuditResp struct {
-	Message string `json:"message"`
-}
+	"github.com/chaitin/panda-wiki/domain"
+)
 
-// GetContributeList keeps admin contribution page functional even when
-// enterprise contribute workflow is not wired in this repo.
 func (h *KnowledgeBaseHandler) GetContributeList(c echo.Context) error {
-	return h.NewResponseWithData(c, contributeListResp{
-		List:  make([]map[string]any, 0),
-		Total: 0,
-	})
+	var req domain.ContributeListReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+
+	resp, err := h.usecase.GetContributeList(c.Request().Context(), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "failed to get contribute list", err)
+	}
+
+	return h.NewResponseWithData(c, resp)
 }
 
 func (h *KnowledgeBaseHandler) GetContributeDetail(c echo.Context) error {
-	return h.NewResponseWithData(c, map[string]any{
-		"id":    c.QueryParam("id"),
-		"kb_id": c.QueryParam("kb_id"),
-		"meta": map[string]any{
-			"content_type": "md",
-		},
-	})
+	var req domain.ContributeDetailReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+
+	detail, err := h.usecase.GetContributeDetail(c.Request().Context(), &req)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return h.NewResponseWithError(c, "contribute not found", nil)
+		}
+		return h.NewResponseWithError(c, "failed to get contribute detail", err)
+	}
+	return h.NewResponseWithData(c, detail)
 }
 
 func (h *KnowledgeBaseHandler) AuditContribute(c echo.Context) error {
-	return h.NewResponseWithData(c, contributeAuditResp{
-		Message: "success",
-	})
+	ctx := c.Request().Context()
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return h.NewResponseWithError(c, "authInfo not found in context", nil)
+	}
+
+	var req domain.ContributeAuditReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+
+	resp, err := h.usecase.AuditContribute(ctx, &req, authInfo.UserId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return h.NewResponseWithError(c, "contribute not found", nil)
+		}
+		return h.NewResponseWithError(c, "failed to audit contribute", err)
+	}
+	return h.NewResponseWithData(c, resp)
 }

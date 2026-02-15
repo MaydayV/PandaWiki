@@ -84,6 +84,80 @@ func (u *NodeUsecase) Create(ctx context.Context, req *domain.CreateNodeReq, use
 	return nodeID, nil
 }
 
+func (u *NodeUsecase) SubmitContribute(ctx context.Context, kbID, remoteIP string, authID uint, req *domain.SubmitContributeReq) (string, error) {
+	webApp, err := u.appRepo.GetOrCreateAppByKBIDAndType(ctx, kbID, domain.AppTypeWeb)
+	if err != nil {
+		return "", err
+	}
+	if !webApp.Settings.ContributeSettings.IsEnable {
+		return "", fmt.Errorf("contribute is disabled")
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.NodeID = strings.TrimSpace(req.NodeID)
+	req.Reason = strings.TrimSpace(req.Reason)
+	req.ContentType = strings.TrimSpace(req.ContentType)
+	if req.ContentType == "" {
+		req.ContentType = domain.ContentTypeHTML
+	}
+	if req.ContentType != domain.ContentTypeHTML && req.ContentType != domain.ContentTypeMD {
+		return "", fmt.Errorf("invalid content_type")
+	}
+
+	switch req.Type {
+	case consts.ContributeTypeAdd:
+		if req.Name == "" {
+			return "", fmt.Errorf("name is required")
+		}
+	case consts.ContributeTypeEdit:
+		if req.NodeID == "" {
+			return "", fmt.Errorf("node_id is required")
+		}
+		node, err := u.nodeRepo.GetNodeByID(ctx, req.NodeID)
+		if err != nil {
+			return "", fmt.Errorf("node not found")
+		}
+		if node.KBID != kbID {
+			return "", fmt.Errorf("node not found")
+		}
+		if req.Name == "" {
+			req.Name = node.Name
+		}
+	default:
+		return "", fmt.Errorf("invalid contribute type")
+	}
+
+	contributeID, err := uuid.NewV7()
+	if err != nil {
+		return "", err
+	}
+	contributeIDStr := contributeID.String()
+
+	var authIDPtr *int64
+	if authID > 0 {
+		authIDRaw := int64(authID)
+		authIDPtr = &authIDRaw
+	}
+
+	if err := u.nodeRepo.CreateContribute(ctx, &domain.Contribute{
+		Id:       contributeIDStr,
+		AuthId:   authIDPtr,
+		KBId:     kbID,
+		Status:   consts.ContributeStatusPending,
+		Type:     req.Type,
+		NodeId:   req.NodeID,
+		Name:     req.Name,
+		Content:  req.Content,
+		Meta:     domain.NodeMeta{Emoji: req.Emoji, ContentType: req.ContentType},
+		Reason:   req.Reason,
+		RemoteIP: remoteIP,
+	}); err != nil {
+		return "", err
+	}
+
+	return contributeIDStr, nil
+}
+
 func (u *NodeUsecase) GetList(ctx context.Context, req *domain.GetNodeListReq) ([]*domain.NodeListItemResp, error) {
 	nodes, err := u.nodeRepo.GetList(ctx, req)
 	if err != nil {

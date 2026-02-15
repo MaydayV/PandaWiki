@@ -65,6 +65,11 @@ func (r *AppRepository) GetOrCreateAppByKBIDAndType(ctx context.Context, kbID st
 					ID:   uuid.New().String(),
 					KBID: kbID,
 					Type: appType,
+					Settings: domain.AppSettings{
+						StatsSetting: domain.StatsSetting{
+							PVEnable: true,
+						},
+					},
 				}
 				return tx.Create(app).Error
 			}

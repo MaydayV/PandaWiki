@@ -15,9 +15,12 @@ const HostReferer = ({ tab }: { tab: ActiveTab }) => {
   useEffect(() => {
     if (!kb_id) return;
     getApiV1StatRefererHosts({ kb_id, day: tab }).then(res => {
-      const data = res.sort((a, b) => b.count! - a.count!).slice(0, 7);
+      const data = (res || [])
+        .slice()
+        .sort((a, b) => (b.count || 0) - (a.count || 0))
+        .slice(0, 7);
       setList(data);
-      setMax(Math.max(...data.map(item => item.count!)));
+      setMax(Math.max(...data.map(item => item.count || 0), 0));
     });
   }, [tab, kb_id]);
 
@@ -65,7 +68,7 @@ const HostReferer = ({ tab }: { tab: ActiveTab }) => {
                     height: 6,
                     background:
                       'linear-gradient( 90deg, #3248F2 0%, #9E68FC 100%)',
-                    width: `${(it.count! / max) * 100}%`,
+                    width: `${max > 0 ? ((it.count || 0) / max) * 100 : 0}%`,
                     borderRadius: '3px',
                   }}
                 ></Box>

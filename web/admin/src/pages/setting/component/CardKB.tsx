@@ -260,16 +260,7 @@ const ApiToken = () => {
                 </MenuItem>
               </Select>
 
-              <Tooltip
-                title={
-                  kbDetail?.perm !==
-                  ConstsUserKBPermission.UserKBPermissionFullControl
-                    ? '权限不足'
-                    : '商业版可用'
-                }
-                placement='top'
-                arrow
-              >
+              <Tooltip title={'权限不足'} placement='top' arrow>
                 <InfoIcon
                   sx={{
                     color: 'text.secondary',
@@ -614,7 +605,7 @@ const CardKB = () => {
                   title={
                     it.role === 'admin'
                       ? '超级管理员不可被修改权限'
-                      : '专业版可用'
+                      : '权限不足'
                   }
                   placement='top'
                   arrow

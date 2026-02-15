@@ -1,6 +1,8 @@
 package share
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 
 	shareV1 "github.com/chaitin/panda-wiki/api/share/v1"
@@ -18,7 +20,7 @@ type ShareNodeHandler struct {
 
 func NewShareNodeHandler(
 	baseHandler *handler.BaseHandler,
-	echo *echo.Echo,
+	e *echo.Echo,
 	usecase *usecase.NodeUsecase,
 	logger *log.Logger,
 ) *ShareNodeHandler {
@@ -28,11 +30,27 @@ func NewShareNodeHandler(
 		usecase:     usecase,
 	}
 
-	group := echo.Group("share/v1/node",
+	group := e.Group("share/v1/node",
 		h.ShareAuthMiddleware.Authorize,
 	)
 	group.GET("/list", h.GetNodeList)
 	group.GET("/detail", h.GetNodeDetail)
+
+	contributeGroup := e.Group("share/pro/v1/contribute",
+		func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c echo.Context) error {
+				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+				c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept")
+				if c.Request().Method == "OPTIONS" {
+					return c.NoContent(http.StatusOK)
+				}
+				return next(c)
+			}
+		},
+		h.ShareAuthMiddleware.Authorize,
+	)
+	contributeGroup.POST("/submit", h.SubmitContribute)
 
 	return h
 }
@@ -115,4 +133,34 @@ func (h *ShareNodeHandler) GetNodeDetail(c echo.Context) error {
 	}
 
 	return h.NewResponseWithData(c, node)
+}
+
+func (h *ShareNodeHandler) SubmitContribute(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	kbID := c.Request().Header.Get("X-KB-ID")
+	if kbID == "" {
+		return h.NewResponseWithError(c, "kb_id is required", nil)
+	}
+
+	var req domain.SubmitContributeReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request parameters", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request body failed", err)
+	}
+
+	if !h.Captcha.ValidateToken(ctx, req.CaptchaToken) {
+		return h.NewResponseWithError(c, "failed to validate captcha token", nil)
+	}
+
+	contributeID, err := h.usecase.SubmitContribute(ctx, kbID, c.RealIP(), domain.GetAuthID(c), &req)
+	if err != nil {
+		return h.NewResponseWithError(c, "submit contribute failed", err)
+	}
+
+	return h.NewResponseWithData(c, domain.SubmitContributeResp{
+		ID: contributeID,
+	})
 }

@@ -740,6 +740,17 @@ ALTER TABLE api_tokens
 ADD COLUMN IF NOT EXISTS daily_quota INTEGER NOT NULL DEFAULT 0;
 -- <<< END 000040_add_api_token_governance_fields.up.sql
 
+-- >>> BEGIN 000041_set_default_stats_pv_enable.up.sql
+UPDATE apps
+SET settings = jsonb_set(
+    COALESCE(settings, '{}'::jsonb),
+    '{stats_setting,pv_enable}',
+    'true'::jsonb,
+    true
+)
+WHERE (settings->'stats_setting'->'pv_enable') IS NULL;
+-- <<< END 000041_set_default_stats_pv_enable.up.sql
+
 -- Ensure migration version is recorded for fresh deployments.
 DO $$
 BEGIN
@@ -751,5 +762,5 @@ BEGIN
     END IF;
 
     DELETE FROM public.schema_migrations;
-    INSERT INTO public.schema_migrations (version, dirty) VALUES (40, FALSE);
+    INSERT INTO public.schema_migrations (version, dirty) VALUES (41, FALSE);
 END $$;

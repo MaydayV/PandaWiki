@@ -401,3 +401,144 @@ func (u *KnowledgeBaseUsecase) DeleteAPIToken(ctx context.Context, req domain.De
 	}
 	return nil
 }
+
+func (u *KnowledgeBaseUsecase) GetContributeList(ctx context.Context, req *domain.ContributeListReq) (*domain.ContributeListResp, error) {
+	items, total, err := u.nodeRepo.GetContributeList(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = make([]*domain.ContributeItemResp, 0)
+	}
+	return &domain.ContributeListResp{
+		List:  items,
+		Total: total,
+	}, nil
+}
+
+func (u *KnowledgeBaseUsecase) GetContributeDetail(ctx context.Context, req *domain.ContributeDetailReq) (*domain.ContributeDetailResp, error) {
+	detail, err := u.nodeRepo.GetContributeDetail(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if detail.Type == consts.ContributeTypeEdit && detail.NodeID != "" {
+		originalNode, err := u.nodeRepo.GetNodeByID(ctx, detail.NodeID)
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, err
+			}
+		} else if originalNode.KBID == req.KBID {
+			detail.OriginalNode = &domain.ContributeOriginalNodeInfo{
+				ID:      originalNode.ID,
+				Name:    originalNode.Name,
+				Content: originalNode.Content,
+				Meta:    originalNode.Meta,
+			}
+			if detail.NodeName == "" {
+				detail.NodeName = originalNode.Name
+			}
+		}
+	}
+
+	return detail, nil
+}
+
+func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.ContributeAuditReq, auditUserID string) (*domain.ContributeAuditResp, error) {
+	contribute, err := u.nodeRepo.GetContributeByID(ctx, req.KBID, req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if contribute.Status != consts.ContributeStatusPending {
+		return nil, fmt.Errorf("contribute has already been audited")
+	}
+
+	var approvedNodeID *string
+	if req.Status == consts.ContributeStatusApproved {
+		switch contribute.Type {
+		case consts.ContributeTypeAdd:
+			if strings.TrimSpace(req.ParentID) != "" {
+				parentNode, err := u.nodeRepo.GetNodeByID(ctx, req.ParentID)
+				if err != nil {
+					return nil, fmt.Errorf("parent node not found")
+				}
+				if parentNode.KBID != req.KBID || parentNode.Type != domain.NodeTypeFolder {
+					return nil, fmt.Errorf("invalid parent node")
+				}
+			}
+
+			docName := strings.TrimSpace(contribute.Name)
+			if docName == "" {
+				return nil, fmt.Errorf("contribute name is required")
+			}
+			contentType := strings.TrimSpace(contribute.Meta.ContentType)
+			if contentType == "" {
+				contentType = domain.ContentTypeHTML
+			}
+
+			nodeID, err := u.nodeRepo.Create(ctx, &domain.CreateNodeReq{
+				KBID:        req.KBID,
+				ParentID:    req.ParentID,
+				Type:        domain.NodeTypeDocument,
+				Name:        docName,
+				Content:     contribute.Content,
+				Emoji:       contribute.Meta.Emoji,
+				ContentType: &contentType,
+				Position:    req.Position,
+			}, auditUserID)
+			if err != nil {
+				return nil, err
+			}
+			approvedNodeID = &nodeID
+		case consts.ContributeTypeEdit:
+			if strings.TrimSpace(contribute.NodeId) == "" {
+				return nil, fmt.Errorf("invalid contribute node id")
+			}
+			node, err := u.nodeRepo.GetNodeByID(ctx, contribute.NodeId)
+			if err != nil {
+				return nil, fmt.Errorf("node not found")
+			}
+			if node.KBID != req.KBID {
+				return nil, fmt.Errorf("node not found")
+			}
+
+			nodeName := strings.TrimSpace(contribute.Name)
+			if nodeName == "" {
+				nodeName = node.Name
+			}
+			contentType := strings.TrimSpace(contribute.Meta.ContentType)
+			if contentType == "" {
+				contentType = node.Meta.ContentType
+			}
+			content := contribute.Content
+			emoji := contribute.Meta.Emoji
+
+			if err := u.nodeRepo.UpdateNodeContent(ctx, &domain.UpdateNodeReq{
+				ID:          node.ID,
+				KBID:        req.KBID,
+				Name:        &nodeName,
+				Content:     &content,
+				Emoji:       &emoji,
+				ContentType: &contentType,
+			}, auditUserID); err != nil {
+				return nil, err
+			}
+			approvedNodeID = &node.ID
+		default:
+			return nil, fmt.Errorf("invalid contribute type")
+		}
+	}
+
+	affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, req.Status, approvedNodeID)
+	if err != nil {
+		return nil, err
+	}
+	if affectedRows == 0 {
+		return nil, fmt.Errorf("contribute has already been audited")
+	}
+
+	return &domain.ContributeAuditResp{
+		Message: "success",
+	}, nil
+}
