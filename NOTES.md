@@ -148,3 +148,15 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 验证（VM）：
   - 修复前：`/api/pro/v1/block` 返回 `404`
   - 修复后：登录后 `GET` 返回 `200`，`POST` 保存后再次 `GET` 可读回数据。
+
+## 追加记录（2026-02-16，文档元信息显示开关）
+- 新增设置项：`设置 -> 前台网站样式个性化 -> 文档元信息显示`
+  - 显示创建时间
+  - 显示更新时间
+  - 显示字数
+- 三个开关默认全开：历史数据未配置时，前台默认按开启处理。
+- 前台文档详情页元信息渲染改为按开关动态拼装，支持任意组合显示，分隔符 `·` 自动处理，不会出现多余分隔符。
+- 配置持久化字段：
+  - `settings.node_meta_settings.show_created_at`
+  - `settings.node_meta_settings.show_updated_at`
+  - `settings.node_meta_settings.show_word_count`

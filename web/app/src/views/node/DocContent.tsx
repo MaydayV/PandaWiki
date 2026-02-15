@@ -187,6 +187,25 @@ const DocContent = ({
     copyText(context);
   };
 
+  const nodeMetaSettings = kbDetail?.settings?.node_meta_settings;
+  const showCreatedAt = nodeMetaSettings?.show_created_at ?? true;
+  const showUpdatedAt = nodeMetaSettings?.show_updated_at ?? true;
+  const showWordCount = nodeMetaSettings?.show_word_count ?? true;
+
+  const docMetaItems: React.ReactNode[] = [];
+  if (showCreatedAt && info?.created_at) {
+    docMetaItems.push(t('node.createdAgo', { time: dayjs(info.created_at).fromNow() }));
+  }
+  if (showUpdatedAt && info?.updated_at && info.updated_at.slice(0, 1) !== '0') {
+    docMetaItems.push(t('node.updatedAgo', { time: dayjs(info.updated_at).fromNow() }));
+  }
+  if (showWordCount && !!characterCount && characterCount > 0) {
+    docMetaItems.push(t('node.words', { count: characterCount }));
+  }
+  if ((info.pv ?? 0) > 0) {
+    docMetaItems.push(t('node.views', { count: info.pv ?? 0 }));
+  }
+
   return (
     <Box
       id='doc-content'
@@ -255,27 +274,12 @@ const DocContent = ({
             color: 'text.tertiary',
           }}
         >
-          {info?.created_at && (
-            <Box>{t('node.createdAgo', { time: dayjs(info.created_at).fromNow() })}</Box>
-          )}
-          {info?.updated_at && info.updated_at.slice(0, 1) !== '0' && (
-            <>
-              <Box>·</Box>
-              <Box>{t('node.updatedAgo', { time: dayjs(info.updated_at).fromNow() })}</Box>
-            </>
-          )}
-          {!!characterCount && characterCount > 0 && (
-            <>
-              <Box>·</Box>
-              <Box>{t('node.words', { count: characterCount })}</Box>
-            </>
-          )}
-          {(info.pv ?? 0) > 0 && (
-            <>
-              <Box>·</Box>
-              <Box>{t('node.views', { count: info.pv ?? 0 })}</Box>
-            </>
-          )}
+          {docMetaItems.map((item, index) => (
+            <React.Fragment key={`doc-meta-${index}`}>
+              {index > 0 && <Box>·</Box>}
+              <Box>{item}</Box>
+            </React.Fragment>
+          ))}
         </Stack>
         {info?.type === 2 &&
           kbDetail?.settings?.copy_setting !==

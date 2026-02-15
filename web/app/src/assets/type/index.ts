@@ -85,6 +85,11 @@ export interface KBDetail {
     watermark_content?: string;
     watermark_setting?: ConstsWatermarkSetting;
     copy_setting?: ConstsCopySetting;
+    node_meta_settings?: {
+      show_created_at?: boolean;
+      show_updated_at?: boolean;
+      show_word_count?: boolean;
+    };
     disclaimer_settings?: DomainDisclaimerSettings;
     web_app_custom_style: {
       allow_theme_switching?: boolean;

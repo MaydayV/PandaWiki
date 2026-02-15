@@ -176,6 +176,7 @@ type AppSettings struct {
 	// MCP Server Settings
 	MCPServerSettings MCPServerSettings `json:"mcp_server_settings,omitempty"`
 	StatsSetting      StatsSetting      `json:"stats_setting"`
+	NodeMetaSettings  *NodeMetaSettings `json:"node_meta_settings,omitempty"`
 	AnalyticsSettings AnalyticsSettings `json:"analytics_settings,omitempty"`
 	SecuritySettings  SecuritySettings  `json:"security_settings,omitempty"`
 	BrandSettings     BrandSettings     `json:"brand_settings,omitempty"`
@@ -192,6 +193,12 @@ type WeChatAppAdvancedSetting struct {
 
 type StatsSetting struct {
 	PVEnable bool `json:"pv_enable"`
+}
+
+type NodeMetaSettings struct {
+	ShowCreatedAt bool `json:"show_created_at"`
+	ShowUpdatedAt bool `json:"show_updated_at"`
+	ShowWordCount bool `json:"show_word_count"`
 }
 
 type SEOSettings struct {
@@ -620,6 +627,7 @@ type AppSettingsResp struct {
 	// MCP Server Settings
 	MCPServerSettings MCPServerSettings `json:"mcp_server_settings,omitempty"`
 	StatsSetting      StatsSetting      `json:"stats_setting"`
+	NodeMetaSettings  *NodeMetaSettings `json:"node_meta_settings,omitempty"`
 	AnalyticsSettings AnalyticsSettings `json:"analytics_settings,omitempty"`
 	SecuritySettings  SecuritySettings  `json:"security_settings,omitempty"`
 	BrandSettings     BrandSettings     `json:"brand_settings,omitempty"`

@@ -575,6 +575,7 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 
 		MCPServerSettings: app.Settings.MCPServerSettings,
 		StatsSetting:      app.Settings.StatsSetting,
+		NodeMetaSettings:  app.Settings.NodeMetaSettings,
 		AnalyticsSettings: app.Settings.AnalyticsSettings,
 		SecuritySettings:  app.Settings.SecuritySettings,
 		BrandSettings:     app.Settings.BrandSettings,
@@ -709,6 +710,7 @@ func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId
 			HomePageSetting:     app.Settings.HomePageSetting,
 			ConversationSetting: app.Settings.ConversationSetting,
 			StatsSetting:        app.Settings.StatsSetting,
+			NodeMetaSettings:    app.Settings.NodeMetaSettings,
 			AnalyticsSettings:   app.Settings.AnalyticsSettings,
 			SecuritySettings:    app.Settings.SecuritySettings,
 			BrandSettings:       app.Settings.BrandSettings,

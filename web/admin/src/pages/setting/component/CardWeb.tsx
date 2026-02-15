@@ -17,6 +17,7 @@ import CardWebCustomCode from './CardWebCustomCode';
 import CardWebSEO from './CardWebSEO';
 import CardQaCopyright from './CardQaCopyright';
 import CardWebStats from './CardWebStats';
+import CardNodeMeta from './CardNodeMeta';
 
 interface CardWebProps {
   kb: DomainKnowledgeBaseDetail;
@@ -158,6 +159,22 @@ const CardWeb = ({ kb, refresh }: CardWebProps) => {
               ...info.settings,
               stats_setting: {
                 ...info.settings?.stats_setting,
+                ...value,
+              },
+            },
+          });
+        }}
+      />
+      <CardNodeMeta
+        id={info.id}
+        data={info}
+        refresh={value => {
+          setInfo({
+            ...info,
+            settings: {
+              ...info.settings,
+              node_meta_settings: {
+                ...info.settings?.node_meta_settings,
                 ...value,
               },
             },

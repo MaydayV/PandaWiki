@@ -361,6 +361,7 @@ export interface DomainAppSettings {
   recommend_questions?: string[];
   search_placeholder?: string;
   stats_setting?: DomainStatsSetting;
+  node_meta_settings?: DomainNodeMetaSettings;
   theme_and_style?: DomainThemeAndStyle;
   /** theme */
   theme_mode?: string;
@@ -452,6 +453,7 @@ export interface DomainAppSettingsResp {
   recommend_questions?: string[];
   search_placeholder?: string;
   stats_setting?: DomainStatsSetting;
+  node_meta_settings?: DomainNodeMetaSettings;
   theme_and_style?: DomainThemeAndStyle;
   /** theme */
   theme_mode?: string;
@@ -1289,6 +1291,12 @@ export interface DomainStatPageReq {
 
 export interface DomainStatsSetting {
   pv_enable?: boolean;
+}
+
+export interface DomainNodeMetaSettings {
+  show_created_at?: boolean;
+  show_updated_at?: boolean;
+  show_word_count?: boolean;
 }
 
 export interface DomainSEOSettings {
