@@ -89,7 +89,7 @@ func createApp() (*App, error) {
 	modelRepository := pg2.NewModelRepository(db, logger)
 	promptRepo := pg2.NewPromptRepo(db, logger)
 	llmUsecase := usecase.NewLLMUsecase(configConfig, ragService, conversationRepository, knowledgeBaseRepository, nodeRepository, modelRepository, promptRepo, logger)
-	knowledgeBaseHandler := v1.NewKnowledgeBaseHandler(baseHandler, echo, knowledgeBaseUsecase, llmUsecase, authMiddleware, logger)
+	knowledgeBaseHandler := v1.NewKnowledgeBaseHandler(baseHandler, echo, knowledgeBaseUsecase, llmUsecase, pg2.NewBlockWordRepo(db, logger), authMiddleware, logger)
 	appRepository := pg2.NewAppRepository(db, logger)
 	minioClient, err := s3.NewMinioClient(configConfig)
 	if err != nil {

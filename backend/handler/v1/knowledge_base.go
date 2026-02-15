@@ -2,6 +2,7 @@ package v1
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
@@ -11,15 +12,17 @@ import (
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/middleware"
+	pgRepo "github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/usecase"
 )
 
 type KnowledgeBaseHandler struct {
 	*handler.BaseHandler
-	usecase    *usecase.KnowledgeBaseUsecase
-	llmUsecase *usecase.LLMUsecase
-	logger     *log.Logger
-	auth       middleware.AuthMiddleware
+	usecase       *usecase.KnowledgeBaseUsecase
+	llmUsecase    *usecase.LLMUsecase
+	blockWordRepo *pgRepo.BlockWordRepo
+	logger        *log.Logger
+	auth          middleware.AuthMiddleware
 }
 
 func NewKnowledgeBaseHandler(
@@ -27,15 +30,17 @@ func NewKnowledgeBaseHandler(
 	echo *echo.Echo,
 	usecase *usecase.KnowledgeBaseUsecase,
 	llmUsecase *usecase.LLMUsecase,
+	blockWordRepo *pgRepo.BlockWordRepo,
 	auth middleware.AuthMiddleware,
 	logger *log.Logger,
 ) *KnowledgeBaseHandler {
 	h := &KnowledgeBaseHandler{
-		BaseHandler: baseHandler,
-		logger:      logger.WithModule("handler.v1.knowledge_base"),
-		usecase:     usecase,
-		llmUsecase:  llmUsecase,
-		auth:        auth,
+		BaseHandler:   baseHandler,
+		logger:        logger.WithModule("handler.v1.knowledge_base"),
+		usecase:       usecase,
+		llmUsecase:    llmUsecase,
+		blockWordRepo: blockWordRepo,
+		auth:          auth,
 	}
 
 	group := echo.Group("/api/v1/knowledge_base", h.auth.Authorize)
@@ -74,6 +79,10 @@ func NewKnowledgeBaseHandler(
 	contributeGroup.GET("/list", h.GetContributeList)
 	contributeGroup.GET("/detail", h.GetContributeDetail)
 	contributeGroup.POST("/audit", h.AuditContribute)
+
+	blockGroup := echo.Group("/api/pro/v1/block", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
+	blockGroup.GET("", h.GetBlockWords)
+	blockGroup.POST("", h.CreateBlockWords)
 
 	return h
 }
@@ -221,6 +230,72 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBaseDetail(c echo.Context) error {
 		CreatedAt:      kb.CreatedAt,
 		UpdatedAt:      kb.UpdatedAt,
 	})
+}
+
+// GetBlockWords
+//
+//	@Summary		Get question block words
+//	@Description	Get question block words
+//	@Tags			block
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			kb_id	query		string	true	"knowledge base ID"
+//	@Success		200		{object}	domain.PWResponse{data=domain.BlockWords}
+//	@Router			/api/pro/v1/block [get]
+func (h *KnowledgeBaseHandler) GetBlockWords(c echo.Context) error {
+	kbID := c.QueryParam("kb_id")
+	if kbID == "" {
+		return h.NewResponseWithError(c, "kb id is required", nil)
+	}
+
+	words, err := h.blockWordRepo.GetBlockWords(c.Request().Context(), kbID)
+	if err != nil {
+		return h.NewResponseWithError(c, "failed to get question block words", err)
+	}
+
+	return h.NewResponseWithData(c, &domain.BlockWords{Words: words})
+}
+
+// CreateBlockWords
+//
+//	@Summary		Create new block words
+//	@Description	Create new block words
+//	@Tags			block
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			param	body		domain.CreateBlockWordsReq	true	"Create block words request"
+//	@Success		200		{object}	domain.Response
+//	@Router			/api/pro/v1/block [post]
+func (h *KnowledgeBaseHandler) CreateBlockWords(c echo.Context) error {
+	var req domain.CreateBlockWordsReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+
+	filteredWords := make([]string, 0, len(req.BlockWords))
+	seen := make(map[string]struct{}, len(req.BlockWords))
+	for _, word := range req.BlockWords {
+		word = strings.TrimSpace(word)
+		if word == "" {
+			continue
+		}
+		if _, ok := seen[word]; ok {
+			continue
+		}
+		seen[word] = struct{}{}
+		filteredWords = append(filteredWords, word)
+	}
+
+	if err := h.blockWordRepo.UpsertBlockWords(c.Request().Context(), req.KBID, filteredWords); err != nil {
+		return h.NewResponseWithError(c, "failed to save question block words", err)
+	}
+
+	return h.NewResponseWithData(c, nil)
 }
 
 // GetPromptSettings
