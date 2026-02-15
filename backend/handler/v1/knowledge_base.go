@@ -70,6 +70,11 @@ func NewKnowledgeBaseHandler(
 	tokenGroup.PATCH("/update", h.UpdateAPIToken)
 	tokenGroup.DELETE("/delete", h.DeleteAPIToken)
 
+	contributeGroup := echo.Group("/api/pro/v1/contribute", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionDataOperate))
+	contributeGroup.GET("/list", h.GetContributeList)
+	contributeGroup.GET("/detail", h.GetContributeDetail)
+	contributeGroup.POST("/audit", h.AuditContribute)
+
 	return h
 }
 

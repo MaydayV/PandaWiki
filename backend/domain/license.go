@@ -24,10 +24,20 @@ type BaseEditionLimitation struct {
 }
 
 var baseEditionLimitationDefault = BaseEditionLimitation{
-	MaxKb:                1,
-	MaxAdmin:             1,
-	MaxNode:              300,
-	AllowCustomCopyright: true,
+	// 二开版默认全量开放能力，避免受原版授权档位限制。
+	MaxKb:                  1000000,
+	MaxNode:                1000000,
+	MaxSSOUser:             1000000,
+	MaxAdmin:               1000000,
+	AllowAdminPerm:         true,
+	AllowCustomCopyright:   true,
+	AllowCommentAudit:      true,
+	AllowAdvancedBot:       true,
+	AllowWatermark:         true,
+	AllowCopyProtection:    true,
+	AllowOpenAIBotSettings: true,
+	AllowMCPServer:         true,
+	AllowNodeStats:         true,
 }
 
 func GetBaseEditionLimitation(c context.Context) BaseEditionLimitation {

@@ -14,7 +14,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useMemo, useState, useEffect } from 'react';
 import { message } from '@ctzhian/ui';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
-import { DomainAppDetailResp, ConstsLicenseEdition } from '@/request/types';
+import { DomainAppDetailResp } from '@/request/types';
 
 interface CardMCPProps {
   kb: DomainKnowledgeBaseDetail;
@@ -124,10 +124,6 @@ const CardMCP = ({ kb }: CardMCPProps) => {
         title='MCP 设置'
         isEdit={isEdit}
         onSubmit={onSubmit}
-        permission={[
-          ConstsLicenseEdition.LicenseEditionBusiness,
-          ConstsLicenseEdition.LicenseEditionEnterprise,
-        ]}
         more={{
           type: 'link',
           href: 'https://pandawiki.docs.baizhi.cloud/node/019aa45c-90c1-7e6f-b17a-74ab1b200153',
