@@ -171,3 +171,5 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
   - 新增后端接口 `GET /api/v1/knowledge_base/release/docs`，返回指定版本文档快照及与上一版本对比结果（新增/删除/修改/未变更）。
   - 发布页新增“查看版本”“文档对比”操作，支持在弹窗中查看版本内文档清单、版本差异统计与逐项对比。
   - 本次按复杂度评估暂不新增“回退发布版本”功能，避免引入跨版本状态回写风险。
+- 迁移兼容：
+  - 在仅保留 `full_fresh_deploy.sql` 的场景下，自动迁移启动逻辑改为“若不存在 `migration/*.up.sql` 则跳过增量迁移”，避免 API 因缺失历史迁移文件启动失败。

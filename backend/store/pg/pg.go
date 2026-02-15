@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -55,6 +56,15 @@ func NewDB(config *config.Config) (*DB, error) {
 }
 
 func doMigrate(dsn string) error {
+	migrationFiles, err := filepath.Glob("migration/*.up.sql")
+	if err != nil {
+		return fmt.Errorf("scan migration files failed: %w", err)
+	}
+	// 支持仅保留完整部署 SQL 的交付方式：无增量迁移文件时跳过自动迁移。
+	if len(migrationFiles) == 0 {
+		return nil
+	}
+
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return fmt.Errorf("open db failed: %w", err)
