@@ -134,6 +134,18 @@ pnpm --filter panda-wiki-app build
 cd ../docs/deploy
 ```
 
+如遇到以下错误：
+
+`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`
+
+可先执行：
+
+```bash
+pnpm install --no-frozen-lockfile
+```
+
+然后继续构建流程。建议后续在源码仓库修复 lockfile 与 `pnpm.overrides` 一致性后，再恢复 `--frozen-lockfile`。
+
 ### 4.3 启动全部服务（Build）
 
 ```bash
@@ -144,7 +156,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ```bash
 docker compose -f docker-compose.build.yml ps
-curl -sS http://127.0.0.1:8000/health
+curl -sS --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:8000/health
 curl -k -I https://127.0.0.1:2443 | head -n 5
 curl -I http://127.0.0.1:3010 | head -n 5
 ```
