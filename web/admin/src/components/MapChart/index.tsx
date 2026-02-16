@@ -2,15 +2,35 @@ import { TrendData } from '@/api';
 import { Box, useTheme } from '@mui/material';
 import type { ECharts } from 'echarts';
 import { useEffect, useRef, useState } from 'react';
-import { loadScript, loadScriptsInOrder } from '@/utils/loadScript';
+import { loadScript } from '@/utils/loadScript';
 
 interface Props {
   map: 'china' | 'world' | string;
   data: TrendData[];
   tooltipText: string;
+  nameProperty?: string;
+  tooltipNameFormatter?: (name: string) => string;
 }
 
-const MapChart = ({ map, data: chartData, tooltipText }: Props) => {
+type EchartsGlobal = {
+  init: (el: HTMLDivElement) => ECharts;
+  registerMap: (name: string, geoJson: unknown) => void;
+  getMap?: (name: string) => unknown;
+};
+
+type GlobalMapWindow = Window & {
+  __BASENAME__?: string;
+  echarts?: EchartsGlobal;
+  $GeoJSON?: unknown;
+};
+
+const MapChart = ({
+  map,
+  data: chartData,
+  tooltipText,
+  nameProperty,
+  tooltipNameFormatter,
+}: Props) => {
   const theme = useTheme();
   const domWrapRef = useRef<HTMLDivElement>(null);
   const echartRef = useRef<ECharts>(null!);
@@ -48,19 +68,25 @@ const MapChart = ({ map, data: chartData, tooltipText }: Props) => {
 
     const load = async () => {
       try {
+        setResourceLoaded(false);
+
         await loadScriptWithFallback(
           withBasenameCandidates('/echarts/echarts.5.4.1.min.js'),
         );
 
-        // 依赖 echarts 全局变量，必须顺序加载
-        const chinaCandidates = withBasenameCandidates('/echarts/china.js');
-        const geoCandidates = withBasenameCandidates('/geo/geo.js');
-        await loadScriptsInOrder([chinaCandidates[0], geoCandidates[0]]).catch(
-          async () => {
-            // 如果 basename 版本 404，则回退到根路径版本
-            await loadScriptsInOrder([chinaCandidates[1], geoCandidates[1]]);
-          },
-        );
+        if (map === 'china') {
+          await loadScriptWithFallback(withBasenameCandidates('/echarts/china.js'));
+        } else if (map === 'world') {
+          await loadScriptWithFallback(withBasenameCandidates('/geo/geo.js'));
+          const globalWindow = window as GlobalMapWindow;
+          if (
+            globalWindow.echarts &&
+            globalWindow.$GeoJSON &&
+            !globalWindow.echarts.getMap?.('world')
+          ) {
+            globalWindow.echarts.registerMap('world', globalWindow.$GeoJSON);
+          }
+        }
 
         if (!isUnmounted) setResourceLoaded(true);
       } catch (e) {
@@ -71,7 +97,7 @@ const MapChart = ({ map, data: chartData, tooltipText }: Props) => {
     return () => {
       isUnmounted = true;
     };
-  }, []);
+  }, [map]);
 
   useEffect(() => {
     if (!resourceLoaded) return;
@@ -96,7 +122,12 @@ const MapChart = ({ map, data: chartData, tooltipText }: Props) => {
       },
       tooltip: {
         formatter: (params: { name: string; value: number | string }) => {
-          return `${params.name}<br />${tooltipText}: <span style='font-weight: 700'>${params.value || 0}</span>`;
+          const value =
+            typeof params.value === 'number' ? params.value : Number(params.value) || 0;
+          const title = tooltipNameFormatter
+            ? tooltipNameFormatter(params.name)
+            : params.name;
+          return `${title}<br />${tooltipText}: <span style='font-weight: 700'>${value}</span>`;
         },
       },
       visualMap: [
@@ -117,6 +148,7 @@ const MapChart = ({ map, data: chartData, tooltipText }: Props) => {
         {
           type: 'map',
           map,
+          nameProperty,
           data: data,
           itemStyle: {
             borderColor: theme.palette.divider,
@@ -147,6 +179,8 @@ const MapChart = ({ map, data: chartData, tooltipText }: Props) => {
     max,
     theme.palette.divider,
     theme.palette.primary.main,
+    nameProperty,
+    tooltipNameFormatter,
     tooltipText,
   ]);
 

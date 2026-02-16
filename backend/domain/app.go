@@ -170,6 +170,7 @@ type AppSettings struct {
 	WatermarkContent    string                  `json:"watermark_content"`
 	WatermarkSetting    consts.WatermarkSetting `json:"watermark_setting" validate:"omitempty,oneof='' hidden visible"`
 	CopySetting         consts.CopySetting      `json:"copy_setting" validate:"omitempty,oneof='' append disabled"`
+	CopyAppendContent   string                  `json:"copy_append_content"`
 	ContributeSettings  ContributeSettings      `json:"contribute_settings"`
 	HomePageSetting     consts.HomePageSetting  `json:"home_page_setting"`
 	ConversationSetting ConversationSetting     `json:"conversation_setting"`
@@ -237,6 +238,7 @@ type I18nSettings struct {
 type ConversationSetting struct {
 	CopyrightInfo        string `json:"copyright_info"`
 	CopyrightHideEnabled bool   `json:"copyright_hide_enabled"`
+	AskIntervalSeconds   int    `json:"ask_interval_seconds"`
 }
 
 type WebAppLandingTheme struct {
@@ -613,6 +615,7 @@ type AppSettingsResp struct {
 	WatermarkContent   string                  `json:"watermark_content"`
 	WatermarkSetting   consts.WatermarkSetting `json:"watermark_setting"`
 	CopySetting        consts.CopySetting      `json:"copy_setting"`
+	CopyAppendContent  string                  `json:"copy_append_content"`
 	ContributeSettings ContributeSettings      `json:"contribute_settings"`
 
 	// OpenAI API settings

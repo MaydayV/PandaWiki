@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -119,6 +120,9 @@ func (h *ShareChatHandler) ChatMessage(c echo.Context) error {
 	}
 
 	req.RemoteIP = c.RealIP()
+	if err := h.enforceConversationAskInterval(ctx, &req); err != nil {
+		return h.sendErrMsg(c, err.Error())
+	}
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
@@ -194,6 +198,9 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 	}
 
 	req.RemoteIP = c.RealIP()
+	if err := h.enforceConversationAskInterval(c.Request().Context(), &req); err != nil {
+		return h.sendErrMsg(c, err.Error())
+	}
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
@@ -218,6 +225,45 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 
 func (h *ShareChatHandler) sendErrMsg(c echo.Context, errMsg string) error {
 	return h.writeSSEEvent(c, domain.SSEEvent{Type: "error", Content: errMsg})
+}
+
+func (h *ShareChatHandler) enforceConversationAskInterval(ctx context.Context, req *domain.ChatRequest) error {
+	if req == nil {
+		return nil
+	}
+	appID, intervalSeconds, err := h.appUsecase.GetConversationAskInterval(ctx, req.KBID, req.AppType)
+	if err != nil || intervalSeconds <= 0 || appID == "" || req.RemoteIP == "" {
+		return err
+	}
+
+	lastAskedAt, err := h.conversationUsecase.GetLatestUserMessageCreatedAt(ctx, req.KBID, appID, req.RemoteIP)
+	if err != nil || lastAskedAt == nil {
+		return err
+	}
+	remaining := calculateAskIntervalRemainingSeconds(*lastAskedAt, time.Now(), intervalSeconds)
+	if remaining <= 0 {
+		return nil
+	}
+	return fmt.Errorf("提问过于频繁，请 %d 秒后再试", remaining)
+}
+
+func calculateAskIntervalRemainingSeconds(lastAskedAt, now time.Time, intervalSeconds int) int {
+	if intervalSeconds <= 0 {
+		return 0
+	}
+	intervalDuration := time.Duration(intervalSeconds) * time.Second
+	elapsed := now.Sub(lastAskedAt)
+	if elapsed <= 0 {
+		return intervalSeconds
+	}
+	if elapsed >= intervalDuration {
+		return 0
+	}
+	remaining := intervalDuration - elapsed
+	if remaining <= 0 {
+		return 0
+	}
+	return int(math.Ceil(remaining.Seconds()))
 }
 
 func (h *ShareChatHandler) writeSSEEvent(c echo.Context, data any) error {

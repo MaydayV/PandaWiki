@@ -26,6 +26,9 @@ const StyledRadioLabel = styled('div')(({ theme }) => ({
   width: 100,
 }));
 
+const DEFAULT_COPY_APPEND_CONTENT =
+  '\n\n-----------------------------------------\n{{content_from}} {{url}}';
+
 const WatermarkForm = ({
   data,
   refresh,
@@ -225,11 +228,14 @@ const CopyForm = ({
 }) => {
   const { kb_id } = useAppSelector(state => state.config);
   const [isEdit, setIsEdit] = useState(false);
-  const { control, handleSubmit, setValue } = useForm({
+  const { control, handleSubmit, setValue, watch } = useForm({
     defaultValues: {
       copy_setting: data?.settings?.copy_setting ?? null,
+      copy_append_content:
+        data?.settings?.copy_append_content || DEFAULT_COPY_APPEND_CONTENT,
     },
   });
+  const copySetting = watch('copy_setting');
 
   const handleSaveWatermark = handleSubmit(values => {
     if (!data?.id || values.copy_setting === null) return;
@@ -240,6 +246,8 @@ const CopyForm = ({
         settings: {
           ...data?.settings,
           copy_setting: values.copy_setting,
+          copy_append_content:
+            values.copy_append_content || DEFAULT_COPY_APPEND_CONTENT,
         },
       },
     ).then(() => {
@@ -252,6 +260,10 @@ const CopyForm = ({
   useEffect(() => {
     if (!data) return;
     setValue('copy_setting', data.settings?.copy_setting ?? null);
+    setValue(
+      'copy_append_content',
+      data.settings?.copy_append_content || DEFAULT_COPY_APPEND_CONTENT,
+    );
   }, [data]);
 
   return (
@@ -293,6 +305,33 @@ const CopyForm = ({
           )}
         />
       </FormItem>
+      {copySetting === ConstsCopySetting.CopySettingAppend && (
+        <FormItem
+          label='复制尾巴内容'
+          sx={{ alignItems: 'flex-start' }}
+          labelSx={{ mt: 1 }}
+          permission={BUSINESS_VERSION_PERMISSION}
+        >
+          <Controller
+            control={control}
+            name='copy_append_content'
+            render={({ field }) => (
+              <TextField
+                fullWidth
+                {...field}
+                multiline
+                minRows={3}
+                placeholder='请输入复制尾巴内容'
+                helperText='支持变量：{{url}} 当前页面地址，{{content_from}} 来源文案'
+                onChange={e => {
+                  setIsEdit(true);
+                  field.onChange(e.target.value);
+                }}
+              />
+            )}
+          />
+        </FormItem>
+      )}
     </SettingCardItem>
   );
 };

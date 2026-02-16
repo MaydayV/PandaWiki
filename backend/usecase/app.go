@@ -22,6 +22,8 @@ import (
 	"github.com/chaitin/panda-wiki/store/cache"
 )
 
+const maxConversationAskIntervalSeconds = 300
+
 type AppUsecase struct {
 	repo          *pg.AppRepository
 	authRepo      *pg.AuthRepo
@@ -103,6 +105,7 @@ func (u *AppUsecase) ValidateUpdateApp(ctx context.Context, id string, req *doma
 
 	u.syncBrandAndLegacyCopyrightSettings(&app.Settings)
 	u.syncBrandAndLegacyCopyrightSettings(req.Settings)
+	u.normalizeConversationSettings(req.Settings)
 
 	limitation := domain.GetBaseEditionLimitation(ctx)
 	if !limitation.AllowCopyProtection && app.Settings.CopySetting != req.Settings.CopySetting {
@@ -175,6 +178,7 @@ func (u *AppUsecase) ValidateUpdateApp(ctx context.Context, id string, req *doma
 func (u *AppUsecase) UpdateApp(ctx context.Context, id string, appRequest *domain.UpdateAppReq) error {
 	if appRequest.Settings != nil {
 		u.syncBrandAndLegacyCopyrightSettings(appRequest.Settings)
+		u.normalizeConversationSettings(appRequest.Settings)
 		if err := u.handleBotAuths(ctx, id, appRequest.Settings); err != nil {
 			return err
 		}
@@ -201,6 +205,19 @@ func (u *AppUsecase) UpdateApp(ctx context.Context, id string, appRequest *domai
 		}
 	}
 	return nil
+}
+
+func (u *AppUsecase) normalizeConversationSettings(settings *domain.AppSettings) {
+	if settings == nil {
+		return
+	}
+	if settings.ConversationSetting.AskIntervalSeconds < 0 {
+		settings.ConversationSetting.AskIntervalSeconds = 0
+		return
+	}
+	if settings.ConversationSetting.AskIntervalSeconds > maxConversationAskIntervalSeconds {
+		settings.ConversationSetting.AskIntervalSeconds = maxConversationAskIntervalSeconds
+	}
 }
 
 func (u *AppUsecase) getQAFunc(kbID string, appType domain.AppType) bot.GetQAFun {
@@ -567,6 +584,7 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 		WatermarkContent:    app.Settings.WatermarkContent,
 		WatermarkSetting:    app.Settings.WatermarkSetting,
 		CopySetting:         app.Settings.CopySetting,
+		CopyAppendContent:   app.Settings.CopyAppendContent,
 		ContributeSettings:  app.Settings.ContributeSettings,
 		HomePageSetting:     app.Settings.HomePageSetting,
 		ConversationSetting: app.Settings.ConversationSetting,
@@ -619,6 +637,30 @@ func (u *AppUsecase) GetMCPServerAppInfo(ctx context.Context, kbID string) (*dom
 		},
 	}
 	return appInfo, nil
+}
+
+func (u *AppUsecase) GetConversationAskInterval(ctx context.Context, kbID string, appType domain.AppType) (string, int, error) {
+	app, err := u.repo.GetOrCreateAppByKBIDAndType(ctx, kbID, appType)
+	if err != nil {
+		return "", 0, err
+	}
+
+	intervalSeconds := app.Settings.ConversationSetting.AskIntervalSeconds
+	if appType == domain.AppTypeWidget && intervalSeconds <= 0 {
+		webApp, webErr := u.repo.GetOrCreateAppByKBIDAndType(ctx, kbID, domain.AppTypeWeb)
+		if webErr == nil && webApp.Settings.ConversationSetting.AskIntervalSeconds > 0 {
+			intervalSeconds = webApp.Settings.ConversationSetting.AskIntervalSeconds
+		}
+	}
+
+	if intervalSeconds < 0 {
+		intervalSeconds = 0
+	}
+	if intervalSeconds > maxConversationAskIntervalSeconds {
+		intervalSeconds = maxConversationAskIntervalSeconds
+	}
+
+	return app.ID, intervalSeconds, nil
 }
 
 func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId uint) (*domain.AppInfoResp, error) {
@@ -706,6 +748,7 @@ func (u *AppUsecase) ShareGetWebAppInfo(ctx context.Context, kbID string, authId
 			WatermarkContent:    app.Settings.WatermarkContent,
 			WatermarkSetting:    app.Settings.WatermarkSetting,
 			CopySetting:         app.Settings.CopySetting,
+			CopyAppendContent:   app.Settings.CopyAppendContent,
 			ContributeSettings:  app.Settings.ContributeSettings,
 			HomePageSetting:     app.Settings.HomePageSetting,
 			ConversationSetting: app.Settings.ConversationSetting,

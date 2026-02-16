@@ -7,6 +7,7 @@ import { useBasePath } from '@/hooks/useBasePath';
 import useCopy from '@/hooks/useCopy';
 import { useStore } from '@/provider';
 import { ConstsCopySetting } from '@/request/types';
+import { resolveCopyAppendSuffix } from '@/utils/copyAppend';
 import { TocList, useTiptap } from '@ctzhian/tiptap';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { Box, Fab, Skeleton, Zoom } from '@mui/material';
@@ -63,10 +64,12 @@ const Doc = ({
         ? 'allow'
         : 'disable',
     blockContextMenuWhenDisabled: false,
-    suffix:
-      kbDetail?.settings?.copy_setting === ConstsCopySetting.CopySettingAppend
-        ? `\n\n-----------------------------------------\n${t('node.contentFrom')} ${typeof window !== 'undefined' ? window.location.href : ''}`
-        : '',
+    suffix: resolveCopyAppendSuffix({
+      copySetting: kbDetail?.settings?.copy_setting,
+      copyAppendContent: kbDetail?.settings?.copy_append_content,
+      contentFromLabel: t('node.contentFrom'),
+      currentUrl: typeof window !== 'undefined' ? window.location.href : '',
+    }),
   });
 
   const handleScroll = () => {

@@ -2,7 +2,9 @@ package pg
 
 import (
 	"context"
+	"errors"
 	"strconv"
+	"time"
 
 	"github.com/cloudwego/eino/schema"
 	"gorm.io/gorm"
@@ -16,6 +18,32 @@ import (
 type ConversationRepository struct {
 	db     *pg.DB
 	logger *log.Logger
+}
+
+func (r *ConversationRepository) GetLatestUserMessageCreatedAt(ctx context.Context, kbID, appID, remoteIP string) (*time.Time, error) {
+	if remoteIP == "" {
+		return nil, nil
+	}
+
+	var latest domain.ConversationMessage
+	err := r.db.WithContext(ctx).
+		Model(&domain.ConversationMessage{}).
+		Where("kb_id = ?", kbID).
+		Where("app_id = ?", appID).
+		Where("remote_ip = ?", remoteIP).
+		Where("role = ?", schema.User).
+		Order("created_at DESC").
+		Limit(1).
+		First(&latest).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	t := latest.CreatedAt
+	return &t, nil
 }
 
 func NewConversationRepository(db *pg.DB, logger *log.Logger) *ConversationRepository {

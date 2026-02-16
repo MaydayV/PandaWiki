@@ -14,6 +14,7 @@ import {
 } from '@/request/ShareComment';
 import { ConstsCopySetting, V1ShareNodeDetailResp } from '@/request/types';
 import { findAdjacentDocuments } from '@/utils';
+import { resolveCopyAppendSuffix } from '@/utils/copyAppend';
 import { getImagePath } from '@/utils/getImagePath';
 import { Editor, UseTiptapReturn } from '@ctzhian/tiptap';
 import { Image, message } from '@ctzhian/ui';
@@ -179,10 +180,13 @@ const DocContent = ({
   const onCopyDocMd = () => {
     let context = editorRef.getMarkdown() || '';
     // 如果设置了追加尾缀，则在复制内容后添加尾缀
-    if (
-      kbDetail?.settings?.copy_setting === ConstsCopySetting.CopySettingAppend
-    ) {
-      context += `\n\n-----------------------------------------\n${t('node.contentFrom')} ${typeof window !== 'undefined' ? window.location.href : ''}`;
+    if (kbDetail?.settings?.copy_setting === ConstsCopySetting.CopySettingAppend) {
+      context += resolveCopyAppendSuffix({
+        copySetting: kbDetail?.settings?.copy_setting,
+        copyAppendContent: kbDetail?.settings?.copy_append_content,
+        contentFromLabel: t('node.contentFrom'),
+        currentUrl: typeof window !== 'undefined' ? window.location.href : '',
+      });
     }
     copyText(context);
   };

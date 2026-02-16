@@ -3,45 +3,83 @@ import { getApiV1StatGeoCount } from '@/request/Stat';
 import Nodata from '@/assets/images/nodata.png';
 import Card from '@/components/Card';
 import MapChart from '@/components/MapChart';
-import { ChinaProvinceSortName } from '@/constant/area';
+import { Countries } from '@/constant/area';
 import { useAppSelector } from '@/store';
 import { Box, Stack } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { ActiveTab, TimeList } from '.';
 
+const CountryNameCodeMap: Record<string, string> = Object.entries(Countries).reduce(
+  (acc, [code, item]) => {
+    acc[code] = code;
+    acc[item.cn] = code;
+    acc[item.en] = code;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
+
+const CountryAliasMap: Record<string, string> = {
+  UK: 'GB',
+  'U.K.': 'GB',
+  USA: 'US',
+  'U.S.A.': 'US',
+};
+
+const resolveCountryCode = (countryName: string) => {
+  const normalized = countryName.trim();
+  const upper = normalized.toUpperCase();
+  return (
+    CountryAliasMap[normalized] ||
+    CountryAliasMap[upper] ||
+    CountryNameCodeMap[normalized] ||
+    CountryNameCodeMap[upper] ||
+    ''
+  );
+};
+
 const AreaMap = ({ tab }: { tab: ActiveTab }) => {
   const { kb_id } = useAppSelector(state => state.config);
   const [list, setList] = useState<TrendData[]>([]);
+  const [mapList, setMapList] = useState<TrendData[]>([]);
 
   useEffect(() => {
     if (!kb_id) return;
     getApiV1StatGeoCount({ kb_id, day: tab }).then(res => {
-      const list = Object.entries(res as Record<string, number>)
-        .map(([key, value]) => {
-          const [country, province, city] = key.split('|');
-          return {
-            name: ChinaProvinceSortName[province] || province,
-            count: value,
-          };
-        })
-        .filter(item => !!item.name);
+      const displayCountMap = new Map<string, number>();
+      const worldMapCount = new Map<string, number>();
 
-      const provinceMap = new Map();
-      for (let i = 0; i < list.length; i++) {
-        if (!provinceMap.has(list[i].name)) {
-          provinceMap.set(list[i].name, list[i].count);
-        } else {
-          provinceMap.set(
-            list[i].name,
-            provinceMap.get(list[i].name)! + list[i].count,
+      for (const [key, value] of Object.entries(res as Record<string, number>)) {
+        const [country = ''] = key.split('|');
+        const countryName = country.trim();
+        const count = Number(value) || 0;
+        if (!countryName || count <= 0 || countryName === '未知') continue;
+
+        const countryCode = resolveCountryCode(countryName);
+        const displayName = countryCode
+          ? Countries[countryCode]?.cn || countryName
+          : countryName;
+
+        displayCountMap.set(
+          displayName,
+          (displayCountMap.get(displayName) || 0) + count,
+        );
+
+        if (countryCode) {
+          worldMapCount.set(
+            countryCode,
+            (worldMapCount.get(countryCode) || 0) + count,
           );
         }
       }
-      setList(
-        Array.from(provinceMap, ([name, count]) => ({ name, count })).sort(
+
+      const toSortedList = (target: Map<string, number>) =>
+        Array.from(target, ([name, count]) => ({ name, count })).sort(
           (a, b) => b.count - a.count,
-        ),
-      );
+        );
+
+      setList(toSortedList(displayCountMap));
+      setMapList(toSortedList(worldMapCount));
     });
   }, [kb_id, tab]);
 
@@ -53,7 +91,13 @@ const AreaMap = ({ tab }: { tab: ActiveTab }) => {
         position: 'relative',
       }}
     >
-      <MapChart map='china' data={list} tooltipText={'用户数量'} />
+      <MapChart
+        map='world'
+        nameProperty='ISO_A2'
+        data={mapList}
+        tooltipText={'用户数量'}
+        tooltipNameFormatter={name => Countries[name]?.cn || name}
+      />
       <Box
         sx={{
           position: 'absolute',

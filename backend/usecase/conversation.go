@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/samber/lo"
 
@@ -204,6 +205,10 @@ func (u *ConversationUsecase) FeedBack(ctx context.Context, feedback *domain.Fee
 		return fmt.Errorf("already voted for this message, please do not vote again")
 	}
 	return nil
+}
+
+func (u *ConversationUsecase) GetLatestUserMessageCreatedAt(ctx context.Context, kbID, appID, remoteIP string) (*time.Time, error) {
+	return u.repo.GetLatestUserMessageCreatedAt(ctx, kbID, appID, remoteIP)
 }
 
 func (u *ConversationUsecase) GetMessageList(ctx context.Context, req *domain.MessageListReq) (*domain.PaginatedResult[[]*domain.ConversationMessageListItem], error) {

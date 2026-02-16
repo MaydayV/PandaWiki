@@ -1,5 +1,6 @@
 import { getApiProV1Prompt, postApiProV1Prompt } from '@/request/pro/Prompt';
-import { DomainKnowledgeBaseDetail } from '@/request/types';
+import { getApiV1AppDetail, putApiV1App } from '@/request/App';
+import { DomainAppDetailResp, DomainKnowledgeBaseDetail } from '@/request/types';
 import { ALL_VERSION_PERMISSION } from '@/constant/version';
 import { useAppSelector } from '@/store';
 import { message, Modal } from '@ctzhian/ui';
@@ -16,6 +17,7 @@ interface CardAIProps {
 const CardAI = ({ kb }: CardAIProps) => {
   const [isEdit, setIsEdit] = useState(false);
   const { license } = useAppSelector(state => state.config);
+  const [webApp, setWebApp] = useState<DomainAppDetailResp>();
 
   const { control, handleSubmit, setValue, getValues } = useForm({
     defaultValues: {
@@ -26,14 +28,44 @@ const CardAI = ({ kb }: CardAIProps) => {
   });
 
   const onSubmit = handleSubmit(async data => {
-    await postApiProV1Prompt({
-      kb_id: kb.id!,
-      content: data.content,
-      summary_content: data.summary_content,
-    });
+    await Promise.all([
+      postApiProV1Prompt({
+        kb_id: kb.id!,
+        content: data.content,
+        summary_content: data.summary_content,
+      }),
+      webApp?.id
+        ? putApiV1App(
+            { id: webApp.id },
+            {
+              kb_id: kb.id!,
+              settings: {
+                ...webApp.settings,
+                conversation_setting: {
+                  ...webApp.settings?.conversation_setting,
+                  ask_interval_seconds: data.interval,
+                },
+              },
+            },
+          )
+        : Promise.resolve(),
+    ]);
 
     message.success('保存成功');
     setIsEdit(false);
+    setWebApp(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          conversation_setting: {
+            ...prev.settings?.conversation_setting,
+            ask_interval_seconds: data.interval,
+          },
+        },
+      };
+    });
   });
 
   const canEditPrompt = useMemo(() => {
@@ -43,9 +75,23 @@ const CardAI = ({ kb }: CardAIProps) => {
   useEffect(() => {
     if (!kb.id || !ALL_VERSION_PERMISSION.includes(license.edition!))
       return;
-    getApiProV1Prompt({ kb_id: kb.id! }).then(res => {
-      setValue('content', res.content || '');
-      setValue('summary_content', res.summary_content || '');
+    Promise.all([
+      getApiProV1Prompt({ kb_id: kb.id! }),
+      getApiV1AppDetail({ kb_id: kb.id!, type: '1' }),
+    ]).then(([promptRes, appRes]) => {
+      setValue('content', promptRes.content || '');
+      setValue('summary_content', promptRes.summary_content || '');
+      setValue(
+        'interval',
+        Math.max(
+          0,
+          Math.min(
+            300,
+            appRes.settings?.conversation_setting?.ask_interval_seconds ?? 0,
+          ),
+        ),
+      );
+      setWebApp(appRes);
     });
   }, [kb, canEditPrompt]);
 
@@ -121,18 +167,18 @@ const CardAI = ({ kb }: CardAIProps) => {
             )}
           />
         </FormItem>
-        <FormItem vertical label='连续提问时间间隔（敬请期待）'>
+        <FormItem vertical label='连续提问时间间隔（秒）'>
           <Controller
             control={control}
             name='interval'
             render={({ field }) => (
               <Slider
                 {...field}
-                disabled
                 valueLabelDisplay='auto'
-                min={200}
+                valueLabelFormat={value => (value === 0 ? '关闭' : `${value}s`)}
+                min={0}
                 max={300}
-                step={5}
+                step={1}
                 sx={{
                   width: 432,
                   '& .MuiSlider-thumb': {
@@ -177,12 +223,16 @@ const CardAI = ({ kb }: CardAIProps) => {
                   },
                 }}
                 onChange={(e, value) => {
-                  field.onChange(+value);
+                  const nextValue = Array.isArray(value) ? value[0] : value;
+                  field.onChange(nextValue);
                   setIsEdit(true);
                 }}
               />
             )}
           />
+          <Box sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
+            0 表示不限制。开启后，同一来源需等待设置秒数后才能继续提问。
+          </Box>
         </FormItem>
         <FormItem
           vertical

@@ -173,3 +173,25 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
   - 本次按复杂度评估暂不新增“回退发布版本”功能，避免引入跨版本状态回写风险。
 - 迁移兼容：
   - 在仅保留 `full_fresh_deploy.sql` 的场景下，自动迁移启动逻辑改为“若不存在 `migration/*.up.sql` 则跳过增量迁移”，避免 API 因缺失历史迁移文件启动失败。
+
+## 追加记录（2026-02-16，复制尾巴可配置与连续提问间隔落地）
+- 安全设置 -> 内容复制：
+  - “增加内容尾巴”新增可编辑文本框，支持自定义复制尾巴内容并持久化到 `settings.copy_append_content`。
+  - 默认模板为：
+    - `-----------------------------------------`
+    - `{{content_from}} {{url}}`
+  - 支持变量替换：`{{url}} / {url}`、`{{content_from}} / {content_from}`。
+- 前台复制行为：
+  - 文档页“复制 Markdown”与全局复制后缀统一改为读取 `copy_append_content`，不再硬编码固定尾巴文案。
+  - 当模板为空时自动回退到默认模板，保证兼容历史配置。
+- 问答设置：
+  - “连续提问时间间隔（敬请期待）”改为可用配置，支持 `0-300` 秒（`0` 表示不限制）。
+  - 配置落地字段：`settings.conversation_setting.ask_interval_seconds`。
+- 分享问答限流：
+  - `/share/v1/chat/message` 与 `/share/v1/chat/widget` 增加连续提问间隔校验。
+  - 校验维度：同一知识库 + 应用 + 来源 IP，按最近一次用户消息时间计算剩余等待秒数。
+  - 命中时返回：`提问过于频繁，请 N 秒后再试`。
+- SQL 现状：
+  - 当前仓库仅保留 1 个完整部署 SQL：
+    - `backend/store/pg/migration/full_fresh_deploy.sql`
+  - 未保留任何增量迁移 SQL 文件。

@@ -85,6 +85,7 @@ export interface KBDetail {
     watermark_content?: string;
     watermark_setting?: ConstsWatermarkSetting;
     copy_setting?: ConstsCopySetting;
+    copy_append_content?: string;
     node_meta_settings?: {
       show_created_at?: boolean;
       show_updated_at?: boolean;

@@ -324,6 +324,7 @@ export interface DomainAppSettings {
   catalog_settings?: DomainCatalogSettings;
   contribute_settings?: DomainContributeSettings;
   conversation_setting?: DomainConversationSetting;
+  copy_append_content?: string;
   copy_setting?: "" | "append" | "disabled";
   /** seo */
   desc?: string;
@@ -416,6 +417,7 @@ export interface DomainAppSettingsResp {
   catalog_settings?: DomainCatalogSettings;
   contribute_settings?: DomainContributeSettings;
   conversation_setting?: DomainConversationSetting;
+  copy_append_content?: string;
   copy_setting?: ConstsCopySetting;
   /** seo */
   desc?: string;
@@ -742,6 +744,7 @@ export interface DomainBrandSettings {
 }
 
 export interface DomainConversationSetting {
+  ask_interval_seconds?: number;
   copyright_hide_enabled?: boolean;
   copyright_info?: string;
 }
