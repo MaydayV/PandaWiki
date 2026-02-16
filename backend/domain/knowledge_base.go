@@ -186,6 +186,17 @@ type GetKBReleaseDocsReq struct {
 	ReleaseID string `json:"release_id" query:"release_id" validate:"required"`
 }
 
+type RollbackKBReleaseReq struct {
+	KBID      string `json:"kb_id" validate:"required"`
+	ReleaseID string `json:"release_id" validate:"required"`
+}
+
+type RollbackKBReleaseResp struct {
+	ReleaseID      string   `json:"release_id"`
+	RollbackNodeID []string `json:"rollback_node_id"`
+	Count          int      `json:"count"`
+}
+
 type KBReleaseDocItem struct {
 	NodeID        string    `json:"node_id"`
 	NodeReleaseID string    `json:"node_release_id"`

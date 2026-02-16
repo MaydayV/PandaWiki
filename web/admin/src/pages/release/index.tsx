@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import VersionInspect from './components/VersionInspect';
 import VersionPublish from './components/VersionPublish';
+import VersionReset from './components/VersionReset';
 
 const Release = () => {
   const { kb_id } = useAppSelector(state => state.config);
@@ -23,6 +24,7 @@ const Release = () => {
   const [publishOpen, setPublishOpen] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
   const [inspectTab, setInspectTab] = useState<'docs' | 'diff'>('docs');
+  const [resetOpen, setResetOpen] = useState(false);
   const [curVersionId, setCurVersionId] = useState('');
 
   const [data, setData] = useState<DomainKBReleaseListItemResp[]>([]);
@@ -73,7 +75,7 @@ const Release = () => {
     {
       dataIndex: 'action',
       title: '操作',
-      width: 180,
+      width: 220,
       render: (_: string, record: DomainKBReleaseListItemResp) => (
         <Stack direction={'row'} gap={1}>
           <Button
@@ -98,6 +100,17 @@ const Release = () => {
           >
             文档对比
           </Button>
+          <Button
+            sx={{ minWidth: 0, p: 0 }}
+            size='small'
+            disabled={curVersionId === record.id}
+            onClick={() => {
+              setCurData(record);
+              setResetOpen(true);
+            }}
+          >
+            回滚
+          </Button>
         </Stack>
       ),
     },
@@ -105,7 +118,6 @@ const Release = () => {
 
   const getData = () => {
     setLoading(true);
-    // @ts-expect-error 类型错误
     getApiV1KnowledgeBaseReleaseList({ kb_id, page, per_page: pageSize })
       .then(res => {
         setData(res.data || []);
@@ -202,6 +214,12 @@ const Release = () => {
         onClose={() => setInspectOpen(false)}
         data={curData}
         defaultTab={inspectTab}
+      />
+      <VersionReset
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        data={curData}
+        refresh={getData}
       />
     </Card>
   );

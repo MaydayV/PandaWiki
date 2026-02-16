@@ -123,6 +123,11 @@ func NewEcho(
 
 	e.Use(pwMiddleware.ReadOnly)
 	e.Use(sessionMiddleware.Session())
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"status": "ok",
+		})
+	})
 
 	return e
 }

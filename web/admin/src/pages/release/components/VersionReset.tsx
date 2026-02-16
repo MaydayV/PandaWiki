@@ -1,28 +1,42 @@
 import Card from '@/components/Card';
+import { postApiV1KnowledgeBaseReleaseRollback } from '@/request/KnowledgeBase';
+import { DomainKBReleaseListItemResp } from '@/request/types';
 import { useAppSelector } from '@/store';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import ErrorIcon from '@mui/icons-material/Error';
 import { Box, Stack, useTheme } from '@mui/material';
-import { Modal } from '@ctzhian/ui';
+import { message, Modal } from '@ctzhian/ui';
+import dayjs from 'dayjs';
+import { useState } from 'react';
 
 interface VersionResetProps {
   open: boolean;
   onClose: () => void;
-  data: { id: string; version: string; created_at: string; remark: string };
+  data: DomainKBReleaseListItemResp | null;
   refresh?: () => void;
 }
 
 const VersionReset = ({ open, onClose, data, refresh }: VersionResetProps) => {
   const theme = useTheme();
   const { kb_id } = useAppSelector(state => state.config);
+  const [submitting, setSubmitting] = useState(false);
   if (!data) return null;
 
   const submit = () => {
-    // updateNodeAction({ ids: data.map(item => item.id), kb_id, action: 'delete' }).then(() => {
-    //   message.success('删除成功')
-    //   onClose()
-    //   refresh?.();
-    // })
+    if (!kb_id || !data?.id || submitting) return;
+    setSubmitting(true);
+    postApiV1KnowledgeBaseReleaseRollback({
+      kb_id,
+      release_id: data.id,
+    })
+      .then(() => {
+        message.success('版本回滚成功，文档已恢复到目标版本草稿');
+        onClose();
+        refresh?.();
+      })
+      .finally(() => {
+        setSubmitting(false);
+      });
   };
 
   return (
@@ -36,6 +50,7 @@ const VersionReset = ({ open, onClose, data, refresh }: VersionResetProps) => {
       open={open}
       width={600}
       okText='回滚'
+      okButtonProps={{ loading: submitting }}
       onCancel={onClose}
       onOk={submit}
     >
@@ -63,10 +78,16 @@ const VersionReset = ({ open, onClose, data, refresh }: VersionResetProps) => {
           <ArrowForwardIosIcon sx={{ fontSize: 12, mt: '4px' }} />
           <Box sx={{ width: '100%' }}>
             <Box sx={{ fontSize: 16, fontWeight: 500 }}>
-              {data.version || '-'}
+              {data.tag || '-'}
             </Box>
             <Box sx={{ fontSize: 12, color: 'text.tertiary' }}>
-              {data.remark || '-'}
+              {data.message || '-'}
+            </Box>
+            <Box sx={{ fontSize: 12, color: 'text.tertiary', mt: 0.5 }}>
+              发布时间：
+              {data.created_at
+                ? dayjs(data.created_at).format('YYYY-MM-DD HH:mm:ss')
+                : '-'}
             </Box>
           </Box>
         </Stack>

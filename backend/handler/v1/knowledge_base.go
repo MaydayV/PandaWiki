@@ -60,6 +60,7 @@ func NewKnowledgeBaseHandler(
 	// release
 	releaseGroup := group.Group("/release", h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage))
 	releaseGroup.POST("", h.CreateKBRelease)
+	releaseGroup.POST("/rollback", h.RollbackKBRelease)
 	releaseGroup.GET("/list", h.GetKBReleaseList)
 	releaseGroup.GET("/docs", h.GetKBReleaseDocs)
 
@@ -683,6 +684,39 @@ func (h *KnowledgeBaseHandler) GetKBReleaseDocs(c echo.Context) error {
 	resp, err := h.usecase.GetKBReleaseDocs(c.Request().Context(), &req)
 	if err != nil {
 		return h.NewResponseWithError(c, "get kb release docs failed", err)
+	}
+
+	return h.NewResponseWithData(c, resp)
+}
+
+// RollbackKBRelease
+//
+//	@Summary		RollbackKBRelease
+//	@Description	RollbackKBRelease
+//	@Tags			knowledge_base
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		domain.RollbackKBReleaseReq	true	"RollbackKBRelease Request"
+//	@Success		200		{object}	domain.PWResponse{data=domain.RollbackKBReleaseResp}
+//	@Router			/api/v1/knowledge_base/release/rollback [post]
+func (h *KnowledgeBaseHandler) RollbackKBRelease(c echo.Context) error {
+	ctx := c.Request().Context()
+	authInfo := domain.GetAuthInfoFromCtx(ctx)
+	if authInfo == nil {
+		return h.NewResponseWithError(c, "authInfo not found in context", nil)
+	}
+
+	req := &domain.RollbackKBReleaseReq{}
+	if err := c.Bind(req); err != nil {
+		return h.NewResponseWithError(c, "request body is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request body failed", err)
+	}
+
+	resp, err := h.usecase.RollbackKBRelease(ctx, req, authInfo.UserId)
+	if err != nil {
+		return h.NewResponseWithError(c, "rollback kb release failed", err)
 	}
 
 	return h.NewResponseWithData(c, resp)

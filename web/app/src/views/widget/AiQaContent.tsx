@@ -1,7 +1,7 @@
 'use client';
 import aiLoading from '@/assets/images/ai-loading.gif';
 import Logo from '@/assets/images/logo.png';
-import { ChunkResultItem } from '@/assets/type';
+import { ChunkResultItem, NodeListItem } from '@/assets/type';
 import Feedback from '@/components/feedback';
 import {
   IconADiancaiWeixuanzhong2,
@@ -15,6 +15,7 @@ import { useSmartScroll } from '@/hooks';
 import { useStore } from '@/provider';
 import { postShareV1ChatFeedback } from '@/request/ShareChat';
 import { getShareV1ConversationDetail } from '@/request/ShareConversation';
+import { getShareV1NodeList } from '@/request/ShareNode';
 import { copyText } from '@/utils';
 import SSEClient from '@/utils/fetch';
 import { message } from '@ctzhian/ui';
@@ -159,8 +160,36 @@ const AiQaContent: React.FC<{
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fuzzySuggestions, setFuzzySuggestions] = useState<string[]>([]);
   const [showFuzzySuggestions, setShowFuzzySuggestions] = useState(false);
+  const [suggestionCandidates, setSuggestionCandidates] = useState<string[]>(
+    [],
+  );
 
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    let active = true;
+    getShareV1NodeList()
+      .then((res: any) => {
+        if (!active) return;
+        const data = (res || []) as NodeListItem[];
+        const names = Array.from(
+          new Set(
+            data
+              .filter(item => item?.type === 2)
+              .map(item => (item?.name || '').trim())
+              .filter(Boolean),
+          ),
+        );
+        setSuggestionCandidates(names);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSuggestionCandidates([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // 使用智能滚动 hook（内置 ResizeObserver 自动监听内容高度变化，自动滚动）
   const { setShouldAutoScroll } = useSmartScroll({
@@ -304,27 +333,29 @@ const AiQaContent: React.FC<{
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      setShowFuzzySuggestions(false);
+      setFuzzySuggestions([]);
+      return;
+    }
 
-    // if (value.trim().length > 0) {
-    //   // 改进的模糊搜索逻辑
-    //   const filtered = mockFuzzySuggestions
-    //     .filter(suggestion => {
-    //       const lowerSuggestion = suggestion.toLowerCase();
-    //       const lowerValue = value.toLowerCase();
-    //       // 支持前缀匹配和包含匹配
-    //       return (
-    //         lowerSuggestion.startsWith(lowerValue) ||
-    //         lowerSuggestion.includes(lowerValue)
-    //       );
-    //     })
-    //     .slice(0, 5); // 限制显示数量
-
-    //   setFuzzySuggestions(filtered);
-    //   setShowFuzzySuggestions(true);
-    // } else {
-    //   setShowFuzzySuggestions(false);
-    //   setFuzzySuggestions([]);
-    // }
+    const candidates = Array.from(
+      new Set([...hotSearch, ...suggestionCandidates]),
+    );
+    const startsWithList: string[] = [];
+    const containsList: string[] = [];
+    candidates.forEach(candidate => {
+      const text = candidate.toLowerCase();
+      if (text.startsWith(normalized)) {
+        startsWithList.push(candidate);
+      } else if (text.includes(normalized)) {
+        containsList.push(candidate);
+      }
+    });
+    const suggestions = [...startsWithList, ...containsList].slice(0, 8);
+    setFuzzySuggestions(suggestions);
+    setShowFuzzySuggestions(suggestions.length > 0);
   };
 
   // 选择模糊搜索建议
@@ -1055,20 +1086,18 @@ const AiQaContent: React.FC<{
               style={{ display: 'none' }}
               onChange={handleImageUpload}
             />
-            {/*
-              <Tooltip title={t('widget.comingSoon')}>
-                <IconButton
-                  size='small'
-                  // onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
-                  sx={{
-                    flexShrink: 0,
-                  }}
-                >
-                  <IconTupian sx={{ fontSize: 20, color: 'text.secondary' }} />
-                </IconButton>
-              </Tooltip>
-            */}
+            <Tooltip title={t('widget.uploadImage')}>
+              <IconButton
+                size='small'
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                sx={{
+                  flexShrink: 0,
+                }}
+              >
+                <IconTupian sx={{ fontSize: 20, color: 'text.secondary' }} />
+              </IconButton>
+            </Tooltip>
 
             <Box
               sx={{

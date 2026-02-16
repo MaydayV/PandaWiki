@@ -17,6 +17,12 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.12.1",
+  "pnpm": {
+    "overrides": {
+      "baseline-browser-mapping": "^2.9.19",
+      "require-in-the-middle": "^7.5.2"
+    }
+  },
   "dependencies": {
     "@ctzhian/tiptap": "^2.13.6",
     "@ctzhian/ui": "^7.1.3",

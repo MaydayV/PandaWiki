@@ -259,6 +259,41 @@ func (u *KnowledgeBaseUsecase) GetKBReleaseDocs(ctx context.Context, req *domain
 	}, nil
 }
 
+func (u *KnowledgeBaseUsecase) RollbackKBRelease(ctx context.Context, req *domain.RollbackKBReleaseReq, userID string) (*domain.RollbackKBReleaseResp, error) {
+	_, docs, _, err := u.repo.GetKBReleaseDocs(ctx, req.KBID, req.ReleaseID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(docs) == 0 {
+		return &domain.RollbackKBReleaseResp{
+			ReleaseID:      req.ReleaseID,
+			RollbackNodeID: []string{},
+			Count:          0,
+		}, nil
+	}
+
+	rollbackNodeID := make([]string, 0, len(docs))
+	seen := make(map[string]struct{}, len(docs))
+	for _, item := range docs {
+		nodeID, rollbackErr := u.nodeRepo.RollbackNodeRelease(ctx, req.KBID, item.NodeReleaseID, userID)
+		if rollbackErr != nil {
+			return nil, rollbackErr
+		}
+		if _, ok := seen[nodeID]; ok {
+			continue
+		}
+		seen[nodeID] = struct{}{}
+		rollbackNodeID = append(rollbackNodeID, nodeID)
+	}
+
+	return &domain.RollbackKBReleaseResp{
+		ReleaseID:      req.ReleaseID,
+		RollbackNodeID: rollbackNodeID,
+		Count:          len(rollbackNodeID),
+	}, nil
+}
+
 func (u *KnowledgeBaseUsecase) GetKBUserList(ctx context.Context, req v1.KBUserListReq) ([]v1.KBUserListItemResp, error) {
 	users, err := u.repo.GetKBUserlist(ctx, req.KBId)
 	if err != nil {

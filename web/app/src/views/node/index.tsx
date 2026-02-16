@@ -73,25 +73,27 @@ const Doc = ({
   });
 
   const handleScroll = () => {
-    setShowScrollTop(
-      document.querySelector('#scroll-container')!.scrollTop > 300,
-    );
+    const scrollContainer = document.querySelector(
+      '#scroll-container',
+    ) as HTMLElement | null;
+    if (!scrollContainer) return;
+    setShowScrollTop(scrollContainer.scrollTop > 300);
   };
 
   useEffect(() => {
-    document
-      .querySelector('#scroll-container')
-      ?.addEventListener('scroll', handleScroll);
-    return () =>
-      document
-        .querySelector('#scroll-container')
-        ?.removeEventListener('scroll', handleScroll);
+    const scrollContainer = document.querySelector(
+      '#scroll-container',
+    ) as HTMLElement | null;
+    if (!scrollContainer) return;
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToTop = () => {
-    document
-      .querySelector('#scroll-container')
-      ?.scrollTo({ top: 0, behavior: 'smooth' });
+    const scrollContainer = document.querySelector(
+      '#scroll-container',
+    ) as HTMLElement | null;
+    scrollContainer?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {

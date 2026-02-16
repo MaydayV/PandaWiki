@@ -7,7 +7,7 @@ import {
   DomainKnowledgeBaseDetail,
 } from '@/request/types';
 import { useAppSelector } from '@/store';
-import { Box, Tab, Tabs } from '@mui/material';
+import { Box, CircularProgress, Tab, Tabs, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import CardAI from './component/CardAI';
 import CardFeedback from './component/CardFeedback';
@@ -85,7 +85,27 @@ const Setting = () => {
     if (kb_id) getKb();
   }, [kb_id]);
 
-  if (!kb) return <></>;
+  if (!kb) {
+    return (
+      <Card sx={{ height: 'calc(100vh - 148px)' }}>
+        <Box
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: 1.5,
+          }}
+        >
+          <CircularProgress size={24} />
+          <Typography variant='body2' color='text.secondary'>
+            正在加载设置...
+          </Typography>
+        </Box>
+      </Card>
+    );
+  }
 
   return (
     <Box

@@ -155,44 +155,6 @@ const parseJsonLd = (value: unknown) => {
   return null;
 };
 
-const getShareAuthInfo = async (kbId?: string) => {
-  const target = process.env.TARGET;
-  if (!target) return undefined;
-
-  const query = kbId ? `?kb_id=${encodeURIComponent(kbId)}` : '';
-  const url = `${target}/share/pro/v1/auth/info${query}`;
-
-  try {
-    const response = await fetch(url, { cache: 'no-store' });
-    let body: any = {};
-    try {
-      body = await response.json();
-    } catch {}
-
-    if (response.status === 403) {
-      throw {
-        ...body,
-        code: 403,
-      };
-    }
-
-    if (
-      !response.ok ||
-      (body.code !== undefined && body.code !== 0) ||
-      (body.success !== undefined && !body.success)
-    ) {
-      return undefined;
-    }
-
-    return body.data;
-  } catch (error: any) {
-    if (error?.code === 403) {
-      throw error;
-    }
-    return undefined;
-  }
-};
-
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const kbDetail: any = await getShareV1AppWebInfo();
@@ -262,16 +224,7 @@ const Layout = async ({
   const [kbDetailResolve] = await Promise.allSettled([getShareV1AppWebInfo()]);
   const kbDetail: any =
     kbDetailResolve.status === 'fulfilled' ? kbDetailResolve.value : undefined;
-  let authInfo: any = undefined;
-  if (!error) {
-    try {
-      authInfo = await getShareAuthInfo(kbDetail?.id);
-    } catch (e: any) {
-      if (e?.code === 403) {
-        error = e;
-      }
-    }
-  }
+  const authInfo: any = undefined;
 
   const { isMobile } = getSelectorsByUserAgent(userAgent || '') || {
     isMobile: false,

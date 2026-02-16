@@ -918,7 +918,7 @@ func (r *NodeRepository) GetNodeReleaseDetailByKBIDAndID(ctx context.Context, kb
 		return nil, err
 	}
 
-	var node *shareV1.ShareNodeDetailResp
+	var node shareV1.ShareNodeDetailResp
 	if err := r.db.WithContext(ctx).
 		Model(&domain.KBReleaseNodeRelease{}).
 		Select("node_releases.*, nodes.permissions, nodes.creator_id").
@@ -930,7 +930,7 @@ func (r *NodeRepository) GetNodeReleaseDetailByKBIDAndID(ctx context.Context, kb
 		First(&node).Error; err != nil {
 		return nil, err
 	}
-	return node, nil
+	return &node, nil
 }
 
 func (r *NodeRepository) MoveNodeBetween(ctx context.Context, id, parentID, prevID, nextID, kbId string) error {

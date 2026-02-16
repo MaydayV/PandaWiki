@@ -1,7 +1,9 @@
 'use client';
 import Logo from '@/assets/images/logo.png';
+import { NodeListItem } from '@/assets/type';
 import noDocImage from '@/assets/images/no-doc.png';
 import { useStore } from '@/provider';
+import { getShareV1NodeList } from '@/request/ShareNode';
 import { postShareV1ChatWidgetSearch } from '@/request';
 import { DomainNodeContentChunkSSE } from '@/request/types';
 import { message } from '@ctzhian/ui';
@@ -26,7 +28,7 @@ import {
   IconWenjian,
 } from '@panda-wiki/icons';
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useBasePath } from '@/hooks';
 
 const StyledSearchResultItem = styled(Stack)(({ theme }) => ({
@@ -87,6 +89,7 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
   // 模糊搜索相关状态
   const [fuzzySuggestions, setFuzzySuggestions] = useState<string[]>([]);
   const [showFuzzySuggestions, setShowFuzzySuggestions] = useState(false);
+  const [suggestionCandidates, setSuggestionCandidates] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [hasSearch, setHasSearch] = useState(false);
   // 搜索结果相关状态
@@ -94,39 +97,75 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
     DomainNodeContentChunkSSE[]
   >([]);
   const [isSearching, setIsSearching] = useState(false);
+  const defaultSuggestions = useMemo(
+    () => kbDetail?.settings?.recommend_questions || [],
+    [kbDetail?.settings?.recommend_questions],
+  );
+
+  useEffect(() => {
+    let active = true;
+    getShareV1NodeList()
+      .then((res: any) => {
+        if (!active) return;
+        const data = (res || []) as NodeListItem[];
+        const names = Array.from(
+          new Set(
+            data
+              .filter(item => item?.type === 2)
+              .map(item => (item?.name || '').trim())
+              .filter(Boolean),
+          ),
+        );
+        setSuggestionCandidates(names);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSuggestionCandidates([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const updateFuzzySuggestions = (keyword: string) => {
+    const normalized = keyword.trim().toLowerCase();
+    if (!normalized) {
+      setFuzzySuggestions([]);
+      setShowFuzzySuggestions(false);
+      return;
+    }
+
+    const candidates = Array.from(
+      new Set([...defaultSuggestions, ...suggestionCandidates]),
+    );
+
+    const startsWithList: string[] = [];
+    const containsList: string[] = [];
+    candidates.forEach(candidate => {
+      const text = candidate.toLowerCase();
+      if (text.startsWith(normalized)) {
+        startsWithList.push(candidate);
+      } else if (text.includes(normalized)) {
+        containsList.push(candidate);
+      }
+    });
+
+    const suggestions = [...startsWithList, ...containsList].slice(0, 8);
+    setFuzzySuggestions(suggestions);
+    setShowFuzzySuggestions(suggestions.length > 0);
+  };
 
   // 处理输入变化，显示模糊搜索建议
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-
-    // if (value.trim().length > 0) {
-    //   // 改进的模糊搜索逻辑
-    //   const filtered = mockFuzzySuggestions
-    //     .filter(suggestion => {
-    //       const lowerSuggestion = suggestion.toLowerCase();
-    //       const lowerValue = value.toLowerCase();
-    //       // 支持前缀匹配和包含匹配
-    //       return (
-    //         lowerSuggestion.startsWith(lowerValue) ||
-    //         lowerSuggestion.includes(lowerValue)
-    //       );
-    //     })
-    //     .slice(0, 5); // 限制显示数量
-
-    //   setFuzzySuggestions(filtered);
-    //   setShowFuzzySuggestions(true);
-    // } else {
-    //   setShowFuzzySuggestions(false);
-    //   setFuzzySuggestions([]);
-    // }
+    updateFuzzySuggestions(value);
   };
 
   // 选择模糊搜索建议
   const handleFuzzySuggestionClick = (suggestion: string) => {
     setInput(suggestion);
-    setShowFuzzySuggestions(false);
-    setFuzzySuggestions([]);
+    updateFuzzySuggestions(suggestion);
   };
 
   // 执行搜索
@@ -294,7 +333,6 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
           },
         }}
       />
-      {/* 模糊搜索建议列表 */}
       {showFuzzySuggestions && fuzzySuggestions.length > 0 && (
         <Stack
           sx={{

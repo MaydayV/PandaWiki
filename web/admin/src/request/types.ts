@@ -757,6 +757,11 @@ export interface DomainCreateKBReleaseReq {
   tag: string;
 }
 
+export interface DomainRollbackKBReleaseReq {
+  kb_id: string;
+  release_id: string;
+}
+
 export interface DomainCreateKnowledgeBaseReq {
   hosts?: string[];
   name: string;
@@ -1981,6 +1986,10 @@ export interface DeleteApiV1KnowledgeBaseDetailParams {
 export interface GetApiV1KnowledgeBaseReleaseListParams {
   /** Knowledge Base ID */
   kb_id: string;
+  /** @format int32 */
+  page?: number;
+  /** @format int32 */
+  per_page?: number;
 }
 
 export interface DeleteApiV1KnowledgeBaseUserDeleteParams {

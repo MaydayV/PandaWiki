@@ -32,7 +32,7 @@ type ShareNodeDetailResp struct {
 	EditorAccount      string                        `json:"editor_account"`
 	PublisherAccount   string                        `json:"publisher_account"`
 	ServedLanguage     string                        `json:"served_language"`
-	AvailableLanguages []string                      `json:"available_languages"`
+	AvailableLanguages []string                      `json:"available_languages" gorm:"-"`
 	List               []*domain.ShareNodeDetailItem `json:"list" gorm:"-"`
 	PV                 int64                         `json:"pv" gorm:"-"`
 }

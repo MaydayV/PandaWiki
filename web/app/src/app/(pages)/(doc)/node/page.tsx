@@ -15,7 +15,7 @@ const NodePage = () => {
     return redirect(`${basePath}/node/${firstNode.id}`);
   }
 
-  return <></>;
+  return redirect(`${basePath}/home`);
 };
 
 export default NodePage;

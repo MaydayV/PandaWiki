@@ -307,8 +307,9 @@ const H5Chat = () => {
 
   useEffect(() => {
     const messagesContainer = messagesContainerRef.current;
-    messagesContainer!.addEventListener('scroll', handleScroll);
-    return () => messagesContainer!.removeEventListener('scroll', handleScroll);
+    if (!messagesContainer) return;
+    messagesContainer.addEventListener('scroll', handleScroll);
+    return () => messagesContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {

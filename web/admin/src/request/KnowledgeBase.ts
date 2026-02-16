@@ -15,6 +15,7 @@ import {
   DeleteApiV1KnowledgeBaseDetailParams,
   DeleteApiV1KnowledgeBaseUserDeleteParams,
   DomainCreateKBReleaseReq,
+  DomainRollbackKBReleaseReq,
   DomainCreateKnowledgeBaseReq,
   DomainGetKBReleaseListResp,
   DomainKnowledgeBaseDetail,
@@ -210,6 +211,29 @@ export const postApiV1KnowledgeBaseRelease = (
 ) =>
   httpRequest<DomainResponse>({
     path: `/api/v1/knowledge_base/release`,
+    method: "POST",
+    body: body,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description RollbackKBRelease
+ *
+ * @tags knowledge_base
+ * @name PostApiV1KnowledgeBaseReleaseRollback
+ * @summary RollbackKBRelease
+ * @request POST:/api/v1/knowledge_base/release/rollback
+ * @response `200` `DomainResponse` OK
+ */
+
+export const postApiV1KnowledgeBaseReleaseRollback = (
+  body: DomainRollbackKBReleaseReq,
+  params: RequestParams = {},
+) =>
+  httpRequest<DomainResponse>({
+    path: `/api/v1/knowledge_base/release/rollback`,
     method: "POST",
     body: body,
     type: ContentType.Json,
