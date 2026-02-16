@@ -1,0 +1,205 @@
+services:
+  panda-wiki-caddy:
+    image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/panda-wiki-caddy:2.10-alpine
+    container_name: panda-wiki-caddy
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    environment:
+      CADDY_ADMIN: unix//var/run/caddy/caddy-admin.sock
+    volumes:
+      - ./data/caddy/caddy_config:/config
+      - ./data/caddy/caddy_data:/data
+      - ./data/caddy/run:/var/run/caddy
+    network_mode: host
+
+  panda-wiki-postgres:
+    image: postgres:16-alpine
+    container_name: panda-wiki-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: panda-wiki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: panda-wiki
+    volumes:
+      - pwk_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U panda-wiki"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  panda-wiki-redis:
+    image: redis:7-alpine
+    container_name: panda-wiki-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes:
+      - pwk_redis_data:/data
+
+  panda-wiki-minio:
+    image: minio/minio:latest
+    container_name: panda-wiki-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    volumes:
+      - pwk_minio_data:/data
+
+  panda-wiki-nats:
+    image: nats:2.10-alpine
+    container_name: panda-wiki-nats
+    restart: unless-stopped
+    command: ["-js", "--user", "panda-wiki", "--pass", "${NATS_PASSWORD}"]
+    volumes:
+      - pwk_nats_data:/data
+
+  panda-wiki-qdrant:
+    image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/panda-wiki-qdrant:v1.14.1
+    container_name: panda-wiki-qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+    volumes:
+      - pwk_qdrant_data:/qdrant/storage
+
+  panda-wiki-raglite:
+    image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/raglite:v2.14.1
+    container_name: panda-wiki-raglite
+    restart: unless-stopped
+    depends_on:
+      panda-wiki-postgres:
+        condition: service_healthy
+      panda-wiki-minio:
+        condition: service_started
+      panda-wiki-qdrant:
+        condition: service_started
+      panda-wiki-nats:
+        condition: service_started
+    environment:
+      GIN_MODE: release
+      DATABASE_POSTGRESQL_HOST: panda-wiki-postgres
+      DATABASE_POSTGRESQL_USER: panda-wiki
+      DATABASE_POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_QDRANT_HOST: panda-wiki-qdrant
+      DATABASE_QDRANT_API_KEY: ${QDRANT_API_KEY}
+      STORAGE_MINIO_ENDPOINT: panda-wiki-minio:9000
+      STORAGE_MINIO_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      STORAGE_MINIO_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      NATS_URL: nats://panda-wiki-nats:4222
+      NATS_USER: panda-wiki
+      NATS_PASSWORD: ${NATS_PASSWORD}
+      EMBEDDER_RPM: "800"
+      LLM_RPM: "50"
+
+  panda-wiki-api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile.api
+      args:
+        VERSION: local
+    container_name: panda-wiki-api
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PG_DSN: host=panda-wiki-postgres user=panda-wiki password=${POSTGRES_PASSWORD} dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai
+      MQ_NATS_SERVER: nats://panda-wiki-nats:4222
+      NATS_PASSWORD: ${NATS_PASSWORD}
+      REDIS_ADDR: panda-wiki-redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      S3_ENDPOINT: panda-wiki-minio:9000
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      SENTRY_ENABLED: "false"
+      RAG_CT_RAG_BASE_URL: http://panda-wiki-raglite:5050
+      CADDY_API: /app/run/caddy-admin.sock
+    volumes:
+      - ./data/caddy/run:/app/run
+    depends_on:
+      panda-wiki-postgres:
+        condition: service_healthy
+      panda-wiki-redis:
+        condition: service_started
+      panda-wiki-minio:
+        condition: service_started
+      panda-wiki-nats:
+        condition: service_started
+      panda-wiki-raglite:
+        condition: service_started
+      panda-wiki-caddy:
+        condition: service_started
+    ports:
+      - "8000:8000"
+
+  panda-wiki-consumer:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile.consumer
+    container_name: panda-wiki-consumer
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PG_DSN: host=panda-wiki-postgres user=panda-wiki password=${POSTGRES_PASSWORD} dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai
+      MQ_NATS_SERVER: nats://panda-wiki-nats:4222
+      NATS_PASSWORD: ${NATS_PASSWORD}
+      REDIS_ADDR: panda-wiki-redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      S3_ENDPOINT: panda-wiki-minio:9000
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      SENTRY_ENABLED: "false"
+      RAG_CT_RAG_BASE_URL: http://panda-wiki-raglite:5050
+    depends_on:
+      panda-wiki-postgres:
+        condition: service_healthy
+      panda-wiki-redis:
+        condition: service_started
+      panda-wiki-minio:
+        condition: service_started
+      panda-wiki-nats:
+        condition: service_started
+      panda-wiki-raglite:
+        condition: service_started
+
+  panda-wiki-app:
+    build:
+      context: ../../web/app
+      dockerfile: Dockerfile
+    container_name: panda-wiki-app
+    restart: unless-stopped
+    environment:
+      TARGET: http://panda-wiki-api:8000
+      STATIC_FILE_TARGET: http://panda-wiki-minio:9000
+      DEV_KB_ID: ${DEV_KB_ID}
+    depends_on:
+      panda-wiki-api:
+        condition: service_started
+    ports:
+      - "3010:3010"
+
+  panda-wiki-admin:
+    build:
+      context: ../../web/admin
+      dockerfile: Dockerfile
+    container_name: panda-wiki-admin
+    restart: unless-stopped
+    depends_on:
+      panda-wiki-api:
+        condition: service_started
+      panda-wiki-minio:
+        condition: service_started
+    ports:
+      - "2443:8080"
+
+volumes:
+  pwk_postgres_data:
+  pwk_redis_data:
+  pwk_minio_data:
+  pwk_nats_data:
+  pwk_qdrant_data:
