@@ -4,12 +4,25 @@
 
 <p align="center">
   <a target="_blank" href="https://ly.safepoint.cloud/Br48PoX">📖 官方网站</a> &nbsp; | &nbsp;
-  <del><a target="_blank" href="/images/wechat.png">🙋‍♂️ 微信交流群（原版）</a></del>
+  <a target="_blank" href="https://github.com/MaydayV/PandaWiki">🌬️ 乘风版仓库</a> &nbsp; | &nbsp;
+  <a target="_blank" href="https://github.com/chaitin/PandaWiki">🙏 原版仓库（致谢）</a>
 </p>
 
 ## 👋 项目介绍
 
 PandaWiki 是一款 AI 大模型驱动的**开源知识库搭建系统**，帮助你快速构建智能化的 **产品文档、技术文档、FAQ、博客系统**，借助大模型的力量为你提供 **AI 创作、AI 问答、AI 搜索** 等能力。
+
+## 🌬️ 乘风版故事
+
+乘风版（Fly Version）诞生于一个很朴素的目标：把开源能力真正落到长期、稳定、可演进的业务现场。  
+我们在 PandaWiki 的开源基础上持续深挖，把“能跑起来”升级为“能长期跑、能放心改、能快速交付”。
+
+“乘风”这两个字，不是另起炉灶的姿态，而是对开源精神的延续。  
+风，来自社区共享的技术势能；乘，是在尊重原作、理解原作之上，把工程细节打磨得更实、更稳、更贴近真实场景。
+
+因此，乘风版坚持两件事：
+- 坚持致谢：感谢 PandaWiki 原作者与社区，让我们站在巨人的肩膀上继续前进。
+- 坚持负责：乘风版的问题、节奏与交付由乘风版仓库独立承担，不让原作者为二开问题“背锅”。
 
 <p align="center">
   <img src="/images/setup.png" width="800" />
@@ -35,6 +48,14 @@ PandaWiki 是一款 AI 大模型驱动的**开源知识库搭建系统**，帮�
 - 当前版本：`FV2.5.5.2111`
 - 版本规则：`FV{大版本}.{功能序号}.{提交序号}.{原版版本号去点}`
 - 说明：乘风版基于 PandaWiki 开源项目进行深度二次开发，保留对原作者与开源社区的致谢；功能边界与发布节奏以本仓库为准。
+
+## 🎯 乘风版愿景
+
+- 让知识库系统从“演示可用”走向“生产可用”：关注稳定性、可观测性、可维护性。
+- 让二开迭代从“改得动”走向“改得稳”：尽量减少隐式耦合，提升功能扩展的一致性。
+- 让交付体验从“功能堆叠”走向“体系化演进”：每次改动都服务于长期可持续的工程能力。
+
+我们欢迎共建，也欢迎质疑与讨论。只要方向是让系统更可靠、更清晰、更可持续，乘风版就会继续向前。
 
 ## 🚀 上手指南
 
@@ -97,18 +118,11 @@ PandaWiki 是一款 AI 大模型驱动的**开源知识库搭建系统**，帮�
 如在使用产品过程中遇到问题，可通过以下方式获取帮助：
 - 📘查阅官方文档：[常见问题](https://pandawiki.docs.baizhi.cloud/node/019b4952-4ed3-7514-ba57-c93a8ca13608)，更多内容请参考文档目录。
 - 🤖不想翻文档？试试 [AI 问答](https://pandawiki.docs.baizhi.cloud/node/0197160c-782c-74ad-a4b7-857dae148f84)，快速获取答案。
-- ~~🤝加入社区：扫码加入下方企业微信群，与更多用户及官方人员交流经验、获得帮助。~~
-
-
-~~## 社区交流（原版）~~
-
-~~欢迎加入我们的微信群进行交流。~~
-
-~~<img src="/images/wechat.png" width="300" />~~
 
 ## 🙋‍♂️ 贡献
 
-欢迎提交 [Pull Request](https://github.com/chaitin/PandaWiki/pulls) 或创建 [Issue](https://github.com/chaitin/PandaWiki/issues) 来帮助改进项目。
+- 乘风版问题与改进建议：请提交到 [MaydayV/PandaWiki](https://github.com/MaydayV/PandaWiki)。
+- 原版问题反馈：请先在原版环境复现后，再到 [chaitin/PandaWiki](https://github.com/chaitin/PandaWiki) 提交。
 
 ## 📝 许可证
 

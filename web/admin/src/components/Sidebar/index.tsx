@@ -229,10 +229,10 @@ const Sidebar = () => {
           }}
           startIcon={<IconGithub sx={{ fontSize: '14px !important' }} />}
           onClick={() =>
-            window.open('https://github.com/chaitin/PandaWiki', '_blank')
+            window.open('https://github.com/MaydayV/PandaWiki', '_blank')
           }
         >
-          原版仓库
+          乘风版仓库
         </Button>
         <Button
           variant='outlined'

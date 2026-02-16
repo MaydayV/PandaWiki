@@ -35,18 +35,18 @@ const AuthTypeModal = ({ open, onClose, curVersion }: AuthTypeModalProps) => {
           <Button
             size='small'
             onClick={() => {
-              window.open('https://github.com/chaitin/PandaWiki', '_blank');
-            }}
-          >
-            查看原版仓库
-          </Button>
-          <Button
-            size='small'
-            onClick={() => {
               window.open('https://github.com/MaydayV/PandaWiki', '_blank');
             }}
           >
             查看乘风版仓库
+          </Button>
+          <Button
+            size='small'
+            onClick={() => {
+              window.open('https://github.com/chaitin/PandaWiki', '_blank');
+            }}
+          >
+            致谢并查看原版仓库
           </Button>
         </Stack>
       </Stack>

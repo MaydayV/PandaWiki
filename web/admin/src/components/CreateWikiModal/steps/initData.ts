@@ -125,7 +125,7 @@ export const INIT_LADING_DATA = {
           },
           {
             name: '开源协议',
-            url: 'https://github.com/chaitin/PandaWiki?tab=AGPL-3.0-1-ov-file#readme',
+            url: 'https://github.com/MaydayV/PandaWiki/blob/main/LICENSE',
           },
         ],
       },
