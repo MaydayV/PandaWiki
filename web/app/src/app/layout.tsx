@@ -157,7 +157,12 @@ const parseJsonLd = (value: unknown) => {
 
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
-  const kbDetail: any = await getShareV1AppWebInfo();
+  let kbDetail: any;
+  try {
+    kbDetail = await getShareV1AppWebInfo();
+  } catch {
+    kbDetail = undefined;
+  }
   const basePath = getBasePath(kbDetail?.base_url || '');
   const seoSettings = kbDetail?.settings?.seo_settings || {};
   const icon = getImagePath(kbDetail?.settings?.icon || '', basePath);

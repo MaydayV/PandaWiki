@@ -9,7 +9,12 @@ const Layout = async ({
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  const widgetDetail: any = await getShareV1AppWidgetInfo();
+  let widgetDetail: any;
+  try {
+    widgetDetail = await getShareV1AppWidgetInfo();
+  } catch {
+    widgetDetail = undefined;
+  }
   const themeMode = widgetDetail?.settings?.widget_bot_settings?.theme_mode;
 
   let selectedTheme = lightThemeWidget;

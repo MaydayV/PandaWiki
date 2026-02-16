@@ -86,6 +86,10 @@ const homeProxy = async (
     }
   }
 
+  if (url.pathname === '/') {
+    return NextResponse.rewrite(new URL('/home', request.url));
+  }
+
   return NextResponse.next();
 };
 
@@ -123,11 +127,13 @@ export async function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
   if (pathname.startsWith('/widget')) {
-    const widgetInfo: any = await getShareV1AppWidgetInfo();
-    if (widgetInfo) {
-      if (!widgetInfo?.settings?.widget_bot_settings?.is_open) {
+    try {
+      const widgetInfo: any = await getShareV1AppWidgetInfo();
+      if (widgetInfo && !widgetInfo?.settings?.widget_bot_settings?.is_open) {
         return NextResponse.rewrite(new URL('/not-found', request.url));
       }
+    } catch {
+      return NextResponse.next();
     }
     return;
   }

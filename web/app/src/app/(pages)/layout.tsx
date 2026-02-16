@@ -10,10 +10,17 @@ const Layout = async ({
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  const [kbDetail, nodeList]: any = await Promise.all([
+  const [kbDetailResult, nodeListResult] = await Promise.allSettled([
     getShareV1AppWebInfo(),
     getShareV1NodeList(),
   ]);
+
+  const kbDetail: any =
+    kbDetailResult.status === 'fulfilled' ? kbDetailResult.value : undefined;
+  const nodeList: any[] =
+    nodeListResult.status === 'fulfilled' && Array.isArray(nodeListResult.value)
+      ? nodeListResult.value
+      : [];
 
   const tree = filterEmptyFolders(convertToTree(nodeList || []));
 
