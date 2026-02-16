@@ -60,6 +60,8 @@ PandaWiki 是一款 AI 大模型驱动的**开源知识库搭建系统**，帮�
 ## 📦 部署文档
 
 - 乘风版部署指南（手动安装环境 + 方案 B 预构建镜像）：[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+- 开源版与乘风版功能对比：[`docs/FEATURE_COMPARISON.md`](docs/FEATURE_COMPARISON.md)
+- 版本更新记录笔记：[`docs/VERSION_NOTES.md`](docs/VERSION_NOTES.md)
 
 ## 🚀 上手指南
 
