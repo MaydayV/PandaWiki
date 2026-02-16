@@ -91,6 +91,9 @@ export interface KBDetail {
       show_updated_at?: boolean;
       show_word_count?: boolean;
     };
+    security_settings?: {
+      allow_widget_image_upload?: boolean;
+    };
     disclaimer_settings?: DomainDisclaimerSettings;
     web_app_custom_style: {
       allow_theme_switching?: boolean;
@@ -117,6 +120,9 @@ export type WidgetInfo = {
   recommend_nodes: RecommendNode[];
   settings: {
     brand_settings?: DomainBrandSettings;
+    security_settings?: {
+      allow_widget_image_upload?: boolean;
+    };
     title: string;
     icon: string;
     language?: string;

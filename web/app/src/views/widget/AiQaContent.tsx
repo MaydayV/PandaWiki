@@ -163,6 +163,8 @@ const AiQaContent: React.FC<{
   const [suggestionCandidates, setSuggestionCandidates] = useState<string[]>(
     [],
   );
+  const allowWidgetImageUpload =
+    widget?.settings?.security_settings?.allow_widget_image_upload ?? false;
 
   const searchParams = useSearchParams();
 
@@ -238,6 +240,10 @@ const AiQaContent: React.FC<{
 
   // 处理图片选择（支持多张）
   const handleImageSelect = async (files: FileList | null) => {
+    if (!allowWidgetImageUpload) {
+      message.warning(t('widget.imageUploadDisabled'));
+      return;
+    }
     if (!files || files.length === 0) return;
 
     const maxImages = 9; // 最多9张图片
@@ -307,6 +313,7 @@ const AiQaContent: React.FC<{
 
   // 处理粘贴上传
   const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!allowWidgetImageUpload) return;
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -1086,18 +1093,20 @@ const AiQaContent: React.FC<{
               style={{ display: 'none' }}
               onChange={handleImageUpload}
             />
-            <Tooltip title={t('widget.uploadImage')}>
-              <IconButton
-                size='small'
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-                sx={{
-                  flexShrink: 0,
-                }}
-              >
-                <IconTupian sx={{ fontSize: 20, color: 'text.secondary' }} />
-              </IconButton>
-            </Tooltip>
+            {allowWidgetImageUpload && (
+              <Tooltip title={t('widget.uploadImage')}>
+                <IconButton
+                  size='small'
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                  sx={{
+                    flexShrink: 0,
+                  }}
+                >
+                  <IconTupian sx={{ fontSize: 20, color: 'text.secondary' }} />
+                </IconButton>
+              </Tooltip>
+            )}
 
             <Box
               sx={{

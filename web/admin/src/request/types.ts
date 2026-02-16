@@ -361,6 +361,12 @@ export interface DomainAppSettings {
   recommend_node_ids?: string[];
   recommend_questions?: string[];
   search_placeholder?: string;
+  security_settings?: {
+    allow_widget_image_upload?: boolean;
+    copy_protection_mode?: string;
+    strict_no_copy?: boolean;
+    watermark_trace_enable?: boolean;
+  };
   stats_setting?: DomainStatsSetting;
   node_meta_settings?: DomainNodeMetaSettings;
   theme_and_style?: DomainThemeAndStyle;
@@ -454,6 +460,12 @@ export interface DomainAppSettingsResp {
   recommend_node_ids?: string[];
   recommend_questions?: string[];
   search_placeholder?: string;
+  security_settings?: {
+    allow_widget_image_upload?: boolean;
+    copy_protection_mode?: string;
+    strict_no_copy?: boolean;
+    watermark_trace_enable?: boolean;
+  };
   stats_setting?: DomainStatsSetting;
   node_meta_settings?: DomainNodeMetaSettings;
   theme_and_style?: DomainThemeAndStyle;

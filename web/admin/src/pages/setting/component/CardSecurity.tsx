@@ -7,7 +7,7 @@ import {
   DomainKnowledgeBaseDetail,
 } from '@/request/types';
 import { useAppSelector } from '@/store';
-import { message } from '@ctzhian/ui';
+import { message, Modal } from '@ctzhian/ui';
 import { BUSINESS_VERSION_PERMISSION } from '@/constant/version';
 import {
   Autocomplete,
@@ -15,7 +15,9 @@ import {
   FormControlLabel,
   Radio,
   RadioGroup,
+  Switch,
   TextField,
+  Typography,
   styled,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
@@ -336,6 +338,93 @@ const CopyForm = ({
   );
 };
 
+const WidgetImageUploadForm = ({
+  data,
+  refresh,
+}: {
+  data?: DomainAppDetailResp;
+  refresh: () => void;
+}) => {
+  const { kb_id } = useAppSelector(state => state.config);
+  const [isEdit, setIsEdit] = useState(false);
+  const { control, handleSubmit, setValue } = useForm({
+    defaultValues: {
+      allow_widget_image_upload:
+        data?.settings?.security_settings?.allow_widget_image_upload ?? false,
+    },
+  });
+
+  const onSubmit = handleSubmit(values => {
+    if (!data?.id) return;
+    putApiV1App(
+      { id: data.id },
+      {
+        kb_id,
+        settings: {
+          ...data?.settings,
+          security_settings: {
+            ...data?.settings?.security_settings,
+            allow_widget_image_upload: values.allow_widget_image_upload,
+          },
+        },
+      },
+    ).then(() => {
+      message.success('保存成功');
+      setIsEdit(false);
+      refresh();
+    });
+  });
+
+  useEffect(() => {
+    setValue(
+      'allow_widget_image_upload',
+      data?.settings?.security_settings?.allow_widget_image_upload ?? false,
+    );
+  }, [data, setValue]);
+
+  return (
+    <SettingCardItem title='Widget 图片上传' isEdit={isEdit} onSubmit={onSubmit}>
+      <FormItem
+        vertical
+        label='允许访客在 Widget 问答中上传图片'
+        extra={
+          <Typography variant='caption' color='warning.main'>
+            默认关闭。开启后表示你接受图片上传带来的内容安全、存储滥用与合规风险。
+          </Typography>
+        }
+      >
+        <Controller
+          control={control}
+          name='allow_widget_image_upload'
+          render={({ field }) => (
+            <Switch
+              checked={!!field.value}
+              onChange={(_, checked) => {
+                if (checked) {
+                  Modal.confirm({
+                    title: '风险提示',
+                    content:
+                      '开启后，访客可上传图片参与问答。你需要自行承担内容安全、滥用上传、合规审计等风险。确认开启吗？',
+                    okText: '确认开启',
+                    cancelText: '取消',
+                    onOk: () => {
+                      field.onChange(true);
+                      setIsEdit(true);
+                    },
+                  });
+                  return;
+                }
+                field.onChange(false);
+                setIsEdit(true);
+              }}
+            />
+          )}
+        />
+      </FormItem>
+    </SettingCardItem>
+  );
+};
+
 const CardSecurity = ({
   data,
   kb,
@@ -355,6 +444,7 @@ const CardSecurity = ({
     >
       <WatermarkForm data={data} refresh={refresh} />
       <CopyForm data={data} refresh={refresh} />
+      <WidgetImageUploadForm data={data} refresh={refresh} />
       <KeywordsForm kb={kb} />
     </Box>
   );

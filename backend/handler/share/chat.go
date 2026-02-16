@@ -196,6 +196,9 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 	if !widgetAppInfo.Settings.WidgetBotSettings.IsOpen {
 		return h.sendErrMsg(c, "widget is not open")
 	}
+	if len(req.ImagePaths) > 0 && !widgetAppInfo.Settings.SecuritySettings.AllowWidgetImageUpload {
+		return h.sendErrMsg(c, "widget image upload is disabled")
+	}
 
 	req.RemoteIP = c.RealIP()
 	if err := h.enforceConversationAskInterval(c.Request().Context(), &req); err != nil {

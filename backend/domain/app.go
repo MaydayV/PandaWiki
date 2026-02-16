@@ -218,9 +218,10 @@ type AnalyticsSettings struct {
 }
 
 type SecuritySettings struct {
-	CopyProtectionMode   string `json:"copy_protection_mode,omitempty"`
-	WatermarkTraceEnable bool   `json:"watermark_trace_enable"`
-	StrictNoCopy         bool   `json:"strict_no_copy"`
+	CopyProtectionMode     string `json:"copy_protection_mode,omitempty"`
+	WatermarkTraceEnable   bool   `json:"watermark_trace_enable"`
+	StrictNoCopy           bool   `json:"strict_no_copy"`
+	AllowWidgetImageUpload bool   `json:"allow_widget_image_upload"`
 }
 
 type BrandSettings struct {
