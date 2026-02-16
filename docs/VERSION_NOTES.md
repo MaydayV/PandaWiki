@@ -195,3 +195,18 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
   - 当前仓库仅保留 1 个完整部署 SQL：
     - `backend/store/pg/migration/full_fresh_deploy.sql`
   - 未保留任何增量迁移 SQL 文件。
+
+## 追加记录（2026-02-16，发布版本回滚与 widget 真实交互补齐）
+- 版本升级：
+  - 乘风版版本号升级为：`FV2.6.1.2111`。
+  - 第 6 功能阶段起点提交：`9f001318`。
+- 发布版本回滚：
+  - 新增后端接口：`POST /api/v1/knowledge_base/release/rollback`。
+  - 支持按目标发布版本快照，将相关文档回滚到对应 `node_release_id`。
+  - 管理端发布页新增“回滚”操作，当前版本禁用，历史版本可回滚。
+- Widget 交互补齐：
+  - AI Q&A：恢复“上传图片”真实入口。
+  - AI Q&A / Search Docs：接入真实文档候选与输入联想建议，不再依赖半成品占位交互。
+- 全新部署可用性修复：
+  - 修复全新数据库下前台与 widget 首屏因配置缺失导致的 `500`。
+  - 无配置场景下，根路径 `/` 回退到 `/home`，避免首访 `404`。

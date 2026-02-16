@@ -8,17 +8,17 @@ import enterpriseVersion from '@/assets/images/enterprise-version.png';
 /**
  * 乘风版版本号规范
  * FV{大版本}.{功能序号}.{提交序号}.{原版版本号去点}
- * 例如：FV2.5.4.2111
+ * 例如：FV2.6.1.2111
  */
 export const FLY_VERSION_META = {
   major: 2,
-  feature: 5,
+  feature: 6,
   /**
-   * 第5个功能阶段起点：
-   * 82e76a1f 优化站管理员添加流程并将产品型号文案更新为乘风版
+   * 第6个功能阶段起点：
+   * 9f001318 全新部署下前台与 widget 首屏兜底
    * 提交序号由构建阶段基于 git rev-list --count <start>..HEAD 自动计算
    */
-  featureStartCommit: '82e76a1f',
+  featureStartCommit: '9f001318',
   upstreamVersion: '2.11.1',
 };
 

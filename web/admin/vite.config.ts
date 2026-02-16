@@ -7,8 +7,8 @@ import { execSync } from 'child_process';
 
 const FLY_VERSION_RULE = {
   major: 2,
-  feature: 5,
-  featureStartCommit: '82e76a1f',
+  feature: 6,
+  featureStartCommit: '9f001318',
 };
 
 function readUpstreamVersion() {
