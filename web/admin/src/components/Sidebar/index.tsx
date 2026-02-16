@@ -232,7 +232,7 @@ const Sidebar = () => {
             window.open('https://github.com/MaydayV/PandaWiki', '_blank')
           }
         >
-          乘风版仓库
+          乘风版
         </Button>
         <Button
           variant='outlined'
