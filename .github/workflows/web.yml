@@ -8,8 +8,12 @@ on:
       - app-*
     tags:
       - 'admin-v*'
+      - 'admin-FV*'
       - 'app-v*'
+      - 'app-FV*'
       - 'v*'
+      - 'FV*'
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -27,11 +31,17 @@ jobs:
         id: get_version
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
-            # 支持 admin-v* / app-v* / v*
+            # 支持 admin-v* / app-v* / v* / admin-FV* / app-FV* / FV*
             if [[ $GITHUB_REF == refs/tags/admin-v* ]]; then
               echo "VERSION=${GITHUB_REF#refs/tags/admin-v}" >> $GITHUB_OUTPUT
+            elif [[ $GITHUB_REF == refs/tags/admin-FV* ]]; then
+              echo "VERSION=${GITHUB_REF#refs/tags/admin-}" >> $GITHUB_OUTPUT
             elif [[ $GITHUB_REF == refs/tags/app-v* ]]; then
               echo "VERSION=${GITHUB_REF#refs/tags/app-v}" >> $GITHUB_OUTPUT
+            elif [[ $GITHUB_REF == refs/tags/app-FV* ]]; then
+              echo "VERSION=${GITHUB_REF#refs/tags/app-}" >> $GITHUB_OUTPUT
+            elif [[ $GITHUB_REF == refs/tags/FV* ]]; then
+              echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
             else
               echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
             fi
@@ -158,6 +168,6 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/pandawiki-${{ matrix.project }}:v${{ needs.version.outputs.version }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/pandawiki-${{ matrix.project }}:${{ needs.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
