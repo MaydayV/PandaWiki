@@ -2055,6 +2055,8 @@ export interface PostShareV1CommonFileUploadPayload {
   file: File;
   /** captcha_token */
   captcha_token: string;
+  /** app_type */
+  app_type: 1 | 2;
 }
 
 export interface GetShareV1ConversationDetailParams {

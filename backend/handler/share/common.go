@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	v1 "github.com/chaitin/panda-wiki/api/share/v1"
+	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/usecase"
@@ -16,6 +17,7 @@ import (
 type ShareCommonHandler struct {
 	*handler.BaseHandler
 	logger      *log.Logger
+	appUsecase  *usecase.AppUsecase
 	fileUsecase *usecase.FileUsecase
 }
 
@@ -23,11 +25,13 @@ func NewShareCommonHandler(
 	e *echo.Echo,
 	baseHandler *handler.BaseHandler,
 	logger *log.Logger,
+	appUsecase *usecase.AppUsecase,
 	fileUsecase *usecase.FileUsecase,
 ) *ShareCommonHandler {
 	h := &ShareCommonHandler{
 		BaseHandler: baseHandler,
 		logger:      logger,
+		appUsecase:  appUsecase,
 		fileUsecase: fileUsecase,
 	}
 
@@ -58,6 +62,7 @@ func NewShareCommonHandler(
 //	@Param			X-KB-ID			header		string	true	"kb id"
 //	@Param			file			formData	file	true	"File"
 //	@Param			captcha_token	formData	string	true	"captcha_token"
+//	@Param			app_type		formData	int		true	"app_type"
 //	@Success		200				{object}	domain.Response{data=v1.FileUploadResp}
 //	@Router			/share/v1/common/file/upload [post]
 func (h *ShareCommonHandler) FileUpload(c echo.Context) error {
@@ -90,6 +95,15 @@ func (h *ShareCommonHandler) FileUpload(c echo.Context) error {
 	// validate captcha token
 	if !h.Captcha.ValidateToken(ctx, req.CaptchaToken) {
 		return h.NewResponseWithError(c, "failed to validate captcha token", nil)
+	}
+	if req.AppType == domain.AppTypeWidget {
+		widgetAppInfo, err := h.appUsecase.GetWidgetAppInfo(ctx, req.KbId)
+		if err != nil {
+			return h.NewResponseWithError(c, "get app info error", err)
+		}
+		if !widgetAppInfo.Settings.SecuritySettings.AllowWidgetImageUpload {
+			return h.NewResponseWithError(c, "widget image upload is disabled", nil)
+		}
 	}
 
 	key, err := h.fileUsecase.UploadFile(ctx, req.KbId, file)

@@ -155,6 +155,7 @@ const CommentInput = React.forwardRef<CommentInputRef, CommentInputProps>(
             const result = await postShareV1CommonFileUpload({
               file: image.file,
               captcha_token: token,
+              app_type: 1,
             });
             const serverUrl = '/static-file/' + result.key;
             uploadedUrls.push(serverUrl);
