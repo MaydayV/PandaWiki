@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/cloudwego/eino/schema"
 
@@ -47,6 +48,14 @@ func NewModelUsecase(modelRepo *pg.ModelRepository, nodeRepo *pg.NodeRepository,
 	return u
 }
 
+func normalizeAutoModeBaseURL(baseURL string) string {
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL == "" {
+		return consts.AutoModeBaseURL
+	}
+	return baseURL
+}
+
 func (u *ModelUsecase) Create(ctx context.Context, model *domain.Model) error {
 	var updatedEmbeddingModel bool
 	if model.Type == domain.ModelTypeEmbedding {
@@ -57,7 +66,7 @@ func (u *ModelUsecase) Create(ctx context.Context, model *domain.Model) error {
 	}
 	// 模型更新成功后，如果更新嵌入模型，则触发记录更新
 	if updatedEmbeddingModel {
-		if _, err := u.updateModeSettingConfig(ctx, "", "", "", true); err != nil {
+		if _, err := u.updateModeSettingConfig(ctx, "", "", "", "", true); err != nil {
 			return err
 		}
 	}
@@ -136,7 +145,7 @@ func (u *ModelUsecase) Update(ctx context.Context, req *domain.UpdateModelReq) e
 	}
 	// 模型更新成功后，如果更新嵌入模型，则触发记录更新
 	if updatedEmbeddingModel {
-		if _, err := u.updateModeSettingConfig(ctx, "", "", "", true); err != nil {
+		if _, err := u.updateModeSettingConfig(ctx, "", "", "", "", true); err != nil {
 			return err
 		}
 	}
@@ -155,11 +164,12 @@ func (u *ModelUsecase) GetChatModel(ctx context.Context) (*domain.Model, error) 
 		if modelName == "" {
 			modelName = string(consts.AutoModeDefaultChatModel)
 		}
+		autoModeBaseURL := normalizeAutoModeBaseURL(modelModeSetting.AutoModeAPIBaseURL)
 		model = &domain.Model{
 			Model:    modelName,
 			Type:     domain.ModelTypeChat,
 			IsActive: true,
-			BaseURL:  consts.AutoModeBaseURL,
+			BaseURL:  autoModeBaseURL,
 			APIKey:   modelModeSetting.AutoModeAPIKey,
 			Provider: domain.ModelProviderBrandBaiZhiCloud,
 		}
@@ -182,11 +192,13 @@ func (u *ModelUsecase) UpdateUsage(ctx context.Context, modelID string, usage *s
 }
 
 func (u *ModelUsecase) SwitchMode(ctx context.Context, req *domain.SwitchModeReq) error {
+	autoModeAPIBaseURL := req.AutoModeAPIBaseURL
 	switch consts.ModelSettingMode(req.Mode) {
 	case consts.ModelSettingModeAuto:
 		if req.AutoModeAPIKey == "" {
 			return fmt.Errorf("auto mode api key is required")
 		}
+		autoModeAPIBaseURL = normalizeAutoModeBaseURL(req.AutoModeAPIBaseURL)
 		modelName := req.ChatModel
 		if modelName == "" {
 			modelName = consts.GetAutoModeDefaultModel(string(domain.ModelTypeChat))
@@ -195,7 +207,7 @@ func (u *ModelUsecase) SwitchMode(ctx context.Context, req *domain.SwitchModeReq
 		check, err := u.modelkit.CheckModel(ctx, &modelkitDomain.CheckModelReq{
 			Provider: string(domain.ModelProviderBrandBaiZhiCloud),
 			Model:    modelName,
-			BaseURL:  consts.AutoModeBaseURL,
+			BaseURL:  autoModeAPIBaseURL,
 			APIKey:   req.AutoModeAPIKey,
 			Type:     string(domain.ModelTypeChat),
 		})
@@ -241,12 +253,25 @@ func (u *ModelUsecase) SwitchMode(ctx context.Context, req *domain.SwitchModeReq
 		isResetEmbeddingUpdateFlag = false
 	}
 
-	modelModeSetting, err := u.updateModeSettingConfig(ctx, req.Mode, req.AutoModeAPIKey, req.ChatModel, isResetEmbeddingUpdateFlag)
+	modelModeSetting, err := u.updateModeSettingConfig(
+		ctx,
+		req.Mode,
+		req.AutoModeAPIKey,
+		req.ChatModel,
+		autoModeAPIBaseURL,
+		isResetEmbeddingUpdateFlag,
+	)
 	if err != nil {
 		return err
 	}
 
-	if err := u.updateRAGModelsByMode(ctx, req.Mode, modelModeSetting.AutoModeAPIKey, oldModelModeSetting); err != nil {
+	if err := u.updateRAGModelsByMode(
+		ctx,
+		req.Mode,
+		modelModeSetting.AutoModeAPIKey,
+		modelModeSetting.AutoModeAPIBaseURL,
+		oldModelModeSetting,
+	); err != nil {
 		return err
 	}
 
@@ -254,7 +279,11 @@ func (u *ModelUsecase) SwitchMode(ctx context.Context, req *domain.SwitchModeReq
 }
 
 // updateModeSettingConfig 读取当前设置并更新，然后持久化
-func (u *ModelUsecase) updateModeSettingConfig(ctx context.Context, mode, apiKey, chatModel string, isManualEmbeddingUpdated bool) (*domain.ModelModeSetting, error) {
+func (u *ModelUsecase) updateModeSettingConfig(
+	ctx context.Context,
+	mode, apiKey, chatModel, autoModeAPIBaseURL string,
+	isManualEmbeddingUpdated bool,
+) (*domain.ModelModeSetting, error) {
 	// 读取当前设置
 	setting, err := u.systemSettingRepo.GetSystemSetting(ctx, consts.SystemSettingModelMode)
 	if err != nil {
@@ -273,8 +302,14 @@ func (u *ModelUsecase) updateModeSettingConfig(ctx context.Context, mode, apiKey
 	if chatModel != "" {
 		config.ChatModel = chatModel
 	}
+	if autoModeAPIBaseURL != "" {
+		config.AutoModeAPIBaseURL = normalizeAutoModeBaseURL(autoModeAPIBaseURL)
+	}
 	if mode != "" {
 		config.Mode = consts.ModelSettingMode(mode)
+	}
+	if config.AutoModeAPIBaseURL == "" {
+		config.AutoModeAPIBaseURL = consts.AutoModeBaseURL
 	}
 
 	config.IsManualEmbeddingUpdated = isManualEmbeddingUpdated
@@ -303,12 +338,20 @@ func (u *ModelUsecase) GetModelModeSetting(ctx context.Context) (domain.ModelMod
 	if config == (domain.ModelModeSetting{}) || config.Mode == "" {
 		return domain.ModelModeSetting{}, fmt.Errorf("model mode setting is invalid")
 	}
+	if config.AutoModeAPIBaseURL == "" {
+		config.AutoModeAPIBaseURL = consts.AutoModeBaseURL
+	}
 	return config, nil
 }
 
 // updateRAGModelsByMode 根据模式更新 RAG 模型
-func (u *ModelUsecase) updateRAGModelsByMode(ctx context.Context, mode, autoModeAPIKey string, oldModelModeSetting domain.ModelModeSetting) error {
+func (u *ModelUsecase) updateRAGModelsByMode(
+	ctx context.Context,
+	mode, autoModeAPIKey, autoModeAPIBaseURL string,
+	oldModelModeSetting domain.ModelModeSetting,
+) error {
 	var isTriggerUpsertRecords = true
+	resolvedAutoModeBaseURL := normalizeAutoModeBaseURL(autoModeAPIBaseURL)
 
 	// 手动切换到手动模式, 根据IsManualEmbeddingUpdated字段决定
 	if oldModelModeSetting.Mode == consts.ModelSettingModeManual && mode == string(consts.ModelSettingModeManual) {
@@ -344,7 +387,7 @@ func (u *ModelUsecase) updateRAGModelsByMode(ctx context.Context, mode, autoMode
 				Model:    modelName,
 				Type:     modelType,
 				IsActive: true,
-				BaseURL:  consts.AutoModeBaseURL,
+				BaseURL:  resolvedAutoModeBaseURL,
 				APIKey:   autoModeAPIKey,
 				Provider: domain.ModelProviderBrandBaiZhiCloud,
 			}

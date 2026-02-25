@@ -606,6 +606,7 @@ SELECT
             ELSE 'auto'
         END,
         'auto_mode_api_key', '',
+        'auto_mode_api_base_url', 'https://model-square.app.baizhi.cloud/v1',
         'chat_model', '',
         'is_manual_embedding_updated', false
     ),

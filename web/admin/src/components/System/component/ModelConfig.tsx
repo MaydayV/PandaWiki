@@ -35,7 +35,10 @@ import {
   convertLocalModelToUIModel,
   modelService,
 } from '@/services/modelService';
-import AutoModelConfig, { AutoModelConfigRef } from './AutoModelConfig';
+import AutoModelConfig, {
+  AutoModelConfigRef,
+  DEFAULT_AUTO_MODE_API_BASE_URL,
+} from './AutoModelConfig';
 
 const ModelModal = lazy(() =>
   import('@ctzhian/modelkit').then(
@@ -44,7 +47,11 @@ const ModelModal = lazy(() =>
 );
 
 export interface ModelConfigRef {
-  getAutoConfigFormData: () => { apiKey: string; selectedModel: string } | null;
+  getAutoConfigFormData: () => {
+    apiKey: string;
+    selectedModel: string;
+    apiBaseURL: string;
+  } | null;
   handleClose: () => void;
   onSubmit: () => Promise<void>;
 }
@@ -88,6 +95,9 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
     const [isSaving, setIsSaving] = useState(false);
     const [initialApiKey, setInitialApiKey] = useState('');
     const [initialChatModel, setInitialChatModel] = useState('');
+    const [initialApiBaseURL, setInitialApiBaseURL] = useState(
+      DEFAULT_AUTO_MODE_API_BASE_URL,
+    );
     const [hasConfigChanged, setHasConfigChanged] = useState(false);
 
     const [modelData, setModelData] = useState<Record<string, any>>({
@@ -349,6 +359,9 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             if (setting.chat_model) {
               setInitialChatModel(setting.chat_model);
             }
+            setInitialApiBaseURL(
+              setting.auto_mode_api_base_url || DEFAULT_AUTO_MODE_API_BASE_URL,
+            );
           }
         } catch (err) {
           console.error('获取模型配置失败:', err);
@@ -469,6 +482,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
           mode: 'auto' | 'manual';
           auto_mode_api_key?: string;
           chat_model?: string;
+          auto_mode_api_base_url?: string;
         } = {
           mode: tempMode,
         };
@@ -479,6 +493,8 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
           if (formData) {
             requestData.auto_mode_api_key = formData.apiKey;
             requestData.chat_model = formData.selectedModel;
+            requestData.auto_mode_api_base_url =
+              formData.apiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL;
           }
         }
 
@@ -493,6 +509,9 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
           if (formData) {
             setInitialApiKey(formData.apiKey);
             setInitialChatModel(formData.selectedModel);
+            setInitialApiBaseURL(
+              formData.apiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL,
+            );
           }
         }
 
@@ -655,6 +674,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             showTip={showTip}
             initialApiKey={initialApiKey}
             initialChatModel={initialChatModel}
+            initialApiBaseURL={initialApiBaseURL}
             onDataChange={() => setHasConfigChanged(true)}
           />
         ) : (

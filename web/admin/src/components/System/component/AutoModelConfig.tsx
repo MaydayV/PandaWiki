@@ -17,6 +17,7 @@ export interface AutoModelConfigRef {
   getFormData: () => {
     apiKey: string;
     selectedModel: string;
+    apiBaseURL: string;
   };
 }
 
@@ -24,8 +25,12 @@ interface AutoModelConfigProps {
   showTip?: boolean;
   initialApiKey?: string;
   initialChatModel?: string;
+  initialApiBaseURL?: string;
   onDataChange?: () => void;
 }
+
+export const DEFAULT_AUTO_MODE_API_BASE_URL =
+  'https://model-square.app.baizhi.cloud/v1';
 
 const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
   (props, ref) => {
@@ -33,11 +38,15 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
       showTip = false,
       initialApiKey = '',
       initialChatModel = '',
+      initialApiBaseURL = DEFAULT_AUTO_MODE_API_BASE_URL,
       onDataChange,
     } = props;
     const [autoConfigApiKey, setAutoConfigApiKey] = useState(initialApiKey);
     const [selectedAutoChatModel, setSelectedAutoChatModel] =
       useState(initialChatModel);
+    const [autoConfigApiBaseURL, setAutoConfigApiBaseURL] = useState(
+      initialApiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL,
+    );
     const [showApiKey, setShowApiKey] = useState(false);
 
     // 默认百智云 Chat 模型列表
@@ -64,6 +73,12 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
       }
     }, [initialChatModel]);
 
+    useEffect(() => {
+      setAutoConfigApiBaseURL(
+        initialApiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL,
+      );
+    }, [initialApiBaseURL]);
+
     // 如果没有选中模型且有可用模型,默认选择第一个
     useEffect(() => {
       if (modelList.length && !selectedAutoChatModel) {
@@ -76,6 +91,7 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
       getFormData: () => ({
         apiKey: autoConfigApiKey,
         selectedModel: selectedAutoChatModel,
+        apiBaseURL: autoConfigApiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL,
       }),
     }));
 
@@ -193,6 +209,46 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
                 </InputAdornment>
               ),
             }}
+            sx={{
+              '& .MuiInputBase-root': {
+                borderRadius: '10px',
+                height: '52px',
+              },
+            }}
+          />
+
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: 14,
+              fontWeight: 'bold',
+              color: 'text.primary',
+              mb: '16px',
+              pt: '24px',
+            }}
+          >
+            <Box
+              sx={{
+                width: 4,
+                height: 10,
+                bgcolor: 'primary.main',
+                borderRadius: '30%',
+                mr: 1,
+              }}
+            />
+            自定义 API 地址
+          </Box>
+          <TextField
+            fullWidth
+            size='medium'
+            value={autoConfigApiBaseURL}
+            placeholder={DEFAULT_AUTO_MODE_API_BASE_URL}
+            onChange={e => {
+              setAutoConfigApiBaseURL(e.target.value);
+              onDataChange?.();
+            }}
+            helperText='默认使用百智云地址，可替换为自定义 OpenAI 兼容 API 中转地址'
             sx={{
               '& .MuiInputBase-root': {
                 borderRadius: '10px',

@@ -210,3 +210,13 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 全新部署可用性修复：
   - 修复全新数据库下前台与 widget 首屏因配置缺失导致的 `500`。
   - 无配置场景下，根路径 `/` 回退到 `/home`，避免首访 `404`。
+
+## 追加记录（2026-02-25，自动配置 API 地址与统计地图稳定性）
+- 版本升级：
+  - 乘风版版本号升级为：`FV2.6.14.2111`。
+- 自动配置模型增强：
+  - 初始化流程“自动配置”新增“自定义 API 地址”输入框，默认值为百智云地址 `https://model-square.app.baizhi.cloud/v1`。
+  - 后端 `model_mode` 配置新增 `auto_mode_api_base_url` 字段，自动模式校验与 RAG 模型同步时使用该地址。
+  - 全新部署 SQL 默认写入 `auto_mode_api_base_url`，避免新站点首次配置缺省值不一致。
+- 统计页面地图稳定性：
+  - 国家无有效数据时，tooltip 与图层数值统一归零显示，修复显示 `NaN` 的问题。

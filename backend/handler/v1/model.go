@@ -259,9 +259,10 @@ func (h *ModelHandler) GetModelModeSetting(c echo.Context) error {
 		// 如果获取失败，返回默认值（手动模式）
 		h.logger.Warn("failed to get model mode setting, return default", log.Error(err))
 		defaultSetting := domain.ModelModeSetting{
-			Mode:           consts.ModelSettingModeManual,
-			AutoModeAPIKey: "",
-			ChatModel:      "",
+			Mode:               consts.ModelSettingModeManual,
+			AutoModeAPIKey:     "",
+			AutoModeAPIBaseURL: consts.AutoModeBaseURL,
+			ChatModel:          "",
 		}
 		return h.NewResponseWithData(c, defaultSetting)
 	}

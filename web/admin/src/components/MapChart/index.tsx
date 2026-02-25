@@ -38,6 +38,11 @@ const MapChart = ({
   const [data, setData] = useState<{ name: string; value: number }[]>([]);
   const [resourceLoaded, setResourceLoaded] = useState(false);
 
+  const normalizeCount = (value: unknown) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+
   useEffect(() => {
     let isUnmounted = false;
 
@@ -75,7 +80,9 @@ const MapChart = ({
         );
 
         if (map === 'china') {
-          await loadScriptWithFallback(withBasenameCandidates('/echarts/china.js'));
+          await loadScriptWithFallback(
+            withBasenameCandidates('/echarts/china.js'),
+          );
         } else if (map === 'world') {
           await loadScriptWithFallback(withBasenameCandidates('/geo/geo.js'));
           const globalWindow = window as GlobalMapWindow;
@@ -101,8 +108,10 @@ const MapChart = ({
 
   useEffect(() => {
     if (!resourceLoaded) return;
-    setMax(Math.max(1, ...chartData.map(i => i.count)));
-    setData(chartData.map(it => ({ name: it.name, value: it.count })));
+    setMax(Math.max(1, ...chartData.map(i => normalizeCount(i.count))));
+    setData(
+      chartData.map(it => ({ name: it.name, value: normalizeCount(it.count) })),
+    );
     if (domWrapRef.current && !echartRef.current) {
       type EchartsGlobal = { init: (el: HTMLDivElement) => ECharts };
       const echartsGlobal = (window as unknown as { echarts: EchartsGlobal })
@@ -122,8 +131,7 @@ const MapChart = ({
       },
       tooltip: {
         formatter: (params: { name: string; value: number | string }) => {
-          const value =
-            typeof params.value === 'number' ? params.value : Number(params.value) || 0;
+          const value = normalizeCount(params.value);
           const title = tooltipNameFormatter
             ? tooltipNameFormatter(params.name)
             : params.name;
