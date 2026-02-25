@@ -18,12 +18,29 @@ jobs:
       version: ${{ steps.get_version.outputs.VERSION }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (pro)
+        if: ${{ secrets.PRO_TOKEN != '' }}
         uses: actions/checkout@v4
         with:
           lfs: true
           submodules: true
-          token: ${{ secrets.PRO_TOKEN || github.token }}
+          token: ${{ secrets.PRO_TOKEN }}
+
+      - name: Checkout code (oss)
+        if: ${{ secrets.PRO_TOKEN == '' }}
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: false
+
+      - name: Select Dockerfile
+        id: dockerfile
+        run: |
+          if [ -n "${{ secrets.PRO_TOKEN }}" ]; then
+            echo "FILE=./backend/Dockerfile.${{ matrix.service }}.pro" >> "$GITHUB_OUTPUT"
+          else
+            echo "FILE=./backend/Dockerfile.${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Get version
         id: get_version
@@ -57,7 +74,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          file: ./backend/Dockerfile.${{ matrix.service }}.pro
+          file: ${{ steps.dockerfile.outputs.FILE }}
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           platforms: linux/amd64, linux/arm64
           tags: |
