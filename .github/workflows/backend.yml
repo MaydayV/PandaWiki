@@ -1,9 +1,10 @@
-name: Backend Build and Push
+name: Backend Build and Push (Docker Hub)
 
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+*"
+      - "v*"
+      - "backend-*"
 
 jobs:
   build:
@@ -45,13 +46,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Aliyun Container Registry
+      - name: Login to Docker Hub
         if: startsWith(github.ref, 'refs/tags/')
         uses: docker/login-action@v3
         with:
-          registry: chaitin-registry.cn-hangzhou.cr.aliyuncs.com
-          username: ${{ secrets.CT_ALIYUN_USER }}
-          password: ${{ secrets.CT_ALIYUN_PASS }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -60,7 +60,8 @@ jobs:
           file: ./backend/Dockerfile.${{ matrix.service }}.pro
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           platforms: linux/amd64, linux/arm64
-          tags: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/panda-wiki-${{ matrix.service }}:${{ steps.get_version.outputs.VERSION }}
+          tags: |
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/pandawiki-${{ matrix.service }}:${{ steps.get_version.outputs.VERSION }}
           build-args: |
             VERSION=${{ steps.get_version.outputs.VERSION }}
           cache-from: |

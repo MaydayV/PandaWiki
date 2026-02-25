@@ -211,20 +211,20 @@ docker compose -f docker-compose.build.yml up -d --build
 
 编辑 `docs/deploy/.env`：
 
-- `PANDAWIKI_IMAGE_REPO=ghcr.io/maydayv`
+- `PANDAWIKI_IMAGE_REPO=docker.io/caodanv`
 - `PANDAWIKI_IMAGE_TAG=<发布标签>`
 
 例如：
 
 ```env
-PANDAWIKI_IMAGE_REPO=ghcr.io/maydayv
+PANDAWIKI_IMAGE_REPO=docker.io/caodanv
 PANDAWIKI_IMAGE_TAG=FV2.6.1.2111
 ```
 
 如镜像仓库为私有，先登录：
 
 ```bash
-docker login ghcr.io
+docker login
 ```
 
 ### 5.2 启动
@@ -253,6 +253,31 @@ docker compose -f docker-compose.image.yml up -d
 docker compose -f docker-compose.image.yml pull
 docker compose -f docker-compose.image.yml up -d
 ```
+
+### 5.5 CI 自动发布到 Docker Hub（推荐）
+
+当前仓库已配置 GitHub Actions 自动推送四个镜像（`api/consumer/app/admin`）到 Docker Hub。
+
+先在 GitHub 仓库设置 Secrets：
+
+- `DOCKERHUB_USERNAME`：Docker Hub 用户名（例如 `caodanv`）
+- `DOCKERHUB_TOKEN`：Docker Hub Access Token（不要用明文密码）
+
+发布步骤：
+
+```bash
+git checkout main
+git pull origin main
+git tag v2.6.2
+git push origin v2.6.2
+```
+
+推送完成后会自动发布：
+
+- `docker.io/caodanv/pandawiki-api:v2.6.2`
+- `docker.io/caodanv/pandawiki-consumer:v2.6.2`
+- `docker.io/caodanv/pandawiki-app:v2.6.2`
+- `docker.io/caodanv/pandawiki-admin:v2.6.2`
 
 ## 6. 方式三：外层 Nginx + 内层 Caddy（推荐公网生产）
 
