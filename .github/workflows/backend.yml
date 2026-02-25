@@ -18,25 +18,20 @@ jobs:
       version: ${{ steps.get_version.outputs.VERSION }}
 
     steps:
-      - name: Checkout code (pro)
-        if: ${{ secrets.PRO_TOKEN != '' }}
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-          submodules: true
-          token: ${{ secrets.PRO_TOKEN }}
-
-      - name: Checkout code (oss)
-        if: ${{ secrets.PRO_TOKEN == '' }}
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           lfs: true
           submodules: false
+          token: ${{ github.token }}
 
-      - name: Select Dockerfile
+      - name: Prepare Dockerfile and optional pro submodule
         id: dockerfile
+        env:
+          PRO_TOKEN: ${{ secrets.PRO_TOKEN }}
         run: |
-          if [ -n "${{ secrets.PRO_TOKEN }}" ]; then
+          if [ -n "$PRO_TOKEN" ]; then
+            git -c url."https://${PRO_TOKEN}@github.com/".insteadOf=git@github.com: submodule update --init --recursive backend/pro
             echo "FILE=./backend/Dockerfile.${{ matrix.service }}.pro" >> "$GITHUB_OUTPUT"
           else
             echo "FILE=./backend/Dockerfile.${{ matrix.service }}" >> "$GITHUB_OUTPUT"
