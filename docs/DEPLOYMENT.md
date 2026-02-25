@@ -1,9 +1,10 @@
-# 乘风版部署指南（两种方式）
+# 乘风版部署指南（Docker 多方案）
 
-本文提供两种可落地部署方式：
+本文提供三种可落地的 Docker 部署方案：
 
 1. 手动安装环境 + 服务器源码构建部署（Build 模式）
 2. 方案 B：预构建镜像部署（Image 模式，推荐生产）
+3. 外层 Nginx + 内层 Caddy（推荐公网生产）
 
 ## 1. 方式对比
 
@@ -11,6 +12,7 @@
 | --- | --- | --- | --- |
 | 手动安装环境 + Build 模式 | 开发、联调、快速验证 | 改完代码即可在服务器本地构建 | 首次配置步骤较多；构建耗时较长 |
 | 方案 B（预构建镜像） | 生产环境、稳定交付 | 发布快、可回滚、服务器负载低 | 需要先在 CI 产出镜像 |
+| 外层 Nginx + 内层 Caddy | 生产环境、统一 80/443 出口 | 可以复用现有 Nginx 证书与网关体系 | 不能移除 Caddy，Nginx 仅做外层入口 |
 
 ## 2. 环境清单与推荐版本
 
@@ -24,18 +26,18 @@
 
 | 组件 | 推荐版本 | 说明 |
 | --- | --- | --- |
-| Docker Engine | `24.x+` | 两种部署方式都需要 |
+| Docker Engine | `24.x+` | 三种部署方式都需要 |
 | Docker Compose Plugin | `v2.24+` | 使用 `docker compose` 命令 |
 | Git | `2.30+` | 拉取代码 |
-| Node.js | `22.x` | Build 模式下构建前端产物 |
-| pnpm | `10.x` | Build 模式下前端构建 |
+| Node.js | `22.x` | 仅 Build 模式需要 |
+| pnpm | `10.x` | 仅 Build 模式需要 |
 | PostgreSQL | `16-alpine`（容器） | 主数据库 |
 | Redis | `7-alpine`（容器） | 缓存/限流 |
 | NATS | `2.10-alpine`（容器） | 消息队列 |
 | MinIO | `latest`（容器） | 对象存储 |
 | Qdrant | `v1.14.1`（容器） | 向量检索 |
 | Raglite | `v2.14.1`（容器） | RAG 服务 |
-| Caddy | `2.10-alpine`（容器） | 域名路由与访问入口配置 |
+| Caddy | `2.10-alpine`（容器） | 知识库访问规则与动态路由 |
 
 ## 3. 通用准备
 
@@ -64,6 +66,11 @@ cp .env.example .env
 - `ADMIN_PASSWORD`
 - `DEV_KB_ID`
 
+仅 Image 模式额外需要：
+
+- `PANDAWIKI_IMAGE_REPO`
+- `PANDAWIKI_IMAGE_TAG`
+
 ### 3.3 首次部署初始化数据库（仅首次）
 
 > 当前项目使用完整部署 SQL：`backend/store/pg/migration/full_fresh_deploy.sql`
@@ -82,7 +89,33 @@ docker compose -f docker-compose.build.yml exec -T panda-wiki-postgres \
 psql -U panda-wiki -d panda-wiki
 ```
 
-如果使用方案 B，可将命令中的 `docker-compose.build.yml` 替换为 `docker-compose.image.yml`。
+如果使用 Image 模式，可将命令中的 `docker-compose.build.yml` 替换为 `docker-compose.image.yml`。
+
+### 3.4 端口职责与流量路径（当前默认）
+
+- `3010`：前台入口，由 `panda-wiki-caddy` 监听并反向代理到 `api/app/minio`。
+- `2443`：后台管理入口（`panda-wiki-admin`）。
+- `8000`：API 直连入口（通常用于健康检查、联调）。
+- `5432/6379/4222/6333/9000`：数据库与中间件内部端口，默认不对公网暴露。
+
+说明：`panda-wiki-app` 当前只在容器网络 `expose 3010`，不会直接映射宿主机 `3010`，避免与 Caddy 冲突。
+
+### 3.5 从旧编排升级到当前网络模型（执行一次）
+
+如果你之前使用过旧版本编排（`app` 直映射 `3010`），升级到当前版本建议先执行一次完整重建：
+
+```bash
+docker compose -f docker-compose.build.yml down --remove-orphans
+docker compose -f docker-compose.build.yml up -d --build
+```
+
+Image 模式同理：
+
+```bash
+docker compose -f docker-compose.image.yml down --remove-orphans
+docker compose -f docker-compose.image.yml pull
+docker compose -f docker-compose.image.yml up -d
+```
 
 ## 4. 方式一：手动安装环境 + 服务器源码构建部署（Build 模式）
 
@@ -124,7 +157,7 @@ corepack prepare pnpm@10.12.1 --activate
 
 ### 4.2 构建前端产物（必须）
 
-> `web/admin` 与 `web/app` 的 Dockerfile 会直接复制 `dist`，因此先构建前端产物。
+> `web/admin` 与 `web/app` 的 Dockerfile 会复制构建产物，因此先构建前端。
 
 ```bash
 cd ../../web
@@ -134,17 +167,13 @@ pnpm --filter panda-wiki-app build
 cd ../docs/deploy
 ```
 
-如遇到以下错误：
-
-`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`
-
-可先执行：
+如果遇到 `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`：
 
 ```bash
 pnpm install --no-frozen-lockfile
 ```
 
-然后继续构建流程。建议后续在源码仓库修复 lockfile 与 `pnpm.overrides` 一致性后，再恢复 `--frozen-lockfile`。
+然后继续构建流程。
 
 ### 4.3 启动全部服务（Build）
 
@@ -225,21 +254,83 @@ docker compose -f docker-compose.image.yml pull
 docker compose -f docker-compose.image.yml up -d
 ```
 
-## 6. 访问说明
+## 6. 方式三：外层 Nginx + 内层 Caddy（推荐公网生产）
+
+适用场景：你需要统一 80/443 出口、复用现有 Nginx 证书和 WAF/CDN 策略。
+
+### 6.1 核心原则
+
+- 继续使用当前 Docker 编排（Build 或 Image 均可）。
+- 保留 `panda-wiki-caddy`，不要替换掉它。
+- Nginx 仅做外层入口，将流量转发到本机 `3010/2443`。
+
+### 6.2 Nginx 参考配置
+
+```nginx
+server {
+    listen 80;
+    server_name wiki.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name wiki.example.com;
+
+    ssl_certificate     /etc/nginx/certs/wiki.crt;
+    ssl_certificate_key /etc/nginx/certs/wiki.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:3010;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name admin.example.com;
+
+    ssl_certificate     /etc/nginx/certs/admin.crt;
+    ssl_certificate_key /etc/nginx/certs/admin.key;
+
+    location / {
+        proxy_pass https://127.0.0.1:2443;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+### 6.3 为什么不能直接用 Nginx 平替 Caddy
+
+后端会按知识库配置动态下发访问规则，并依赖路由层自动注入 `X-KB-ID`。当前实现直接调用 Caddy Admin API（Unix Socket）动态更新配置。若直接移除 Caddy，需要额外开发一套 Nginx 动态配置与热更新机制。
+
+## 7. 访问说明
+
+直连模式（无外层 Nginx）：
 
 - 后台管理：`https://<server-ip>:2443`
 - 前台站点：`http://<server-ip>:3010`
 - API 健康检查：`http://<server-ip>:8000/health`
 
-## 7. 安全建议（生产必做）
+外层 Nginx 模式（推荐）：
+
+- 前台站点：`https://wiki.example.com`
+- 后台管理：`https://admin.example.com`
+
+## 8. 安全建议（生产必做）
 
 1. `.env` 中全部密码改为高强度随机值，禁止使用示例密码。
-2. 通过防火墙限制 `8000/3010/2443` 暴露范围，建议仅暴露反向代理端口。
-3. 为后台域名配置真实 TLS 证书，不使用自签证书对外提供服务。
+2. 外层 Nginx 模式下，建议只对公网开放 `80/443`，限制 `8000/2443/3010` 仅本机或内网访问。
+3. 为对外域名配置真实 TLS 证书，不使用自签证书直接暴露公网。
 4. 定期备份：PostgreSQL 数据卷、MinIO 数据卷、`docs/deploy/.env`。
 5. 按 AGPL-3.0 要求提供当前运行版本对应源码链接。
 
-## 8. 相关文件
+## 9. 相关文件
 
 - Build 模式编排：`docs/deploy/docker-compose.build.yml`
 - Image 模式编排：`docs/deploy/docker-compose.image.yml`
