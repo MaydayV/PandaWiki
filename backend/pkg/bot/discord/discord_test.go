@@ -7,9 +7,10 @@ import (
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
+	"github.com/stretchr/testify/require"
 )
 
-func TestDiscord(t *testing.T) {
+func TestNewDiscordClient(t *testing.T) {
 	cfg, _ := config.NewConfig()
 	log := log.NewLogger(cfg)
 	token := "token"
@@ -21,10 +22,7 @@ func TestDiscord(t *testing.T) {
 		}()
 		return contentCh, nil
 	}
-	c, _ := NewDiscordClient(log, token, getQA)
-	if err := c.Start(); err != nil {
-		t.Errorf("Failed to start Discord client: %v", err)
-	}
-
-	select {}
+	c, err := NewDiscordClient(log, token, getQA)
+	require.NoError(t, err)
+	require.NotNil(t, c)
 }

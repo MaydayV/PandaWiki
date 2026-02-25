@@ -15,10 +15,11 @@ import { useSmartScroll } from '@/hooks';
 import { useStore } from '@/provider';
 import { postShareV1ChatFeedback } from '@/request/ShareChat';
 import { getShareV1ConversationDetail } from '@/request/ShareConversation';
+import { postShareV1CommonFileUpload } from '@/request/ShareFile';
 import { getShareV1NodeList } from '@/request/ShareNode';
 import { copyText } from '@/utils';
 import SSEClient from '@/utils/fetch';
-import { message } from '@ctzhian/ui';
+import { message, Image as ImagePreview } from '@ctzhian/ui';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -78,6 +79,7 @@ import { getImagePath } from '@/utils/getImagePath';
 import { useI18n } from '@/i18n/useI18n';
 
 export interface ConversationItem {
+  image_paths: string[];
   q: string;
   a: string;
   score: number;
@@ -203,7 +205,9 @@ const AiQaContent: React.FC<{
     if (loading) {
       handleSearchAbort();
     }
-    handleSearch(true);
+    if (input.length > 0) {
+      onSearch(input, true);
+    }
     setConversationId('');
     setConversation([]);
     setFullAnswer('');
@@ -220,16 +224,8 @@ const AiQaContent: React.FC<{
   };
 
   const handleSearch = (reset: boolean = false) => {
-    if (input.length > 0) {
+    if (input.length > 0 || uploadedImages.length > 0) {
       onSearch(input, reset);
-      setInput('');
-      // 清理图片URL
-      uploadedImages.forEach(img => {
-        if (img.url.startsWith('blob:')) {
-          URL.revokeObjectURL(img.url);
-        }
-      });
-      setUploadedImages([]);
     }
   };
 
@@ -246,7 +242,7 @@ const AiQaContent: React.FC<{
     }
     if (!files || files.length === 0) return;
 
-    const maxImages = 9; // 最多9张图片
+    const maxImages = 3;
     const remainingSlots = maxImages - uploadedImages.length;
     if (remainingSlots <= 0) {
       message.warning(t('widget.maxImages', { count: maxImages }));
@@ -415,9 +411,99 @@ const AiQaContent: React.FC<{
     }
   };
 
-  const chatAnswer = async (q: string) => {
+  const revokeLocalImageUrls = (
+    images: Array<{
+      id: string;
+      url: string;
+      file: File;
+    }>,
+  ) => {
+    images.forEach(image => {
+      if (image.url.startsWith('blob:')) {
+        URL.revokeObjectURL(image.url);
+      }
+    });
+  };
+
+  const uploadAllImages = async (
+    images: Array<{
+      id: string;
+      url: string;
+      file: File;
+    }>,
+  ): Promise<string[]> => {
+    if (images.length === 0) return [];
+
+    const uploadedUrls: string[] = [];
+
+    try {
+      for (const image of images) {
+        let token = '';
+        try {
+          const Cap = (await import(`@cap.js/widget`)).default;
+          const cap = new Cap({
+            apiEndpoint: `${basePath}/share/v1/captcha/`,
+          });
+          const solution = await cap.solve();
+          token = solution.token;
+        } catch (error) {
+          message.error(t('widget.validationFailed'));
+          throw error;
+        }
+        const result = await postShareV1CommonFileUpload({
+          file: image.file,
+          captcha_token: token,
+          app_type: 2,
+        });
+        uploadedUrls.push('/static-file/' + result.key);
+      }
+      return uploadedUrls;
+    } catch (error: any) {
+      message.error(error.message || t('widget.imageUploadFailed'));
+      throw error;
+    }
+  };
+
+  const chatAnswer = async (
+    q: string,
+    images: Array<{
+      id: string;
+      url: string;
+      file: File;
+    }>,
+  ) => {
     setLoading(true);
     setThinking(1);
+
+    let imagePaths: string[] = [];
+    try {
+      imagePaths = await uploadAllImages(images);
+    } catch {
+      setLoading(false);
+      setThinking(4);
+      setConversation(prev => {
+        const newConversation = [...prev];
+        const lastConversation = newConversation[newConversation.length - 1];
+        if (lastConversation) {
+          lastConversation.image_paths = [];
+        }
+        return newConversation;
+      });
+      revokeLocalImageUrls(images);
+      return;
+    }
+
+    if (images.length > 0) {
+      setConversation(prev => {
+        const newConversation = [...prev];
+        const lastConversation = newConversation[newConversation.length - 1];
+        if (lastConversation) {
+          lastConversation.image_paths = imagePaths;
+        }
+        return newConversation;
+      });
+      revokeLocalImageUrls(images);
+    }
 
     let token = '';
 
@@ -429,6 +515,8 @@ const AiQaContent: React.FC<{
       const solution = await cap.solve();
       token = solution.token;
     } catch (error) {
+      setLoading(false);
+      setThinking(4);
       message.error(t('widget.validationFailed'));
       console.log(error, 'error---------');
       return;
@@ -436,6 +524,7 @@ const AiQaContent: React.FC<{
 
     const reqData = {
       message: q,
+      image_paths: imagePaths,
       nonce: '',
       conversation_id: '',
       app_type: 2,
@@ -543,14 +632,16 @@ const AiQaContent: React.FC<{
   }, []);
 
   const onSearch = (q: string, reset: boolean = false) => {
-    if (loading || !q.trim()) return;
+    if (loading || (!q.trim() && uploadedImages.length === 0)) return;
     setShouldAutoScroll(true); // 开始新搜索时，重置为自动滚动
     const newConversation = reset
       ? []
       : conversation.some(item => item.source === 'history')
         ? []
         : [...conversation];
+    const pendingImages = [...uploadedImages];
     newConversation.push({
+      image_paths: pendingImages.map(image => image.url),
       q,
       a: '',
       score: 0,
@@ -564,7 +655,11 @@ const AiQaContent: React.FC<{
     messageIdRef.current = '';
     setConversation(newConversation);
     setFullAnswer('');
-    setTimeout(() => chatAnswer(q), 0);
+    setTimeout(() => {
+      chatAnswer(q, pendingImages);
+      setInput('');
+      setUploadedImages([]);
+    }, 0);
   };
 
   const handleSearchAbort = () => {
@@ -666,25 +761,16 @@ const AiQaContent: React.FC<{
           };
           res.messages.forEach(message => {
             if (message.role === 'user') {
-              if (current.q) {
-                conversation.push({
-                  q: current.q,
-                  a: '',
-                  score: 0,
-                  update_time: '',
-                  message_id: '',
-                  source: 'history',
-                  chunk_result: [],
-                  thinking_content: '',
-                  id: uuidv4(),
-                });
-              }
               current = {
-                q: message.content,
+                image_paths: message.image_paths || [],
+                q: message.content || '',
                 chunk_result: [],
               };
             } else if (message.role === 'assistant') {
-              if (current.q) {
+              if (
+                current.q ||
+                (current.image_paths && current.image_paths.length > 0)
+              ) {
                 const { thinkingContent, answerContent } =
                   handleThinkingContent(message.content || '');
 
@@ -701,9 +787,13 @@ const AiQaContent: React.FC<{
             }
           });
 
-          if (current.q) {
+          if (
+            current.q ||
+            (current.image_paths && current.image_paths.length > 0)
+          ) {
             conversation.push({
-              q: current.q,
+              image_paths: current.image_paths || [],
+              q: current.q || '',
               a: '',
               score: 0,
               update_time: '',
@@ -829,8 +919,30 @@ const AiQaContent: React.FC<{
         <Stack gap={2}>
           {conversation.map((item, index) => (
             <StyledConversationItem key={item.id}>
+              {item.image_paths.length > 0 && (
+                <ImagePreview.PreviewGroup>
+                  <Stack direction='row' gap={1} sx={{ alignSelf: 'flex-end' }}>
+                    {item.image_paths.map(url => (
+                      <ImagePreview
+                        alt={url}
+                        key={url}
+                        src={getImagePath(url, basePath)}
+                        width={100}
+                        height={100}
+                        style={{
+                          borderRadius: '10px',
+                          objectFit: 'cover',
+                          cursor: 'pointer',
+                        }}
+                        referrerPolicy='no-referrer'
+                      />
+                    ))}
+                  </Stack>
+                </ImagePreview.PreviewGroup>
+              )}
+
               {/* 用户问题气泡 - 右对齐 */}
-              <StyledUserBubble>{item.q}</StyledUserBubble>
+              {item.q && <StyledUserBubble>{item.q}</StyledUserBubble>}
 
               {/* AI回答气泡 - 左对齐 */}
               <StyledAiBubble>
@@ -1070,7 +1182,7 @@ const AiQaContent: React.FC<{
               if (
                 e.key === 'Enter' &&
                 !e.shiftKey &&
-                input.length > 0 &&
+                (input.length > 0 || uploadedImages.length > 0) &&
                 !isComposing
               ) {
                 e.preventDefault();
@@ -1127,7 +1239,7 @@ const AiQaContent: React.FC<{
                 <IconButton
                   size='small'
                   onClick={() => {
-                    if (input.length > 0) {
+                    if (input.length > 0 || uploadedImages.length > 0) {
                       handleSearchAbort();
                       setThinking(1);
                       handleSearch();
@@ -1138,7 +1250,9 @@ const AiQaContent: React.FC<{
                     sx={{
                       fontSize: 16,
                       color:
-                        input.length > 0 ? 'primary.main' : 'text.disabled',
+                        input.length > 0 || uploadedImages.length > 0
+                          ? 'primary.main'
+                          : 'text.disabled',
                     }}
                   />
                 </IconButton>
