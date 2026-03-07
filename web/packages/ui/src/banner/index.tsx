@@ -356,7 +356,7 @@ const Banner = React.memo(
           </StyledSubTitle>
           {/* )} */}
 
-          <StyledSearchBox>
+          <StyledSearchBox className='banner-search-box'>
             <Box sx={{ position: 'relative' }}>
               <style>{blinkAnimation}</style>
               {!isFocused && !searchText && typedText && (

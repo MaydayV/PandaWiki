@@ -1406,6 +1406,11 @@ export interface DomainUpdateNodeReq {
   summary?: string;
 }
 
+export interface DomainUploadByUrlReq {
+  kb_id?: string;
+  url: string;
+}
+
 export interface DomainUserInfo {
   auth_user_id?: number;
   /** avatar */
@@ -1795,6 +1800,15 @@ export interface V1ResetPasswordReq {
   id: string;
   /** @minLength 8 */
   new_password: string;
+}
+
+export interface V1ShareFileUploadUrlReq {
+  captcha_token: string;
+  url: string;
+}
+
+export interface V1ShareFileUploadUrlResp {
+  key?: string;
 }
 
 export interface V1ShareNodeDetailResp {

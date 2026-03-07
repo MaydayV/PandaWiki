@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Home from '@/views/home';
 import { WelcomeFooter } from '@/components/footer';
 import { ThemeProvider } from '@ctzhian/ui';
@@ -11,6 +11,41 @@ import { THEME_TO_PALETTE } from '@panda-wiki/themes/constants';
 
 const HomePage = () => {
   const { kbDetail } = useStore();
+  const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    let ticking = false;
+
+    const checkVisibility = () => {
+      const elements = document.querySelectorAll('.banner-search-box');
+      if (elements.length > 0) {
+        // 判断是否还有任意一个搜索框处于可视区域内
+        // 顶部预留 64px 为头部占用区域
+        const hasVisibleBox = Array.from(elements).some(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.bottom > 64 && rect.top < window.innerHeight;
+        });
+        setShowSearch(!hasVisibleBox);
+      } else {
+        setShowSearch(window.scrollY >= window.innerHeight);
+      }
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          checkVisibility();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    checkVisibility();
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const theme = useMemo(() => {
     // @ts-ignore
@@ -36,7 +71,7 @@ const HomePage = () => {
         justifyContent='space-between'
         sx={{ minHeight: '100vh', bgcolor: 'background.default' }}
       >
-        <WelcomeHeader />
+        <WelcomeHeader showSearch={showSearch} />
         <Stack sx={{ flex: 1 }}>
           <Home />
         </Stack>

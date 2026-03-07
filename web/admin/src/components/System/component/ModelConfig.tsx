@@ -257,6 +257,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             support_images: value.support_image,
             support_computer_use: value.support_compute,
             support_prompt_cache: value.support_prompt_caching,
+            temperature: value.temperature,
           },
         })
         .then(res => {
@@ -294,6 +295,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
               support_images: value.support_image,
               support_computer_use: value.support_compute,
               support_prompt_cache: value.support_prompt_caching,
+              temperature: value.temperature,
             },
           })
           .then(res => {
@@ -325,6 +327,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
               support_images: value.support_image,
               support_computer_use: value.support_compute,
               support_prompt_cache: value.support_prompt_caching,
+              temperature: value.temperature,
             },
           })
           .then(res => {

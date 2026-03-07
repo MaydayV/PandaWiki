@@ -8,7 +8,7 @@
     "icon": "pnpm --filter @panda-wiki/icons icon",
     "prepare": "cd ../ && husky web/.husky",
     "build": "pnpm --parallel --filter panda-wiki-admin --filter panda-wiki-app build",
-    "dev": "pnpm --parallel --filter admin --filter app dev"
+    "dev": "pnpm --parallel --filter panda-wiki-admin --filter panda-wiki-app dev"
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx,css,scss,md,mdx,json,yml,yaml,mjs,cjs}": "prettier --write --ignore-path .prettierignore"
@@ -24,7 +24,7 @@
     }
   },
   "dependencies": {
-    "@ctzhian/tiptap": "^2.13.6",
+    "@ctzhian/tiptap": "^2.13.7",
     "@ctzhian/ui": "^7.1.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

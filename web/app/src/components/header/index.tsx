@@ -127,7 +127,11 @@ const Header = ({ isDocPage = false, isWelcomePage = false }: HeaderProps) => {
   );
 };
 
-export const WelcomeHeader = () => {
+export const WelcomeHeader = ({
+  showSearch = true,
+}: {
+  showSearch?: boolean;
+}) => {
   const basePath = useBasePath();
   const { t } = useI18n();
   const {
@@ -160,7 +164,7 @@ export const WelcomeHeader = () => {
         t('common.searchPlaceholder')
       }
       qaLabel={t('qa.chatTab')}
-      showSearch
+      showSearch={showSearch}
       homePath={basePath || '/'}
       btns={
         kbDetail?.settings?.btns?.map((item: any) => ({
