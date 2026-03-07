@@ -8,7 +8,7 @@ import enterpriseVersion from '@/assets/images/enterprise-version.png';
 /**
  * 乘风版版本号规范
  * FV{大版本}.{功能序号}.{提交序号}.{原版版本号去点}
- * 例如：FV2.6.14.2111
+ * 例如：FV2.6.16.2111
  */
 export const FLY_VERSION_META = {
   major: 2,
