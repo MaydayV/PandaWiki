@@ -79,12 +79,6 @@ export interface DomainCommentModerateListReq {
   status: DomainCommentStatus;
 }
 
-export interface DomainCreatePromptReq {
-  content?: string;
-  kb_id: string;
-  summary_content?: string;
-}
-
 export interface DomainDocumentFeedbackInfo {
   /** user */
   auth_user_id?: number;
@@ -169,6 +163,10 @@ export interface DomainPWResponse {
 
 export interface DomainPrompt {
   content?: string;
+  enable_preset?: boolean;
+  enable_preset_auto_language?: boolean;
+  enable_preset_general_info?: boolean;
+  enable_preset_reference?: boolean;
   summary_content?: string;
 }
 
@@ -176,6 +174,16 @@ export interface DomainResponse {
   data?: unknown;
   message?: string;
   success?: boolean;
+}
+
+export interface DomainUpdatePromptReq {
+  content?: string;
+  enable_preset?: boolean;
+  enable_preset_auto_language?: boolean;
+  enable_preset_general_info?: boolean;
+  enable_preset_reference?: boolean;
+  kb_id: string;
+  summary_content?: string;
 }
 
 export interface GithubComChaitinPandaWikiProApiAuthV1AuthGetResp {

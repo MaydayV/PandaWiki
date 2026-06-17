@@ -66,6 +66,7 @@ func NewKnowledgeBaseHandler(
 
 	promptGroup := echo.Group("/api/pro/v1/prompt", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 	promptGroup.GET("", h.GetPromptSettings)
+	promptGroup.PUT("", h.UpdatePromptSettings)
 	promptGroup.POST("", h.UpdatePromptSettings)
 	promptGroup.GET("/version/list", h.GetPromptVersionList)
 	promptGroup.GET("/version/detail", h.GetPromptVersionDetail)

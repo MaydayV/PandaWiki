@@ -12,9 +12,9 @@
 
 import httpRequest, { ContentType, RequestParams } from "./httpClient";
 import {
-  DomainCreatePromptReq,
   DomainPWResponse,
   DomainPrompt,
+  DomainUpdatePromptReq,
   GetApiProV1PromptParams,
   GetApiProV1PromptVersionDetailParams,
   GetApiProV1PromptVersionListParams,
@@ -52,20 +52,20 @@ export const getApiProV1Prompt = (
   });
 
 /**
- * @description Create a new prompt
+ * @description update prompt settings
  *
  * @tags prompt
- * @name PostApiProV1Prompt
- * @summary Create a new prompt
- * @request POST:/api/pro/v1/prompt
+ * @name PutApiProV1Prompt
+ * @summary update prompt settings
+ * @request PUT:/api/pro/v1/prompt
  * @response `200` `(DomainPWResponse & {
     data?: DomainPrompt,
 
 })` OK
  */
 
-export const postApiProV1Prompt = (
-  req: DomainCreatePromptReq,
+export const putApiProV1Prompt = (
+  req: DomainUpdatePromptReq,
   params: RequestParams = {},
 ) =>
   httpRequest<
@@ -74,7 +74,7 @@ export const postApiProV1Prompt = (
     }
   >({
     path: `/api/pro/v1/prompt`,
-    method: "POST",
+    method: "PUT",
     body: req,
     type: ContentType.Json,
     format: "json",
@@ -140,6 +140,37 @@ export const postApiProV1PromptVersionRollback = (
 ) =>
   httpRequest<DomainPWResponse>({
     path: `/api/pro/v1/prompt/version/rollback`,
+    method: "POST",
+    body: req,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description update prompt settings
+ *
+ * @tags prompt
+ * @name PostApiProV1Prompt
+ * @summary update prompt settings (legacy alias)
+ * @request POST:/api/pro/v1/prompt
+ * @response `200` `(DomainPWResponse & {
+    data?: DomainPrompt,
+
+})` OK
+ * @deprecated use putApiProV1Prompt instead
+ */
+
+export const postApiProV1Prompt = (
+  req: DomainUpdatePromptReq,
+  params: RequestParams = {},
+) =>
+  httpRequest<
+    DomainPWResponse & {
+      data?: DomainPrompt;
+    }
+  >({
+    path: `/api/pro/v1/prompt`,
     method: "POST",
     body: req,
     type: ContentType.Json,

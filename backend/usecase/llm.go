@@ -109,7 +109,7 @@ func (u *LLMUsecase) BuildConversationMessageWithRAG(
 			question := historyMessages[len(historyMessages)-1].Content
 			var rewrittenQuery string
 			if systemPrompt == "" {
-				if settingPrompt, err := u.promptRepo.GetPrompt(ctx, kbID); err != nil {
+				if settingPrompt, err := u.promptRepo.GetPromptContent(ctx, kbID); err != nil {
 					u.logger.Error("get prompt from settings failed", log.Error(err))
 				} else {
 					if settingPrompt != "" {

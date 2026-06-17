@@ -87,7 +87,6 @@ function generateRoutesPlugin(): Plugin {
 }
 
 export default defineConfig(({ command, mode }) => {
-  // 加载环境变量 - 第二个参数是目录路径，不是文件名
   const env = loadEnv(mode, process.cwd(), '');
   const shouldAnalyze =
     process.argv.includes('--analyze') || env.ANALYZE === 'true';
@@ -99,6 +98,37 @@ export default defineConfig(({ command, mode }) => {
     },
     build: {
       assetsDir: 'panda-wiki-admin-assets',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': [
+              'react',
+              'react-dom',
+              'react-router-dom',
+              'react-redux',
+              '@reduxjs/toolkit',
+            ],
+            'vendor-mui': ['@mui/material'],
+            'vendor-echarts': ['echarts'],
+            'vendor-editor': [
+              'highlight.js',
+              'lowlight',
+              'katex',
+              'prosemirror-state',
+            ],
+            'vendor-markdown': [
+              'react-markdown',
+              'remark-gfm',
+              'remark-math',
+              'remark-breaks',
+              'rehype-katex',
+              'rehype-raw',
+              'rehype-sanitize',
+            ],
+            'vendor-yjs': ['yjs', 'y-websocket'],
+          },
+        },
+      },
     },
     server: {
       hmr: true,
@@ -131,10 +161,10 @@ export default defineConfig(({ command, mode }) => {
       ...(command === 'build' && shouldAnalyze
         ? [
             visualizer({
-              open: true, // 在默认浏览器中自动打开报告
-              gzipSize: true, // 显示 gzip 格式下的包大小
-              brotliSize: true, // 显示 brotli 格式下的包大小
-              filename: 'dist/stats.html', // 分析图生成的文件名
+              open: true,
+              gzipSize: true,
+              brotliSize: true,
+              filename: 'dist/stats.html',
             }),
           ]
         : []),
