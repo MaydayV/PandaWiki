@@ -1,38 +1,63 @@
-import { getApiProV1Prompt, postApiProV1Prompt } from '@/request/pro/Prompt';
+import { getApiProV1Prompt, putApiProV1Prompt } from '@/request/pro/Prompt';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
-import { DomainAppDetailResp, DomainKnowledgeBaseDetail } from '@/request/types';
+import {
+  DomainAppDetailResp,
+  DomainKnowledgeBaseDetail,
+} from '@/request/types';
 import { ALL_VERSION_PERMISSION } from '@/constant/version';
 import { useAppSelector } from '@/store';
 import { message, Modal } from '@ctzhian/ui';
-import { Box, Slider, TextField } from '@mui/material';
+import {
+  Box,
+  FormControlLabel,
+  RadioGroup,
+  Radio,
+  Slider,
+  TextField,
+  styled,
+} from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { FormItem, SettingCardItem } from './Common';
-import { DomainCreatePromptReq } from '@/request/pro/types';
+import { DomainUpdatePromptReq } from '@/request/pro/types';
 
 interface CardAIProps {
   kb: DomainKnowledgeBaseDetail;
 }
+
+const StyledRadioLabel = styled(Box)(({ theme }) => ({
+  width: 100,
+}));
 
 const CardAI = ({ kb }: CardAIProps) => {
   const [isEdit, setIsEdit] = useState(false);
   const { license } = useAppSelector(state => state.config);
   const [webApp, setWebApp] = useState<DomainAppDetailResp>();
 
-  const { control, handleSubmit, setValue, getValues } = useForm({
+  const { control, handleSubmit, setValue, getValues, watch } = useForm({
     defaultValues: {
       interval: 0,
       content: '',
       summary_content: '',
+      enable_preset: false,
+      enable_preset_auto_language: true,
+      enable_preset_general_info: true,
+      enable_preset_reference: true,
     },
   });
 
+  const enable_preset = watch('enable_preset');
+
   const onSubmit = handleSubmit(async data => {
     await Promise.all([
-      postApiProV1Prompt({
+      putApiProV1Prompt({
         kb_id: kb.id!,
         content: data.content,
         summary_content: data.summary_content,
+        enable_preset: data.enable_preset,
+        enable_preset_auto_language: data.enable_preset_auto_language,
+        enable_preset_general_info: data.enable_preset_general_info,
+        enable_preset_reference: data.enable_preset_reference,
       }),
       webApp?.id
         ? putApiV1App(
@@ -73,14 +98,26 @@ const CardAI = ({ kb }: CardAIProps) => {
   }, [license]);
 
   useEffect(() => {
-    if (!kb.id || !ALL_VERSION_PERMISSION.includes(license.edition!))
-      return;
+    if (!kb.id || !ALL_VERSION_PERMISSION.includes(license.edition!)) return;
     Promise.all([
       getApiProV1Prompt({ kb_id: kb.id! }),
       getApiV1AppDetail({ kb_id: kb.id!, type: '1' }),
     ]).then(([promptRes, appRes]) => {
       setValue('content', promptRes.content || '');
       setValue('summary_content', promptRes.summary_content || '');
+      setValue('enable_preset', promptRes.enable_preset ?? false);
+      setValue(
+        'enable_preset_auto_language',
+        promptRes.enable_preset_auto_language ?? true,
+      );
+      setValue(
+        'enable_preset_general_info',
+        promptRes.enable_preset_general_info ?? true,
+      );
+      setValue(
+        'enable_preset_reference',
+        promptRes.enable_preset_reference ?? true,
+      );
       setValue(
         'interval',
         Math.max(
@@ -100,21 +137,32 @@ const CardAI = ({ kb }: CardAIProps) => {
       title: '提示',
       content: `确定要重置为默认${type === 'content' ? '智能问答' : '智能摘要'}提示词吗？`,
       onOk: () => {
-        let params: DomainCreatePromptReq = {
+        let params: DomainUpdatePromptReq = {
           kb_id: kb.id!,
           content: '',
           summary_content: getValues('summary_content'),
+          enable_preset: getValues('enable_preset'),
+          enable_preset_auto_language: getValues('enable_preset_auto_language'),
+          enable_preset_general_info: getValues('enable_preset_general_info'),
+          enable_preset_reference: getValues('enable_preset_reference'),
         };
         if (type === 'summary_content') {
           params = {
             kb_id: kb.id!,
             summary_content: '',
             content: getValues('content'),
+            enable_preset: getValues('enable_preset'),
+            enable_preset_auto_language: getValues(
+              'enable_preset_auto_language',
+            ),
+            enable_preset_general_info: getValues('enable_preset_general_info'),
+            enable_preset_reference: getValues('enable_preset_reference'),
           };
         }
-        postApiProV1Prompt(params).then(() => {
+        putApiProV1Prompt(params).then(() => {
           getApiProV1Prompt({ kb_id: kb.id! }).then(res => {
             setValue(type, res[type] || '');
+            message.success('重置成功');
           });
         });
       },
@@ -130,43 +178,165 @@ const CardAI = ({ kb }: CardAIProps) => {
       }}
     >
       <SettingCardItem title='智能问答' isEdit={isEdit} onSubmit={onSubmit}>
-        <FormItem
-          vertical
-          permission={ALL_VERSION_PERMISSION}
-          extra={
-            <Box
-              sx={{
-                fontSize: 12,
-                color: 'primary.main',
-                display: 'block',
-                cursor: 'pointer',
-              }}
-              onClick={() => onResetPrompt('content')}
-            >
-              重置为默认提示词
-            </Box>
-          }
-          label='智能问答提示词'
-        >
+        {/* --- Preset / Custom toggle (upstream feature, 乘风版 unlocked) --- */}
+        <FormItem label='智能问答提示词'>
           <Controller
             control={control}
-            name='content'
+            name='enable_preset'
             render={({ field }) => (
-              <TextField
+              <RadioGroup
+                row
                 {...field}
-                fullWidth
-                disabled={!canEditPrompt}
-                multiline
-                rows={20}
-                placeholder='智能问答提示词'
+                value={field.value ? 'true' : 'false'}
                 onChange={e => {
-                  field.onChange(e.target.value);
                   setIsEdit(true);
+                  field.onChange(e.target.value === 'true');
                 }}
-              />
+              >
+                <FormControlLabel
+                  value={'false'}
+                  control={<Radio size='small' />}
+                  label={<StyledRadioLabel>自定义</StyledRadioLabel>}
+                />
+                <FormControlLabel
+                  value={'true'}
+                  control={<Radio size='small' />}
+                  label={<StyledRadioLabel>通用配置</StyledRadioLabel>}
+                />
+              </RadioGroup>
             )}
           />
         </FormItem>
+
+        {!enable_preset ? (
+          /* --- Custom prompt mode --- */
+          <FormItem
+            vertical
+            extra={
+              <Box
+                sx={{
+                  fontSize: 12,
+                  color: 'primary.main',
+                  display: 'block',
+                  cursor: 'pointer',
+                }}
+                onClick={() => onResetPrompt('content')}
+              >
+                重置为默认提示词
+              </Box>
+            }
+            label=''
+          >
+            <Controller
+              control={control}
+              name='content'
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  disabled={!canEditPrompt}
+                  multiline
+                  rows={20}
+                  placeholder='智能问答提示词'
+                  onChange={e => {
+                    field.onChange(e.target.value);
+                    setIsEdit(true);
+                  }}
+                />
+              )}
+            />
+          </FormItem>
+        ) : (
+          /* --- Preset / 通用配置 mode (upstream toggle UI, unlocked) --- */
+          <>
+            <FormItem label='自动匹配语言回复'>
+              <Controller
+                control={control}
+                name='enable_preset_auto_language'
+                render={({ field }) => (
+                  <RadioGroup
+                    row
+                    {...field}
+                    value={field.value ? 'true' : 'false'}
+                    onChange={e => {
+                      setIsEdit(true);
+                      field.onChange(e.target.value === 'true');
+                    }}
+                  >
+                    <FormControlLabel
+                      value={'true'}
+                      control={<Radio size='small' />}
+                      label={<StyledRadioLabel>启用</StyledRadioLabel>}
+                    />
+                    <FormControlLabel
+                      value={'false'}
+                      control={<Radio size='small' />}
+                      label={<StyledRadioLabel>禁用</StyledRadioLabel>}
+                    />
+                  </RadioGroup>
+                )}
+              />
+            </FormItem>
+            <FormItem label='结合通用知识补充回答'>
+              <Controller
+                control={control}
+                name='enable_preset_general_info'
+                render={({ field }) => (
+                  <RadioGroup
+                    row
+                    {...field}
+                    value={field.value ? 'true' : 'false'}
+                    onChange={e => {
+                      setIsEdit(true);
+                      field.onChange(e.target.value === 'true');
+                    }}
+                  >
+                    <FormControlLabel
+                      value={'true'}
+                      control={<Radio size='small' />}
+                      label={<StyledRadioLabel>启用</StyledRadioLabel>}
+                    />
+                    <FormControlLabel
+                      value={'false'}
+                      control={<Radio size='small' />}
+                      label={<StyledRadioLabel>禁用</StyledRadioLabel>}
+                    />
+                  </RadioGroup>
+                )}
+              />
+            </FormItem>
+            <FormItem label='回答中显示引用来源'>
+              <Controller
+                control={control}
+                name='enable_preset_reference'
+                render={({ field }) => (
+                  <RadioGroup
+                    row
+                    {...field}
+                    value={field.value ? 'true' : 'false'}
+                    onChange={e => {
+                      setIsEdit(true);
+                      field.onChange(e.target.value === 'true');
+                    }}
+                  >
+                    <FormControlLabel
+                      value={'true'}
+                      control={<Radio size='small' />}
+                      label={<StyledRadioLabel>启用</StyledRadioLabel>}
+                    />
+                    <FormControlLabel
+                      value={'false'}
+                      control={<Radio size='small' />}
+                      label={<StyledRadioLabel>禁用</StyledRadioLabel>}
+                    />
+                  </RadioGroup>
+                )}
+              />
+            </FormItem>
+          </>
+        )}
+
+        {/* --- 连续提问时间间隔 (乘风版增强，保留) --- */}
         <FormItem vertical label='连续提问时间间隔（秒）'>
           <Controller
             control={control}
@@ -234,9 +404,10 @@ const CardAI = ({ kb }: CardAIProps) => {
             0 表示不限制。开启后，同一来源需等待设置秒数后才能继续提问。
           </Box>
         </FormItem>
+
+        {/* --- 智能摘要提示词 (always visible, 乘风版 unlocked) --- */}
         <FormItem
           vertical
-          permission={ALL_VERSION_PERMISSION}
           extra={
             <Box
               sx={{

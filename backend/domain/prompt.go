@@ -17,8 +17,12 @@ var PromptTemplateVariableWhitelist = []string{
 }
 
 type Prompt struct {
-	Content        string `json:"content"`
-	SummaryContent string `json:"summary_content"`
+	Content                  string `json:"content"`
+	SummaryContent           string `json:"summary_content"`
+	EnablePreset             bool   `json:"enable_preset"`
+	EnablePresetAutoLanguage bool   `json:"enable_preset_auto_language"`
+	EnablePresetGeneralInfo  bool   `json:"enable_preset_general_info"`
+	EnablePresetReference    bool   `json:"enable_preset_reference"`
 }
 
 type UpdatePromptReq struct {

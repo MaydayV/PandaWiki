@@ -24,7 +24,7 @@ type Setting struct {
 }
 
 type SettingRepo interface {
-	CreateSetting(ctx context.Context, setting *Setting) error
+	CreateOrUpdateSetting(ctx context.Context, setting *Setting) error
 	GetSetting(ctx context.Context, kbID, key string) (*Setting, error)
 	UpdateSetting(ctx context.Context, kbID, key, value string) error
 }
