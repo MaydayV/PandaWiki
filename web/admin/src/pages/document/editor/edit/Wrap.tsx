@@ -1,11 +1,7 @@
 import { uploadFile } from '@/api';
 import Emoji from '@/components/Emoji';
 import { BUSINESS_VERSION_PERMISSION } from '@/constant/version';
-import {
-  postApiV1CreationTabComplete,
-  postApiV1FileUploadUrl,
-  putApiV1NodeDetail,
-} from '@/request';
+import { postApiV1CreationTabComplete, putApiV1NodeDetail } from '@/request';
 import { V1NodeDetailResp } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { completeIncompleteLinks } from '@/utils';
@@ -59,6 +55,7 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
     setNodeDetail,
     onSave,
     catalogData,
+    saveCurrentDocRef,
   } = useOutletContext<WrapContext>();
 
   const storageTocOpen = localStorage.getItem('toc-open');
@@ -99,6 +96,7 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
       putApiV1NodeDetail({
         id: defaultDetail.id!,
         kb_id: defaultDetail.kb_id!,
+        nav_id: defaultDetail.nav_id || '',
         summary: newSummary,
       }).then(() => {
         updateDetail({
@@ -117,6 +115,7 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
       putApiV1NodeDetail({
         id: defaultDetail.id!,
         kb_id: defaultDetail.kb_id!,
+        nav_id: defaultDetail.nav_id || '',
         name: newTitle,
       });
     }, 500),
@@ -145,22 +144,6 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
       },
       abortSignal,
     });
-    return Promise.resolve('/static-file/' + key);
-  };
-
-  const handleUploadByImgUrl = async (
-    url: string,
-    abortSignal?: AbortSignal,
-  ) => {
-    const { key } = await postApiV1FileUploadUrl(
-      {
-        kb_id: defaultDetail.kb_id!,
-        url,
-      },
-      {
-        signal: abortSignal,
-      },
-    );
     return Promise.resolve('/static-file/' + key);
   };
 
@@ -221,7 +204,6 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
     },
     onError: handleError,
     onUpload: handleUpload,
-    onUploadImgUrl: handleUploadByImgUrl,
     onUpdate: handleUpdate,
     onTocUpdate: handleTocUpdate,
     onAiWritingGetSuggestion: handleAiWritingGetSuggestion,
@@ -229,8 +211,21 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
 
   const exportFile = (value: string, type: string) => {
     if (!value) return;
-    const content = completeIncompleteLinks(value);
-    const blob = new Blob([content], { type: `text/${type}` });
+    const completed = completeIncompleteLinks(value);
+    let content = completed;
+    let mimeType = `text/${type}`;
+    if (type === 'html') {
+      mimeType = 'text/html;charset=utf-8';
+      const safeTitle = (nodeDetail?.name || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+      content = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8" />\n<title>${safeTitle}</title>\n</head>\n<body>\n${completed}\n</body>\n</html>`;
+    } else if (type === 'md') {
+      mimeType = 'text/markdown;charset=utf-8';
+    }
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -353,6 +348,7 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
               putApiV1NodeDetail({
                 id: defaultDetail.id!,
                 kb_id: defaultDetail.kb_id!,
+                nav_id: defaultDetail.nav_id || '',
                 emoji: value,
               }).then(() => {
                 updateDetail({
@@ -670,6 +666,36 @@ const Wrap = ({ detail: defaultDetail }: WrapProps) => {
       if (editorRef) editorRef.editor.destroy();
     };
   }, []);
+
+  useEffect(() => {
+    saveCurrentDocRef.current = async () => {
+      if (editorRef?.editor) {
+        let content = nodeDetail?.content || '';
+        if (!isMarkdown) {
+          content = editorRef.getContent();
+          updateDetail({ content });
+        }
+        await onSave(content);
+        initialStateRef.current = {
+          content: content,
+          summary: summary,
+          emoji: nodeDetail?.meta?.emoji || '',
+        };
+        setIsEditing(false);
+      }
+    };
+    return () => {
+      saveCurrentDocRef.current = null;
+    };
+  }, [
+    editorRef,
+    isMarkdown,
+    nodeDetail?.content,
+    nodeDetail?.meta?.emoji,
+    onSave,
+    summary,
+    saveCurrentDocRef,
+  ]);
 
   useEffect(() => {
     if (id !== defaultDetail.id) {

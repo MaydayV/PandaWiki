@@ -2,6 +2,15 @@ type SSECallback<T> = (data: T) => void;
 type SSEErrorCallback = (error: Error) => void;
 type SSECompleteCallback = () => void;
 
+export class SSEHttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'SSEHttpError';
+    this.status = status;
+  }
+}
+
 interface SSEClientOptions {
   url: string;
   headers?: Record<string, string>;
@@ -63,7 +72,13 @@ class SSEClient<T> {
       .then(async response => {
         if (!response.ok) {
           clearTimeout(timeoutId);
-          throw new Error(`HTTP error! status: ${response.status}`);
+          let errorMessage = `HTTP error! status: ${response.status}`;
+          try {
+            const body = await response.json();
+            if (body?.message) errorMessage = body.message;
+            else if (body?.error) errorMessage = body.error;
+          } catch {}
+          throw new SSEHttpError(response.status, errorMessage);
         }
         if (!response.body) {
           clearTimeout(timeoutId);

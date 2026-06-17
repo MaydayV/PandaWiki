@@ -33,6 +33,10 @@ export function getProjection<T>(
 
   const overItemIndex = items.findIndex(({ id }) => id === overId);
   const activeItemIndex = items.findIndex(({ id }) => id === activeId);
+  // 当拖拽的元素不在当前树中（例如外部 DndContext 中的其它拖拽源）时，直接返回 null，避免后续访问 undefined
+  if (overItemIndex === -1 || activeItemIndex === -1) {
+    return null;
+  }
   const activeItem = items[activeItemIndex];
   if (keepGhostInPlace) {
     let parent: FlattenedItem<T> | null | undefined = items[overItemIndex];

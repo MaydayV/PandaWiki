@@ -267,7 +267,7 @@ func (c *Client) GetDepartmentList() (*DepartmentListRsp, error) {
 	}
 
 	if departmentListRsp.Errcode != 0 {
-		return nil, fmt.Errorf("DingTalk API error: errcode=%d", departmentListRsp.Errcode)
+		return nil, fmt.Errorf("DingTalk API error: errcode=%d errmsg=%s", departmentListRsp.Errcode, departmentListRsp.Errmsg)
 	}
 
 	return &departmentListRsp, nil
@@ -344,7 +344,7 @@ func (c *Client) GetUserList(deptID int) (*GetUserListResp, error) {
 	}
 
 	if getUserListResp.Errcode != 0 {
-		return nil, fmt.Errorf("DingTalk API error: errcode=%d", getUserListResp.Errcode)
+		return nil, fmt.Errorf("DingTalk GetUserList error: errcode=%d errcode=%s", getUserListResp.Errcode, getUserListResp.Errmsg)
 	}
 
 	return &getUserListResp, nil

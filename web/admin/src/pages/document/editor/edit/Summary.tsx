@@ -1,12 +1,14 @@
+import { putApiV1NodeDetail, V1NodeDetailResp } from '@/request';
 import {
-  postApiV1NodeSummary,
-  putApiV1NodeDetail,
-  V1NodeDetailResp,
-} from '@/request';
+  createNodeSummaryStream,
+  subscribeNodeSummaryStream,
+  type StreamSummaryEvent,
+} from '@/request/nodeStream';
 import { useAppSelector } from '@/store';
+import SSEClient from '@/utils/fetch';
 import { message, Modal } from '@ctzhian/ui';
 import { Button, CircularProgress, Stack, TextField } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { WrapContext } from '..';
 import { IconDJzhinengzhaiyao } from '@panda-wiki/icons';
@@ -21,10 +23,13 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
   const { kb_id } = useAppSelector(state => state.config);
   const { nodeDetail } = useOutletContext<WrapContext>();
   const [summary, setSummary] = useState(nodeDetail?.meta?.summary || '');
-  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [edit, setEdit] = useState(false);
+  const sseClientRef = useRef<SSEClient<StreamSummaryEvent> | null>(null);
 
   const handleClose = () => {
+    sseClientRef.current?.unsubscribe();
     setEdit(false);
     setSummary('');
     onClose();
@@ -32,16 +37,32 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
 
   const createSummary = () => {
     if (!nodeDetail) return;
-    setLoading(true);
-    postApiV1NodeSummary({ kb_id, ids: [nodeDetail.id!] })
-      .then(res => {
-        // @ts-expect-error 类型错误
-        setSummary(res.summary);
-        setEdit(true);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    setGenerating(true);
+    setSummary('');
+    setEdit(true);
+    sseClientRef.current?.unsubscribe();
+    sseClientRef.current = createNodeSummaryStream({
+      onComplete: () => setGenerating(false),
+      onError: error => {
+        setGenerating(false);
+        message.error(error.message || '生成摘要失败');
+      },
+    });
+    subscribeNodeSummaryStream(
+      sseClientRef.current,
+      { kb_id, ids: [nodeDetail.id!] },
+      event => {
+        if (event.type === 'data') {
+          setSummary(prev => prev + (event.content || ''));
+          return;
+        }
+        if (event.type === 'error') {
+          setGenerating(false);
+          message.error(event.content || event.error || '生成摘要失败');
+          sseClientRef.current?.unsubscribe();
+        }
+      },
+    );
   };
 
   useEffect(() => {
@@ -50,6 +71,12 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
     }
   }, [open, nodeDetail]);
 
+  useEffect(() => {
+    return () => {
+      sseClientRef.current?.unsubscribe();
+    };
+  }, []);
+
   return (
     <Modal
       open={open}
@@ -57,27 +84,38 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
       title='智能摘要'
       okText='保存'
       okButtonProps={{
-        disabled: loading || !edit,
+        loading: saving,
+        disabled: generating || saving || !edit,
       }}
       onOk={() => {
         if (!nodeDetail) return;
+        setSaving(true);
         updateDetail({
           meta: {
             ...nodeDetail?.meta,
             summary,
           },
         });
-        putApiV1NodeDetail({ id: nodeDetail.id!, kb_id, summary }).then(() => {
-          message.success('保存成功');
-        });
-        handleClose();
+        putApiV1NodeDetail({
+          id: nodeDetail.id!,
+          kb_id,
+          nav_id: nodeDetail.nav_id || '',
+          summary,
+        })
+          .then(() => {
+            message.success('保存成功');
+            handleClose();
+          })
+          .finally(() => {
+            setSaving(false);
+          });
       }}
     >
       <Stack gap={2}>
         <TextField
           autoFocus
           multiline
-          disabled={loading}
+          disabled={generating || saving}
           rows={10}
           fullWidth
           value={summary}
@@ -91,9 +129,9 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
           fullWidth
           variant='outlined'
           onClick={createSummary}
-          disabled={loading}
+          disabled={generating || saving}
           startIcon={
-            loading ? (
+            generating ? (
               <CircularProgress size={16} />
             ) : (
               <IconDJzhinengzhaiyao sx={{ fontSize: 16 }} />

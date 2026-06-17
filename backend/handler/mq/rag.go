@@ -157,7 +157,7 @@ func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg t
 			h.logger.Error("update node summary failed", log.Error(err))
 			return nil
 		}
-		if node.Status == domain.NodeStatusReleased {
+		if node.Status == domain.NodeStatusPublished {
 			if err := h.nodeRepo.UpdateNodeStatus(ctx, request.KBID, request.NodeID, domain.NodeStatusDraft); err != nil {
 				h.logger.Error("update node status failed", log.Error(err))
 				return nil

@@ -7,7 +7,7 @@ import { useURLSearchParams } from '@/hooks';
 import { getApiV1Conversation } from '@/request/Conversation';
 import { DomainConversationListItem } from '@/request/types';
 import { useAppSelector } from '@/store';
-import { Ellipsis, Icon, Table } from '@ctzhian/ui';
+import { Ellipsis, Table } from '@ctzhian/ui';
 import { ColumnType } from '@ctzhian/ui/dist/Table';
 import { Box, Stack } from '@mui/material';
 import dayjs from 'dayjs';
@@ -141,7 +141,6 @@ const Conversation = () => {
   }, [conversion_id]);
 
   useEffect(() => {
-    console.log(page, pageSize, subject, remoteIp, kb_id);
     if (kb_id) getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, subject, remoteIp, kb_id]);

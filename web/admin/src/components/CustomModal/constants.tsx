@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import {
-  IconMuluwendang,
+  IconMulushu,
   IconJichuwendang,
   IconJianyiwendang,
   IconChangjianwenti,
@@ -14,8 +14,12 @@ import {
   IconKehupingjia,
   IconJiugongge,
   IconLianjiezu1,
+  IconWenjianjia1,
 } from '@panda-wiki/icons';
-import { DomainRecommendNodeListResp } from '@/request/types';
+import {
+  DomainRecommendNodeListResp,
+  GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp,
+} from '@/request/types';
 
 export const DEFAULT_DATA = {
   text: {
@@ -97,8 +101,14 @@ export const DEFAULT_DATA = {
     nodes: [] as DomainRecommendNodeListResp[],
   },
   dir_doc: {
-    title: '文档目录卡片',
+    title: '文件夹卡片',
     nodes: [] as DomainRecommendNodeListResp[],
+  },
+  nav_doc: {
+    title: '目录卡片',
+    nodes: [] as (GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp & {
+      id: string;
+    })[],
   },
   simple_doc: {
     title: '简易文档卡片',
@@ -161,10 +171,20 @@ export const COMPONENTS_MAP = {
   },
   dir_doc: {
     name: 'dir_doc',
-    title: '文档目录卡片',
-    icon: IconMuluwendang,
+    title: '文件夹卡片',
+    icon: IconWenjianjia1,
     component: lazy(() => import('@panda-wiki/ui/dirDoc')),
     config: lazy(() => import('./components/config/DirDocConfig')),
+    fixed: false,
+    disabled: false,
+    hidden: false,
+  },
+  nav_doc: {
+    name: 'nav_doc',
+    title: '目录卡片',
+    icon: IconMulushu,
+    component: lazy(() => import('@panda-wiki/ui/navDoc')),
+    config: lazy(() => import('./components/config/NavDocConfig')),
     fixed: false,
     disabled: false,
     hidden: false,
@@ -304,6 +324,7 @@ export const TYPE_TO_CONFIG_LABEL = {
   banner: 'banner_config',
   basic_doc: 'basic_doc_config',
   dir_doc: 'dir_doc_config',
+  nav_doc: 'nav_doc_config',
   simple_doc: 'simple_doc_config',
   carousel: 'carousel_config',
   faq: 'faq_config',

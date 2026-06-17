@@ -1,4 +1,4 @@
-package wechatservice
+package wechat_service
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package wechatservice
+package wechat_service
 
 import (
 	"context"
@@ -19,6 +19,7 @@ type WechatServiceConfig struct {
 	logger          *log.Logger
 	containKeywords []string
 	equalKeywords   []string
+	logoUrl         string
 	// db
 	WeRepo *pg.WechatRepository
 }

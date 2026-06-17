@@ -31,7 +31,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useAppSelector } from '@/store';
 import { BUSINESS_VERSION_PERMISSION } from '@/constant/version';
 import { VersionCanUse } from '@/components/VersionMask';
-import { SettingCardItem, FormItem } from './Common';
+import { SettingCardItem, FormItem, SecretTextField } from './Common';
 
 interface CardAuthProps {
   kb: DomainKnowledgeBaseDetail;
@@ -297,7 +297,7 @@ const CardAuth = ({ kb, refresh }: CardAuthProps) => {
               required: 'Client Secret 不能为空',
             }}
             render={({ field }) => (
-              <TextField
+              <SecretTextField
                 {...field}
                 fullWidth
                 placeholder='请输入'
@@ -409,7 +409,7 @@ const CardAuth = ({ kb, refresh }: CardAuthProps) => {
               required: 'Client Secret 不能为空',
             }}
             render={({ field }) => (
-              <TextField
+              <SecretTextField
                 {...field}
                 fullWidth
                 placeholder='请输入'
@@ -663,7 +663,7 @@ const CardAuth = ({ kb, refresh }: CardAuthProps) => {
           }}
           name='password'
           render={({ field }) => (
-            <TextField
+            <SecretTextField
               {...field}
               fullWidth
               placeholder='请输入'
@@ -729,7 +729,7 @@ const CardAuth = ({ kb, refresh }: CardAuthProps) => {
             control={control}
             name='bind_password'
             render={({ field }) => (
-              <TextField
+              <SecretTextField
                 {...field}
                 fullWidth
                 placeholder='请输入'
@@ -959,7 +959,7 @@ const CardAuth = ({ kb, refresh }: CardAuthProps) => {
                       },
                     }}
                     render={({ field }) => (
-                      <TextField
+                      <SecretTextField
                         {...field}
                         fullWidth
                         onChange={e => {

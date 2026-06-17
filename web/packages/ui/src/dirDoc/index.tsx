@@ -6,11 +6,8 @@ import {
   StyledTopicBox,
   StyledTopicTitle,
   StyledEllipsis,
-  StyledTopicInner,
-  StyledTopicContainer,
 } from '../component/styledCommon';
 import { IconWenjianjia, IconWenjian } from '@panda-wiki/icons';
-import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import {
   useFadeInText,
   useCardFadeInAnimation,
@@ -63,6 +60,10 @@ const StyledDirDocItemTitle = styled('h3')(({ theme }) => ({
   fontSize: 20,
   fontWeight: 700,
   width: '100%',
+  cursor: 'pointer',
+  '&:hover': {
+    color: theme.palette.primary.main,
+  },
 }));
 
 const StyledDirDocItemFiles = styled('div')(({ theme }) => ({
@@ -103,7 +104,11 @@ const DirDocItem: React.FC<{
   return (
     <Grid size={size} key={index}>
       <StyledDirDocItem ref={cardRef as React.Ref<HTMLDivElement>}>
-        <StyledDirDocItemTitle>
+        <StyledDirDocItemTitle
+          onClick={() => {
+            window.open(`${basePath}/node/${item.id}`, '_blank');
+          }}
+        >
           {item.emoji ? (
             <Box>{item.emoji}</Box>
           ) : (

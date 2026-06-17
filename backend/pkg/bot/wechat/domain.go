@@ -12,6 +12,7 @@ import (
 
 type WechatConfig struct {
 	Ctx            context.Context
+	logger         *log.Logger
 	CorpID         string
 	Token          string
 	EncodingAESKey string
@@ -20,7 +21,6 @@ type WechatConfig struct {
 	AccessToken    string
 	TokenExpire    time.Time
 	AgentID        string
-	logger         *log.Logger
 	// db
 	WeRepo *pg.WechatRepository
 }

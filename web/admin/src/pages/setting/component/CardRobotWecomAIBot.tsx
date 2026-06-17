@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 
 const CardRobotWecomAIBot = ({
   kb,
@@ -137,7 +137,7 @@ const CardRobotWecomAIBot = ({
                 required: 'Suite Token',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -160,7 +160,7 @@ const CardRobotWecomAIBot = ({
                 required: 'Suite Encoding Aes Key',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''

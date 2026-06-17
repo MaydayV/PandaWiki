@@ -1,9 +1,48 @@
 import Card from '@/components/Card';
 import { ConstsLicenseEdition } from '@/request/types';
 import InfoIcon from '@mui/icons-material/Info';
-import { Button, Stack, styled, SxProps, Tooltip } from '@mui/material';
-import { createContext, useContext } from 'react';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import {
+  Button,
+  IconButton,
+  InputAdornment,
+  Stack,
+  styled,
+  SxProps,
+  TextField,
+  TextFieldProps,
+  Tooltip,
+} from '@mui/material';
+import { createContext, useContext, useState } from 'react';
 import VersionMask from '@/components/VersionMask';
+
+export const SecretTextField = (props: TextFieldProps) => {
+  const [show, setShow] = useState(false);
+  return (
+    <TextField
+      {...props}
+      type={show ? 'text' : 'password'}
+      slotProps={{
+        ...props.slotProps,
+        input: {
+          ...((props.slotProps?.input ?? {}) as Record<string, unknown>),
+          endAdornment: (
+            <InputAdornment position='end'>
+              <IconButton
+                onClick={() => setShow(prev => !prev)}
+                edge='end'
+                size='small'
+              >
+                {show ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        },
+      }}
+    />
+  );
+};
 
 const StyledForm = styled('form')<{ gap?: number | string }>(
   ({ theme, gap = 2 }) => ({

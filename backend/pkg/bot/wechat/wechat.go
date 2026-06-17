@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"time"
@@ -22,16 +23,16 @@ import (
 
 const wechatMessageMaxBytes = 2000
 
-func NewWechatConfig(ctx context.Context, CorpID, Token, EncodingAESKey string, kbid string, secret string, agentID string, logger *log.Logger) (*WechatConfig, error) {
+func NewWechatAppConfig(ctx context.Context, logger *log.Logger, kbId, CorpID, Token, EncodingAESKey, secret, agentID string) (*WechatConfig, error) {
 	return &WechatConfig{
 		Ctx:            ctx,
+		logger:         logger,
+		kbID:           kbId,
 		CorpID:         CorpID,
 		Token:          Token,
 		EncodingAESKey: EncodingAESKey,
-		kbID:           kbid,
 		Secret:         secret,
 		AgentID:        agentID,
-		logger:         logger,
 	}, nil
 }
 
@@ -52,20 +53,20 @@ func (cfg *WechatConfig) VerifyUrlWechatAPP(signature, timestamp, nonce, echostr
 	return decryptEchoStr, nil
 }
 
-func (cfg *WechatConfig) Wechat(msg ReceivedMessage, getQA bot.GetQAFun, userinfo *UserInfo, useTextResponse bool, weChatAppAdvancedSetting *domain.WeChatAppAdvancedSetting) error {
+func (cfg *WechatConfig) Wechat(msg ReceivedMessage, getQA bot.GetQAFun, userinfo *UserInfo, useTextResponse bool, disclaimerContent string) error {
 
 	token, err := cfg.GetAccessToken()
 	if err != nil {
 		return err
 	}
 	if useTextResponse {
-		err = cfg.ProcessTextMessage(msg, getQA, token, userinfo, weChatAppAdvancedSetting.DisclaimerContent)
+		err = cfg.ProcessTextMessage(msg, getQA, token, userinfo, disclaimerContent)
 		if err != nil {
 			cfg.logger.Error("send to ai failed!", log.Error(err))
 			return err
 		}
 	} else {
-		if err := cfg.ProcessUrlMessage(msg, getQA, token, userinfo); err != nil {
+		if err := cfg.ProcessUrlMessage(msg, getQA, token, userinfo, disclaimerContent); err != nil {
 			cfg.logger.Error("send to ai failed!", log.Error(err))
 			return err
 		}
@@ -75,7 +76,7 @@ func (cfg *WechatConfig) Wechat(msg ReceivedMessage, getQA bot.GetQAFun, userinf
 	return nil
 }
 
-func (cfg *WechatConfig) ProcessUrlMessage(msg ReceivedMessage, GetQA bot.GetQAFun, token string, userinfo *UserInfo) error {
+func (cfg *WechatConfig) ProcessUrlMessage(msg ReceivedMessage, GetQA bot.GetQAFun, token string, userinfo *UserInfo, disclaimerContent string) error {
 	// 1. get ai channel
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -113,7 +114,7 @@ func (cfg *WechatConfig) ProcessUrlMessage(msg ReceivedMessage, GetQA bot.GetQAF
 	}
 
 	//3.send url to user
-	Errcode, Errmsg, err := cfg.SendURLToUser(msg.FromUserName, msg.Content, token, conversationID, baseUrl)
+	Errcode, Errmsg, err := cfg.SendURLToUser(msg.FromUserName, msg.Content, token, conversationID, baseUrl, disclaimerContent)
 	if err != nil {
 		return err
 	}
@@ -172,14 +173,19 @@ func (cfg *WechatConfig) ProcessTextMessage(msg ReceivedMessage, GetQA bot.GetQA
 }
 
 // SendResponseToUser
-func (cfg *WechatConfig) SendURLToUser(touser, question, token, conversationID, baseUrl string) (int, string, error) {
+func (cfg *WechatConfig) SendURLToUser(touser, question, token, conversationID, baseUrl, disclaimerContent string) (int, string, error) {
+	description := ""
+	if disclaimerContent != "" {
+		description = fmt.Sprintf("<div class = \"highlight\">%s</div>", html.EscapeString(disclaimerContent))
+	}
+
 	msgData := map[string]interface{}{
 		"touser":  touser,
 		"msgtype": "textcard",
 		"agentid": cfg.AgentID,
 		"textcard": map[string]interface{}{
 			"title":       question,
-			"description": "<div class = \"highlight\">本回答由 PandaWiki 基于 AI 生成，仅供参考。</div>",
+			"description": description,
 			"url":         fmt.Sprintf("%s/h5-chat?id=%s&source_type=%s", baseUrl, conversationID, consts.SourceTypeWechatBot),
 		},
 	}

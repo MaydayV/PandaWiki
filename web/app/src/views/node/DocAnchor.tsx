@@ -1,6 +1,12 @@
 'use client';
 
-import useScroll from '@/utils/useScroll';
+import {
+  DOC_ANCHOR_WIDTH,
+  NAV_BAR_HEIGHT,
+  BASE_SCROLL_OFFSET,
+} from '@/constant';
+import useScroll from '@/hooks/useScroll';
+import { useStore } from '@/provider';
 import { TocItem, TocList } from '@ctzhian/tiptap';
 import { Box, Stack } from '@mui/material';
 import { useEffect, useMemo, useRef } from 'react';
@@ -20,13 +26,25 @@ const HeadingSx = [
 ];
 
 const DocAnchor = ({ headings }: DocAnchorProps) => {
+  const { navList = [] } = useStore();
+  const hasNavBar = navList.length > 1;
+  const offset = hasNavBar
+    ? BASE_SCROLL_OFFSET + NAV_BAR_HEIGHT
+    : BASE_SCROLL_OFFSET;
+
   const { activeHeading, scrollToElement } = useScroll(
     headings,
     'scroll-container',
+    offset,
   );
   const activeId = activeHeading?.id;
   const listRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
+
+  const stickyTop = hasNavBar ? 160 : 160 - NAV_BAR_HEIGHT;
+  const listMaxHeight = hasNavBar
+    ? `calc(100vh - 164px - ${NAV_BAR_HEIGHT}px)`
+    : 'calc(100vh - 164px)';
 
   const levels = Array.from(
     new Set(headings?.map(it => it.level).sort((a, b) => a - b)),
@@ -144,11 +162,10 @@ const DocAnchor = ({ headings }: DocAnchorProps) => {
   ) => {
     e.preventDefault();
     if (scrollToElement) {
-      scrollToElement(heading.id, 80);
+      scrollToElement(heading.id, offset);
     } else {
       const element = document.getElementById(heading.id);
       if (element) {
-        const offset = 80;
         const elementPosition = element.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - offset;
         window.scrollTo({
@@ -167,16 +184,16 @@ const DocAnchor = ({ headings }: DocAnchorProps) => {
       sx={{
         position: 'sticky',
         zIndex: 5,
-        top: 114,
+        top: stickyTop,
         flexShrink: 0,
-        width: 240,
+        width: DOC_ANCHOR_WIDTH,
       }}
     >
       {headings.length > 0 && (
         <Stack
           gap={'8px'}
           sx={{
-            maxHeight: 'calc(100vh - 164px)',
+            maxHeight: listMaxHeight,
             overflowY: 'auto',
             overflowX: 'hidden',
             fontSize: 14,

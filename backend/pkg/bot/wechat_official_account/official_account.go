@@ -3,9 +3,10 @@ package wechat_official_account
 import (
 	"context"
 
-	"github.com/chaitin/panda-wiki/pkg/bot"
-	"github.com/chaitin/panda-wiki/pkg/bot/wechatservice"
 	"github.com/silenceper/wechat/v2/officialaccount/user"
+
+	"github.com/chaitin/panda-wiki/pkg/bot"
+	"github.com/chaitin/panda-wiki/pkg/bot/wechat_service"
 
 	"github.com/chaitin/panda-wiki/domain"
 )
@@ -26,7 +27,7 @@ func Wechat(ctx context.Context, GetQA bot.GetQAFun, userinfo *user.Info, conten
 	for v := range wccontent {
 		response += v
 	}
-	response = wechatservice.MarkdowntoText(response)
+	response = wechat_service.MarkdowntoText(response)
 
 	return response, nil
 }

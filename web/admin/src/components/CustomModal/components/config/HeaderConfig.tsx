@@ -2,7 +2,7 @@ import { AppDetail, HeaderSetting } from '@/api';
 import DragBtn from '../basicComponents/DragBtn';
 import UploadFile from '@/components/UploadFile';
 import { Stack, Box, TextField } from '@mui/material';
-import { Dispatch, SetStateAction, useEffect } from 'react';
+import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useAppSelector } from '@/store';
 import useDebounceAppPreviewData from '@/hooks/useDebounceAppPreviewData';
@@ -22,6 +22,7 @@ const HeaderConfig = ({ data, setIsEdit, isEdit }: CardWebHeaderProps) => {
     formState: { errors },
     watch,
     setValue,
+    reset,
   } = useForm<HeaderSetting | any>({
     defaultValues: {
       title: '',
@@ -37,6 +38,8 @@ const HeaderConfig = ({ data, setIsEdit, isEdit }: CardWebHeaderProps) => {
   const icon = watch('icon');
   const header_search_placeholder = watch('header_search_placeholder');
   const allow_theme_switching = watch('allow_theme_switching');
+  const isHydratingRef = useRef(true);
+  const latestAppPreviewDataRef = useRef(appPreviewData);
 
   const handleAddButton = () => {
     const id = Date.now().toString();
@@ -57,53 +60,61 @@ const HeaderConfig = ({ data, setIsEdit, isEdit }: CardWebHeaderProps) => {
   };
 
   useEffect(() => {
-    if (isEdit && appPreviewData) {
-      setValue('title', appPreviewData?.settings?.title || '');
-      setValue('icon', appPreviewData?.settings?.icon || '');
-      setValue('btns', appPreviewData.settings?.btns || []);
-      setValue(
-        'header_search_placeholder',
-        appPreviewData?.settings?.web_app_custom_style
-          ?.header_search_placeholder || '',
-      );
-      setValue(
-        'allow_theme_switching',
-        appPreviewData?.settings?.web_app_custom_style?.allow_theme_switching ||
-          false,
-      );
-    } else if (data?.settings) {
-      setValue('title', data.settings?.title || '');
-      setValue('icon', data.settings?.icon || '');
-      setValue('btns', data.settings?.btns || []);
-      setValue(
-        'header_search_placeholder',
-        data.settings.web_app_custom_style?.header_search_placeholder || '',
-      );
-      setValue(
-        'allow_theme_switching',
-        data.settings.web_app_custom_style?.allow_theme_switching || false,
-      );
-    }
-  }, [data]);
+    latestAppPreviewDataRef.current = appPreviewData;
+  }, [appPreviewData]);
 
   useEffect(() => {
-    if (!appPreviewData) return;
+    const source =
+      isEdit && appPreviewData ? appPreviewData.settings : data?.settings;
+    if (!source) return;
+
+    isHydratingRef.current = true;
+    reset({
+      title: source.title || '',
+      icon: source.icon || '',
+      btns: source.btns || [],
+      header_search_placeholder:
+        source.web_app_custom_style?.header_search_placeholder || '',
+      allow_theme_switching:
+        source.web_app_custom_style?.allow_theme_switching || false,
+    });
+  }, [appPreviewData?.id, data?.id, reset]);
+
+  useEffect(() => {
+    if (!latestAppPreviewDataRef.current) return;
+    if (isHydratingRef.current) {
+      isHydratingRef.current = false;
+      return;
+    }
+
+    const currentAppPreviewData = latestAppPreviewDataRef.current;
     const previewData = {
-      ...appPreviewData,
+      ...currentAppPreviewData,
       settings: {
-        ...appPreviewData.settings,
+        ...currentAppPreviewData.settings,
         title: title,
         btns: btns,
         icon: icon,
         web_app_custom_style: {
-          ...appPreviewData?.settings?.web_app_custom_style,
+          ...currentAppPreviewData.settings?.web_app_custom_style,
           header_search_placeholder: header_search_placeholder,
           allow_theme_switching: allow_theme_switching,
         },
       },
     };
     debouncedDispatch(previewData);
-  }, [title, btns, icon, header_search_placeholder, allow_theme_switching]);
+
+    return () => {
+      debouncedDispatch.cancel();
+    };
+  }, [
+    allow_theme_switching,
+    btns,
+    debouncedDispatch,
+    header_search_placeholder,
+    icon,
+    title,
+  ]);
 
   return (
     <>

@@ -26,4 +26,5 @@ var ProviderSet = wire.NewSet(
 	NewAPICallAuditRepo,
 	NewSystemSettingRepo,
 	NewMCPRepository,
+	NewNavRepository,
 )

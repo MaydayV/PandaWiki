@@ -2,7 +2,7 @@ import { AppDetail, HeaderSetting } from '@/api';
 import UploadFile from '@/components/UploadFile';
 import { Stack, Box, TextField, SvgIconProps } from '@mui/material';
 import DragBrand from '../basicComponents/DragBrand';
-import { Dispatch, SetStateAction, useEffect } from 'react';
+import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { setAppPreviewData } from '@/store/slices/config';
@@ -58,6 +58,7 @@ const FooterConfig = ({ data, setIsEdit, isEdit }: FooterConfigProps) => {
     formState: { errors },
     watch,
     setValue,
+    reset,
   } = useForm<HeaderSetting | any>({
     defaultValues: {
       corp_name: '',
@@ -83,80 +84,47 @@ const FooterConfig = ({ data, setIsEdit, isEdit }: FooterConfigProps) => {
     'social_media_accounts',
   );
   const footer_show_intro = watch('footer_show_intro');
+  const isHydratingRef = useRef(true);
+  const latestAppPreviewDataRef = useRef(appPreviewData);
 
   useEffect(() => {
-    if (isEdit && appPreviewData) {
-      setValue(
-        'corp_name',
-        appPreviewData.settings?.footer_settings?.corp_name || '',
-      );
-      setValue('icp', appPreviewData.settings?.footer_settings?.icp || '');
-      setValue(
-        'brand_name',
-        appPreviewData.settings?.footer_settings?.brand_name || '',
-      );
-      setValue(
-        'brand_desc',
-        appPreviewData.settings?.footer_settings?.brand_desc || '',
-      );
-      setValue(
-        'brand_logo',
-        appPreviewData.settings?.footer_settings?.brand_logo || '',
-      );
-      setValue(
-        'brand_groups',
-        appPreviewData.settings?.footer_settings?.brand_groups || [],
-      );
-      setValue(
-        'show_brand_info',
-        appPreviewData.settings?.web_app_custom_style?.show_brand_info || false,
-      );
-      setValue(
-        'social_media_accounts',
-        appPreviewData.settings?.web_app_custom_style?.social_media_accounts ||
-          [],
-      );
-      setValue(
-        'footer_show_intro',
-        appPreviewData.settings?.web_app_custom_style?.footer_show_intro ===
-          false
-          ? false
-          : true,
-      );
-    } else if (data?.settings) {
-      setValue('corp_name', data.settings?.footer_settings?.corp_name || '');
-      setValue('icp', data.settings?.footer_settings?.icp || '');
-      setValue('brand_name', data.settings?.footer_settings?.brand_name || '');
-      setValue('brand_desc', data.settings?.footer_settings?.brand_desc || '');
-      setValue('brand_logo', data.settings?.footer_settings?.brand_logo || '');
-      setValue(
-        'brand_groups',
-        data.settings?.footer_settings?.brand_groups || [],
-      );
-      setValue(
-        'show_brand_info',
-        data.settings.web_app_custom_style.show_brand_info || false,
-      );
-      setValue(
-        'social_media_accounts',
-        data.settings.web_app_custom_style.social_media_accounts || [],
-      );
-      setValue(
-        'footer_show_intro',
-        data.settings.web_app_custom_style.footer_show_intro === false
-          ? false
-          : true,
-      );
-    }
-  }, [data]);
+    latestAppPreviewDataRef.current = appPreviewData;
+  }, [appPreviewData]);
+
   useEffect(() => {
-    if (!appPreviewData) return;
+    const source =
+      isEdit && appPreviewData ? appPreviewData.settings : data?.settings;
+    if (!source) return;
+
+    isHydratingRef.current = true;
+    reset({
+      corp_name: source.footer_settings?.corp_name || '',
+      icp: source.footer_settings?.icp || '',
+      brand_name: source.footer_settings?.brand_name || '',
+      brand_desc: source.footer_settings?.brand_desc || '',
+      brand_logo: source.footer_settings?.brand_logo || '',
+      brand_groups: source.footer_settings?.brand_groups || [],
+      show_brand_info: source.web_app_custom_style?.show_brand_info || false,
+      social_media_accounts:
+        source.web_app_custom_style?.social_media_accounts || [],
+      footer_show_intro:
+        source.web_app_custom_style?.footer_show_intro === false ? false : true,
+    });
+  }, [appPreviewData?.id, data?.id, reset]);
+  useEffect(() => {
+    if (!latestAppPreviewDataRef.current) return;
+    if (isHydratingRef.current) {
+      isHydratingRef.current = false;
+      return;
+    }
+
+    const currentAppPreviewData = latestAppPreviewDataRef.current;
     const previewData = {
-      ...appPreviewData,
+      ...currentAppPreviewData,
       settings: {
-        ...appPreviewData.settings,
+        ...currentAppPreviewData.settings,
         footer_settings: {
-          ...appPreviewData?.settings?.footer_settings,
+          ...currentAppPreviewData.settings?.footer_settings,
           corp_name,
           icp,
           brand_name,
@@ -165,7 +133,7 @@ const FooterConfig = ({ data, setIsEdit, isEdit }: FooterConfigProps) => {
           brand_groups,
         },
         web_app_custom_style: {
-          ...appPreviewData?.settings?.web_app_custom_style,
+          ...currentAppPreviewData.settings?.web_app_custom_style,
           show_brand_info,
           social_media_accounts,
           footer_show_intro,
@@ -180,6 +148,7 @@ const FooterConfig = ({ data, setIsEdit, isEdit }: FooterConfigProps) => {
     brand_desc,
     brand_logo,
     brand_groups,
+    dispatch,
     show_brand_info,
     social_media_accounts,
     footer_show_intro,

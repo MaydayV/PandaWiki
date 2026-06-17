@@ -1,4 +1,4 @@
-package wechatservice
+package wechat_service
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/samber/lo"
@@ -22,17 +23,18 @@ import (
 	"github.com/chaitin/panda-wiki/pkg/bot"
 )
 
-func NewWechatServiceConfig(ctx context.Context, logger *log.Logger, CorpID, Token, EncodingAESKey string, kbid string, secret string, containKeywords, equalKeywords []string) (*WechatServiceConfig, error) {
+func NewWechatServiceConfig(ctx context.Context, logger *log.Logger, KbId, CorpID, Token, EncodingAESKey, secret, logo string, containKeywords, equalKeywords []string) (*WechatServiceConfig, error) {
 	return &WechatServiceConfig{
 		Ctx:             ctx,
+		kbID:            KbId,
 		CorpID:          CorpID,
 		Token:           Token,
 		EncodingAESKey:  EncodingAESKey,
-		kbID:            kbid,
 		Secret:          secret,
 		logger:          logger,
 		containKeywords: containKeywords,
 		equalKeywords:   equalKeywords,
+		logoUrl:         logo,
 	}, nil
 }
 
@@ -53,7 +55,8 @@ func (cfg *WechatServiceConfig) VerifyUrlWechatService(signature, timestamp, non
 	return decryptEchoStr, nil
 }
 
-func (cfg *WechatServiceConfig) Wechat(msg *WeixinUserAskMsg, getQA bot.GetQAFun) error {
+func (cfg *WechatServiceConfig) Wechat(msg *WeixinUserAskMsg, getQA bot.GetQAFun, disclaimerContent string) error {
+
 	// 获取accesstoken 方便给用户发送消息
 	token, err := cfg.GetAccessToken()
 	if err != nil {
@@ -68,7 +71,7 @@ func (cfg *WechatServiceConfig) Wechat(msg *WeixinUserAskMsg, getQA bot.GetQAFun
 		setCursor(msg.OpenKfId, msgRet.NextCursor)
 	}
 
-	err = cfg.Processmessage(msgRet, msg, getQA)
+	err = cfg.ProcessMessage(msgRet, getQA, disclaimerContent)
 	if err != nil {
 		cfg.logger.Error("send to ai failed!")
 		return err
@@ -76,8 +79,7 @@ func (cfg *WechatServiceConfig) Wechat(msg *WeixinUserAskMsg, getQA bot.GetQAFun
 	return nil
 }
 
-// forwardToBackend
-func (cfg *WechatServiceConfig) Processmessage(msgRet *MsgRet, Kfmsg *WeixinUserAskMsg, GetQA bot.GetQAFun) error {
+func (cfg *WechatServiceConfig) ProcessMessage(msgRet *MsgRet, GetQA bot.GetQAFun, disclaimerContent string) error {
 	// err message
 	cfg.logger.Info("get user message", log.Int("msgRet.Errcode", msgRet.Errcode), log.String("msg.Errmsg", msgRet.Errmsg))
 
@@ -181,24 +183,47 @@ func (cfg *WechatServiceConfig) Processmessage(msgRet *MsgRet, Kfmsg *WeixinUser
 		go cfg.SendQuestionToAI(conversationID, wccontent)
 	}
 	// 3. second send url to user
-	return cfg.SendResponseToKfUrl(userId, openkfId, conversationID, token, content, info.BaseUrl, info.ImagePath)
+	return cfg.SendResponseToKfUrl(userId, openkfId, conversationID, token, content, info.BaseUrl, info.ImagePath, disclaimerContent)
 }
 
-func (cfg *WechatServiceConfig) SendResponseToKfUrl(userId, openkfId, conversationID, token, question, baseUrl, image string) error {
+func (cfg *WechatServiceConfig) getImageID(token, image string) (string, error) {
+	const minioPrefix = "http://panda-wiki-minio:9000"
+
+	// 优先使用配置的logoUrl
+	if cfg.logoUrl != "" {
+		image = cfg.logoUrl
+	}
+
 	var imageId string
 	var err error
-	if image != "" && !strings.HasPrefix(image, "data:image/") { // user own image and not base64 image
-		imageId, err = GetUserImageID(token, fmt.Sprintf("%s%s", "http://panda-wiki-minio:9000", image))
-	} else if strings.HasPrefix(image, "data:image/") {
-		// 解析base64
+
+	switch {
+	case image == "":
+	case strings.HasPrefix(image, "data:image/"):
 		imageId, err = GetDefaultImageID(token, image)
+	default:
+		imageId, err = GetUserImageID(token, fmt.Sprintf("%s%s", minioPrefix, image))
 	}
-	// 如果获取失败或没有设置图片，使用默认图片
-	if err != nil || imageId == "" {
-		imageId, err = GetDefaultImageID(token, domain.DefaultPandaWikiIconB64)
-		if err != nil {
-			return err
-		}
+
+	if imageId != "" && err == nil {
+		return imageId, nil
+	}
+
+	if err != nil {
+		cfg.logger.Error("failed to get image ID, using default", log.Error(err))
+	}
+
+	return GetDefaultImageID(token, domain.DefaultPandaWikiIconB64)
+}
+
+func (cfg *WechatServiceConfig) SendResponseToKfUrl(userId, openkfId, conversationID, token, question, baseUrl, image, disclaimerContent string) error {
+	imageId, err := cfg.getImageID(token, image)
+	if err != nil {
+		return err
+	}
+
+	if utf8.RuneCountInString(question) > 35 {
+		question = string([]rune(question)[:35]) + "......"
 	}
 
 	reply := ReplyMsgUrl{
@@ -207,7 +232,7 @@ func (cfg *WechatServiceConfig) SendResponseToKfUrl(userId, openkfId, conversati
 		Msgtype:  "link",
 		Link: Link{
 			Url:          fmt.Sprintf("%s/h5-chat?id=%s", baseUrl, conversationID),
-			Desc:         "本回答由 PandaWiki 基于 AI 生成，仅供参考。",
+			Desc:         disclaimerContent,
 			Title:        question,
 			ThumbMediaID: imageId,
 		},
@@ -264,7 +289,7 @@ func (cfg *WechatServiceConfig) SendMessage(jsonData []byte, token string) error
 	}
 
 	if res.ErrCode != 0 {
-		cfg.logger.Error("发送给微信客服消息失败", log.Any("errcode", res.ErrCode))
+		cfg.logger.Error("发送给微信客服消息失败", log.Any("errcode", res.ErrCode), log.Any("errmsg", res.ErrMsg), log.Any("jsonData", string(jsonData)))
 		return err
 	}
 	// 发送消息给微信客服成功

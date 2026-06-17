@@ -4,7 +4,9 @@ import { CusTabs, message, Modal } from '@ctzhian/ui';
 import {
   getApiV1NodeRecommendNodes,
   getApiV1KnowledgeBaseDetail,
+  getApiV1NodeListGroupNav,
 } from '@/request';
+import { convertToTree } from '@/utils/drag';
 import {
   DomainAppDetailResp,
   DomainWebAppLandingConfigResp,
@@ -91,6 +93,34 @@ const CustomModal = ({
                 nodes: res,
               };
             });
+          } else if (
+            item.type === 'nav_doc' &&
+            item.nav_doc_config?.nav_ids &&
+            item.nav_doc_config.nav_ids.length > 0
+          ) {
+            return getApiV1NodeListGroupNav({
+              kb_id,
+              nav_ids: item.nav_doc_config.nav_ids,
+            }).then(res => {
+              const label =
+                TYPE_TO_CONFIG_LABEL[
+                  item.type as keyof typeof TYPE_TO_CONFIG_LABEL
+                ];
+              (web_app_landing_configs[index] as any)[label] = {
+                ...item[label],
+                nodes: res.map(item => {
+                  const navTreeList = item.list
+                    ? convertToTree(item.list || [])
+                    : [];
+                  return {
+                    ...item,
+                    id: item.nav_id,
+                    name: item.nav_name,
+                    list: navTreeList,
+                  };
+                }),
+              };
+            });
           }
         })
         .filter(Boolean),
@@ -108,7 +138,7 @@ const CustomModal = ({
           (con: any) => con.id === item.id,
         );
 
-        return {
+        const params: any = {
           type: config!.type,
           [TYPE_TO_CONFIG_LABEL[
             config!.type as keyof typeof TYPE_TO_CONFIG_LABEL
@@ -117,6 +147,15 @@ const CustomModal = ({
           },
           node_ids: (config!.nodes?.map(node => node?.id) || []) as string[],
         };
+
+        if (config!.type === 'nav_doc') {
+          params.nav_doc_config.nav_ids = ((
+            config!.nodes as Array<{ nav_id?: string }> | undefined
+          )?.map(node => node?.nav_id) || []) as string[];
+          delete params.node_ids;
+        }
+
+        return params;
       })
       .filter(Boolean);
 
@@ -126,7 +165,6 @@ const CustomModal = ({
         settings: {
           ...info.settings,
           ...appPreviewData.settings,
-          // @ts-expect-error ignore
           web_app_landing_configs: submitWebAppLandingConfigs,
         },
         kb_id,

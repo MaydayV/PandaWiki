@@ -2,29 +2,56 @@ type SSECallback<T> = (data: T) => void;
 type SSEErrorCallback = (error: Error) => void;
 type SSECompleteCallback = () => void;
 
+type ResponseMode = 'raw' | 'sse-json';
+
 interface SSEClientOptions {
   url: string;
   headers?: Record<string, string>;
   onOpen?: SSECompleteCallback;
   onError?: SSEErrorCallback;
   onComplete?: SSECompleteCallback;
+  responseMode?: ResponseMode;
 }
 
 class SSEClient<T> {
   private controller: AbortController;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null;
   private textDecoder: TextDecoder;
+  private buffer: string;
+  private completed: boolean;
 
   constructor(private options: SSEClientOptions) {
     this.controller = new AbortController();
     this.reader = null;
     this.textDecoder = new TextDecoder();
+    this.buffer = '';
+    this.completed = false;
+  }
+
+  private finish() {
+    if (!this.completed) {
+      this.completed = true;
+      this.options.onComplete?.();
+    }
+  }
+
+  private cleanup(triggerComplete: boolean) {
+    this.controller.abort();
+    if (this.reader) {
+      this.reader.cancel().catch(() => {});
+    }
+    this.reader = null;
+    if (triggerComplete) {
+      this.finish();
+    }
   }
 
   public subscribe(body: BodyInit, onMessage: SSECallback<T>) {
-    this.controller.abort();
+    this.cleanup(false);
     this.controller = new AbortController();
-    const { url, headers, onOpen, onError, onComplete } = this.options;
+    const { url, headers, onOpen, onError } = this.options;
+    this.buffer = '';
+    this.completed = false;
 
     const token = localStorage.getItem('panda_wiki_token') || '';
 
@@ -63,7 +90,7 @@ class SSEClient<T> {
           const { done, value } = await this.reader.read();
           if (done) {
             clearTimeout(timeoutId);
-            onComplete?.();
+            this.finish();
             break;
           }
 
@@ -84,16 +111,37 @@ class SSEClient<T> {
   ) {
     if (!chunk) return;
 
-    const buffer = this.textDecoder.decode(chunk, { stream: true });
-    callback(buffer as T);
+    const text = this.textDecoder.decode(chunk, { stream: true });
+    if (this.options.responseMode !== 'sse-json') {
+      callback(text as T);
+      return;
+    }
+
+    this.buffer += text;
+    const events = this.buffer.split('\n\n');
+    this.buffer = events.pop() || '';
+
+    for (const event of events) {
+      const dataLines = event
+        .split('\n')
+        .filter(line => line.startsWith('data:'))
+        .map(line => line.slice(5).trim());
+
+      if (dataLines.length === 0) {
+        continue;
+      }
+
+      const payload = dataLines.join('\n');
+      try {
+        callback(JSON.parse(payload) as T);
+      } catch {
+        throw new Error('Invalid SSE JSON payload');
+      }
+    }
   }
 
   public unsubscribe() {
-    this.controller.abort();
-    if (this.reader) {
-      this.reader.cancel().catch(() => {});
-    }
-    this.options.onComplete?.();
+    this.cleanup(true);
   }
 }
 

@@ -39,7 +39,17 @@ type DingTalkClient struct {
 		accessToken string
 		expireAt    time.Time
 	}
-	tokenMutex sync.RWMutex
+	tokenMutex       sync.RWMutex
+	messageMu        sync.Mutex
+	messageSeenAt    map[string]messageMark
+	messageTTL       time.Duration
+	nowFunc          func() time.Time
+	processMessageFn func(ctx context.Context, data *chatbot.BotCallbackDataModel) error
+}
+
+type messageMark struct {
+	seenAt   time.Time
+	inFlight bool
 }
 
 func NewDingTalkClient(ctx context.Context, cancel context.CancelFunc, clientId, clientSecret, templateID string, logger *log.Logger, getQA bot.GetQAFun) (*DingTalkClient, error) {
@@ -54,17 +64,22 @@ func NewDingTalkClient(ctx context.Context, cancel context.CancelFunc, clientId,
 	if err != nil {
 		return nil, fmt.Errorf("failed to create card client: %w", err)
 	}
-	return &DingTalkClient{
-		ctx:          ctx,
-		cancel:       cancel,
-		clientID:     clientId,
-		clientSecret: clientSecret,
-		templateID:   templateID,
-		oauthClient:  oauthClient,
-		cardClient:   cardClient,
-		getQA:        getQA,
-		logger:       logger,
-	}, nil
+	client := &DingTalkClient{
+		ctx:           ctx,
+		cancel:        cancel,
+		clientID:      clientId,
+		clientSecret:  clientSecret,
+		templateID:    templateID,
+		oauthClient:   oauthClient,
+		cardClient:    cardClient,
+		getQA:         getQA,
+		logger:        logger,
+		messageSeenAt: make(map[string]messageMark),
+		messageTTL:    5 * time.Minute,
+		nowFunc:       time.Now,
+	}
+	client.startMessageCleanup()
+	return client, nil
 }
 
 func (c *DingTalkClient) GetAccessToken() (string, error) {
@@ -191,6 +206,86 @@ func (c *DingTalkClient) CreateAndDeliverCard(ctx context.Context, trackID strin
 	return nil
 }
 
+func (c *DingTalkClient) startMessageCleanup() {
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-c.ctx.Done():
+				return
+			case <-ticker.C:
+				c.cleanupExpiredMessages()
+			}
+		}
+	}()
+}
+
+func (c *DingTalkClient) cleanupExpiredMessages() {
+	now := c.nowFunc()
+
+	c.messageMu.Lock()
+	defer c.messageMu.Unlock()
+
+	for msgID, mark := range c.messageSeenAt {
+		if mark.inFlight {
+			continue
+		}
+		if now.Sub(mark.seenAt) > c.messageTTL {
+			delete(c.messageSeenAt, msgID)
+		}
+	}
+}
+
+func (c *DingTalkClient) tryMarkMessage(msgID string) bool {
+	if strings.TrimSpace(msgID) == "" {
+		return true
+	}
+
+	now := c.nowFunc()
+
+	c.messageMu.Lock()
+	defer c.messageMu.Unlock()
+
+	if mark, ok := c.messageSeenAt[msgID]; ok {
+		if mark.inFlight || now.Sub(mark.seenAt) <= c.messageTTL {
+			return false
+		}
+	}
+
+	c.messageSeenAt[msgID] = messageMark{
+		seenAt:   now,
+		inFlight: true,
+	}
+	return true
+}
+
+func (c *DingTalkClient) markMessageCompleted(msgID string) {
+	if strings.TrimSpace(msgID) == "" {
+		return
+	}
+
+	c.messageMu.Lock()
+	defer c.messageMu.Unlock()
+
+	c.messageSeenAt[msgID] = messageMark{
+		seenAt:   c.nowFunc(),
+		inFlight: false,
+	}
+}
+
+func (c *DingTalkClient) clearMessageMark(msgID string) {
+	if strings.TrimSpace(msgID) == "" {
+		return
+	}
+
+	c.messageMu.Lock()
+	defer c.messageMu.Unlock()
+
+	delete(c.messageSeenAt, msgID)
+}
+
 func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *chatbot.BotCallbackDataModel) ([]byte, error) {
 	select {
 	case <-c.ctx.Done():
@@ -199,6 +294,40 @@ func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *cha
 	default:
 	}
 
+	if !c.tryMarkMessage(data.MsgId) {
+		c.logger.Info("ignore duplicate dingtalk message", log.String("msg_id", data.MsgId))
+		return []byte(""), nil
+	}
+
+	processor := c.processMessageFn
+	if processor == nil {
+		processor = c.processMessage
+	}
+
+	payload := *data
+	go c.processMessageAsync(c.ctx, &payload, processor)
+
+	return []byte(""), nil
+}
+
+func (c *DingTalkClient) processMessageAsync(ctx context.Context, data *chatbot.BotCallbackDataModel, processor func(context.Context, *chatbot.BotCallbackDataModel) error) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.clearMessageMark(data.MsgId)
+			c.logger.Error("process dingtalk message panicked", log.String("msg_id", data.MsgId), log.Any("panic", r))
+		}
+	}()
+
+	if err := processor(ctx, data); err != nil {
+		c.clearMessageMark(data.MsgId)
+		c.logger.Error("process dingtalk message failed", log.String("msg_id", data.MsgId), log.Error(err))
+		return
+	}
+
+	c.markMessageCompleted(data.MsgId)
+}
+
+func (c *DingTalkClient) processMessage(ctx context.Context, data *chatbot.BotCallbackDataModel) error {
 	question := data.Text.Content
 	question = strings.TrimSpace(question)
 	trackID := uuid.New().String()
@@ -207,14 +336,14 @@ func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *cha
 	// create and deliver card
 	if err := c.CreateAndDeliverCard(ctx, trackID, data); err != nil {
 		c.logger.Error("CreateAndDeliverCard", log.Error(err))
-		return nil, err
+		return err
 	}
 
 	initialContent := fmt.Sprintf("**%s**\n\n%s", question, "稍等，让我想一想……")
 
 	if err := c.UpdateAIStreamCard(trackID, initialContent, false); err != nil {
 		c.logger.Error("UpdateInteractiveCard", log.Error(err))
-		return nil, nil
+		return err
 	}
 	// 初始化 默认为空
 	convInfo := &domain.ConversationInfo{
@@ -242,10 +371,11 @@ func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *cha
 	contentCh, err := c.getQA(ctx, question, *convInfo, "")
 	if err != nil {
 		c.logger.Error("dingtalk client failed to get answer", log.Error(err))
-		if err := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); err != nil {
-			c.logger.Error("UpdateInteractiveCard in contentCh failed", log.Error(err))
+		if updateErr := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); updateErr != nil {
+			c.logger.Error("UpdateInteractiveCard in contentCh failed", log.Error(updateErr))
+			return fmt.Errorf("get answer failed: %w; update error card failed: %w", err, updateErr)
 		}
-		return nil, nil
+		return nil
 	}
 
 	updateTicker := time.NewTicker(1500 * time.Millisecond)
@@ -259,11 +389,12 @@ func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *cha
 			if !ok {
 				if err := c.UpdateAIStreamCard(trackID, fullContent, true); err != nil {
 					c.logger.Error("UpdateInteractiveCard in contentCh", log.Error(err))
-					if err := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); err != nil {
-						c.logger.Error("UpdateInteractiveCard in contentCh failed", log.Error(err))
+					if updateErr := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); updateErr != nil {
+						c.logger.Error("UpdateInteractiveCard in contentCh failed", log.Error(updateErr))
+						return fmt.Errorf("final update card failed: %w; fallback update failed: %w", err, updateErr)
 					}
 				}
-				return []byte(""), nil
+				return nil
 			}
 			fullContent += content
 		case <-updateTicker.C:
@@ -272,10 +403,11 @@ func (c *DingTalkClient) OnChatBotMessageReceived(ctx context.Context, data *cha
 			}
 			if err := c.UpdateAIStreamCard(trackID, fullContent, false); err != nil {
 				c.logger.Error("UpdateInteractiveCard in ticker", log.Error(err))
-				if err := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); err != nil {
-					c.logger.Error("UpdateInteractiveCard in ticker failed", log.Error(err))
+				if updateErr := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); updateErr != nil {
+					c.logger.Error("UpdateInteractiveCard in ticker failed", log.Error(updateErr))
+					return fmt.Errorf("stream update card failed: %w; fallback update failed: %w", err, updateErr)
 				}
-				return []byte(""), nil
+				return nil
 			}
 		}
 	}

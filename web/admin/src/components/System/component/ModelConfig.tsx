@@ -1,7 +1,6 @@
 import ErrorJSON from '@/assets/json/error.json';
 import Card from '@/components/Card';
 import { ModelProvider } from '@/constant/enums';
-import { AddModelForm } from '@ctzhian/modelkit';
 import {
   postApiV1ModelSwitchMode,
   putApiV1Model,
@@ -88,7 +87,6 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
     } = props;
 
     const [autoConfigMode, setAutoConfigMode] = useState(false);
-    const [modelModalLoading, setModelModalLoading] = useState(false);
     const [hasAutoSwitched, setHasAutoSwitched] = useState(false);
     const [tempMode, setTempMode] = useState<'auto' | 'manual'>('manual');
     const [savedMode, setSavedMode] = useState<'auto' | 'manual'>('manual');
@@ -134,82 +132,6 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
       }
     };
 
-    const onModelModalOk = async (value: AddModelForm) => {
-      setModelModalLoading(true);
-      const res = await onCheckModel(value).finally(() => {
-        setModelModalLoading(false);
-      });
-      if (!res) {
-        return;
-      }
-      const currentModelData = {
-        provider: value.provider,
-        model: value.model_name,
-        api_key: value.api_key,
-        api_header: value.api_header,
-        base_url: value.base_url,
-        api_version: value.api_version,
-        type: value.model_type,
-      };
-
-      switch (addType) {
-        case 'chat':
-          cacheModelData.current['chat'] = value;
-          setModelData({
-            ...modelData,
-            chat: {
-              ...currentModelData,
-              id: chatModelData?.id,
-            },
-          });
-          break;
-        case 'embedding':
-          cacheModelData.current['embedding'] = value;
-          setModelData({
-            ...modelData,
-            embedding: {
-              ...currentModelData,
-              id: embeddingModelData?.id,
-            },
-          });
-          break;
-        case 'rerank':
-          cacheModelData.current['rerank'] = value;
-          setModelData({
-            ...modelData,
-            rerank: {
-              ...currentModelData,
-              id: rerankModelData?.id,
-            },
-          });
-          break;
-        case 'analysis':
-          cacheModelData.current['analysis'] = value;
-          setModelData({
-            ...modelData,
-            analysis: {
-              ...currentModelData,
-              id: analysisModelData?.id,
-            },
-          });
-          break;
-        case 'analysis-vl':
-          cacheModelData.current['analysis-vl'] = value;
-          setModelData({
-            ...modelData,
-            'analysis-vl': {
-              ...currentModelData,
-              id: analysisVLModelData?.id,
-            },
-          });
-          break;
-      }
-
-      setAddOpen(false);
-      // 标记配置已变更
-      setHasConfigChanged(true);
-    };
-
     const getProcessedUrl = (
       baseUrl: string,
       provider: keyof typeof ModelProvider,
@@ -232,115 +154,6 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
       };
 
       return forceUseOriginalHost() ? baseUrl : `${baseUrl}/v1`;
-    };
-
-    const onCheckModel = async (value: AddModelForm) => {
-      let header = '';
-      if (value.api_header_key && value.api_header_value) {
-        header = value.api_header_key + '=' + value.api_header_value;
-      }
-      return modelService
-        .checkModel({
-          model_type: value.model_type,
-          model_name: value.model_name,
-          api_key: value.api_key,
-          // @ts-expect-error 忽略类型错误
-          base_url: getProcessedUrl(value.base_url, value.provider),
-          api_version: value.api_version,
-
-          provider: value.provider,
-          api_header: value.api_header || header,
-          param: {
-            context_window: value.context_window_size,
-            max_tokens: value.max_output_tokens,
-            r1_enabled: value.enable_r1_params,
-            support_images: value.support_image,
-            support_computer_use: value.support_compute,
-            support_prompt_cache: value.support_prompt_caching,
-            temperature: value.temperature,
-          },
-        })
-        .then(res => {
-          if (res.error) {
-            message.error(value.model_name + ' 检查模型失败');
-            return Promise.reject(res.error);
-          }
-          return value;
-        });
-    };
-
-    const onSubmitModelConfig = (value: AddModelForm, id: string = '') => {
-      let header = '';
-      if (value.api_header_key && value.api_header_value) {
-        header = value.api_header_key + '=' + value.api_header_value;
-      }
-      if (id) {
-        return modelService
-          .updateModel({
-            api_key: value.api_key,
-            model_type: value.model_type,
-            // @ts-expect-error 忽略类型错误
-            base_url: getProcessedUrl(value.base_url, value.provider),
-            model_name: value.model_name,
-            api_header: value.api_header || header,
-            api_version: value.api_version,
-            id: id,
-            provider: value.provider as Exclude<typeof value.provider, 'Other'>,
-            show_name: value.show_name,
-            // 添加高级设置字段到 param 对象中
-            param: {
-              context_window: value.context_window_size,
-              max_tokens: value.max_output_tokens,
-              r1_enabled: value.enable_r1_params,
-              support_images: value.support_image,
-              support_computer_use: value.support_compute,
-              support_prompt_cache: value.support_prompt_caching,
-              temperature: value.temperature,
-            },
-          })
-          .then(res => {
-            if (res.error) {
-              message.error(value.model_name + ' 修改模型失败');
-            } else {
-              message.success(value.model_name + ' 修改成功');
-            }
-          })
-          .catch(res => {
-            message.error(value.model_name + ' 修改模型失败');
-          });
-      } else {
-        return modelService
-          .createModel({
-            model_type: value.model_type,
-            api_key: value.api_key,
-            // @ts-expect-error 忽略类型错误
-            base_url: getProcessedUrl(value.base_url, value.provider),
-            model_name: value.model_name,
-            api_header: value.api_header || header,
-            provider: value.provider as Exclude<typeof value.provider, 'Other'>,
-            show_name: value.show_name,
-            // 添加高级设置字段到 param 对象中
-            param: {
-              context_window: value.context_window_size,
-              max_tokens: value.max_output_tokens,
-              r1_enabled: value.enable_r1_params,
-              support_images: value.support_image,
-              support_computer_use: value.support_compute,
-              support_prompt_cache: value.support_prompt_caching,
-              temperature: value.temperature,
-            },
-          })
-          .then(res => {
-            if (res.error) {
-              message.error(value.model_name + ' 添加模型失败');
-            } else {
-              message.success(value.model_name + ' 添加成功');
-            }
-          })
-          .catch(res => {
-            message.error(value.model_name + ' 添加模型失败');
-          });
-      }
     };
 
     // 组件挂载时,获取当前配置
@@ -471,14 +284,6 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
     const performSave = async () => {
       setIsSaving(true);
       const modelConfigList = Object.keys(cacheModelData.current);
-      if (modelConfigList.length > 0) {
-        await Promise.all(
-          modelConfigList.map(async modelType => {
-            const model = cacheModelData.current[modelType];
-            return onSubmitModelConfig(model, modelData[modelType].id);
-          }),
-        );
-      }
 
       try {
         const requestData: {
@@ -1707,8 +1512,6 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             <ModelModal
               open={addOpen}
               model_type={addType}
-              onOk={onModelModalOk}
-              loading={modelModalLoading}
               data={
                 addType === 'chat'
                   ? modelModalChatData
@@ -1725,7 +1528,10 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
               onClose={() => {
                 setAddOpen(false);
               }}
-              refresh={() => {}}
+              refresh={async () => {
+                setAddOpen(false);
+                await getModelList();
+              }}
               modelService={modelService}
               language='zh-CN'
               messageComponent={message}

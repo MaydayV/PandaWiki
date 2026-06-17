@@ -9,7 +9,7 @@ import {
 import { message } from '@ctzhian/ui';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 import {
   DomainKnowledgeBaseDetail,
   DomainAppDetailResp,
@@ -150,7 +150,7 @@ const CardRobotFeishu = ({ kb }: { kb: DomainKnowledgeBaseDetail }) => {
                 required: 'App Secret',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder='> 飞书开放平台 > 凭证与基础信息 > 应用凭证 > App Secret'

@@ -8,7 +8,7 @@ import {
   TextField,
   Stack,
 } from '@mui/material';
-import { SettingCardItem, FormItem } from './Common';
+import { SettingCardItem, FormItem, SecretTextField } from './Common';
 import ShowText from '@/components/ShowText';
 import { Controller, useForm } from 'react-hook-form';
 import { useMemo, useState, useEffect } from 'react';
@@ -247,7 +247,7 @@ const CardMCP = ({ kb }: CardMCPProps) => {
                   name='token'
                   rules={{ required: '访问口令不能为空' }}
                   render={({ field }) => (
-                    <TextField
+                    <SecretTextField
                       {...field}
                       fullWidth
                       placeholder='访问口令'

@@ -39,8 +39,6 @@ const handleFooterProps = (setting: any) => {
 const handleFaqProps = (config: any = {}) => {
   return {
     title: config.title || '链接组',
-    bgColor: config.bg_color || '#ffffff',
-    titleColor: config.title_color || '#000000',
     items:
       config.list?.map((item: any) => ({
         question: item.question,
@@ -52,8 +50,7 @@ const handleFaqProps = (config: any = {}) => {
 const handleBasicDocProps = (config: any = {}) => {
   return {
     title: config.title || '文档摘要卡片',
-    bgColor: config.bg_color || '#ffffff',
-    titleColor: config.title_color || '#00000',
+
     items:
       config.nodes?.map((item: any) => ({
         ...item,
@@ -64,9 +61,7 @@ const handleBasicDocProps = (config: any = {}) => {
 
 const handleDirDocProps = (config: any = {}) => {
   return {
-    title: config.title || '文档目录卡片',
-    bgColor: config.bg_color || '#3248F2',
-    titleColor: config.title_color || '#ffffff',
+    title: config.title || '文件夹卡片',
     items:
       config.nodes?.map((item: any) => ({
         ...item,
@@ -77,11 +72,16 @@ const handleDirDocProps = (config: any = {}) => {
   };
 };
 
+const handleNavDocProps = (config: any = {}) => {
+  return {
+    title: config.title || '目录卡片',
+    items: config.nodes || [],
+  };
+};
+
 const handleSimpleDocProps = (config: any = {}) => {
   return {
     title: config.title || '简易文档卡片',
-    bgColor: config?.bg_color || '#ffffff',
-    titleColor: config.title_color || '#000000',
     items:
       config.nodes?.map((item: any) => ({
         ...item,
@@ -226,6 +226,8 @@ export const handleComponentProps = (
         return handleDirDocProps(config);
       case 'simple_doc':
         return handleSimpleDocProps(config);
+      case 'nav_doc':
+        return handleNavDocProps(config);
       case 'carousel':
         return handleCarouselProps(config);
       case 'banner':

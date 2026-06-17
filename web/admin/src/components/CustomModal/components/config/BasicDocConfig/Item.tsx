@@ -1,15 +1,26 @@
-import { postApiV1NodeSummary } from '@/request/Node';
+import {
+  createNodeSummaryStream,
+  subscribeNodeSummaryStream,
+  type StreamSummaryEvent,
+} from '@/request/nodeStream';
 import { DomainRecommendNodeListResp } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { Box, IconButton, Stack } from '@mui/material';
 import { Ellipsis, message } from '@ctzhian/ui';
-import { CSSProperties, forwardRef, HTMLAttributes, useState } from 'react';
+import {
+  CSSProperties,
+  forwardRef,
+  HTMLAttributes,
+  useRef,
+  useState,
+} from 'react';
 import {
   IconShanchu2,
   IconDrag,
   IconWenjianjia,
   IconWenjian,
 } from '@panda-wiki/icons';
+import SSEClient from '@/utils/fetch';
 
 export type ItemProps = HTMLAttributes<HTMLDivElement> & {
   item: DomainRecommendNodeListResp;
@@ -45,17 +56,35 @@ const Item = forwardRef<HTMLDivElement, ItemProps>(
       ...style,
     };
     const [loading, setLoading] = useState(false);
+    const sseClientRef = useRef<SSEClient<StreamSummaryEvent> | null>(null);
 
     const handleCreateSummary = () => {
       setLoading(true);
-      postApiV1NodeSummary({ ids: [item.id!], kb_id })
-        .then(() => {
-          message.success('生成摘要成功');
-          refresh?.();
-        })
-        .finally(() => {
+      sseClientRef.current?.unsubscribe();
+      sseClientRef.current = createNodeSummaryStream({
+        onComplete: () => setLoading(false),
+        onError: error => {
           setLoading(false);
-        });
+          message.error(error.message || '生成摘要失败');
+        },
+      });
+      subscribeNodeSummaryStream(
+        sseClientRef.current,
+        { ids: [item.id!], kb_id },
+        event => {
+          if (event.type === 'done') {
+            setLoading(false);
+            message.success('生成摘要成功');
+            refresh?.();
+            return;
+          }
+          if (event.type === 'error') {
+            setLoading(false);
+            message.error(event.content || event.error || '生成摘要失败');
+            sseClientRef.current?.unsubscribe();
+          }
+        },
+      );
     };
 
     return (

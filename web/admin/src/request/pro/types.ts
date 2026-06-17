@@ -164,8 +164,11 @@ export interface DomainPWResponse {
 export interface DomainPrompt {
   content?: string;
   enable_preset?: boolean;
+  /** 允许AI自动匹配用户提问的语言进行回复 */
   enable_preset_auto_language?: boolean;
+  /** 允许AI结合通用知识进行补充回答 */
   enable_preset_general_info?: boolean;
+  /** 在回答中显示引用来源 */
   enable_preset_reference?: boolean;
   summary_content?: string;
 }
@@ -348,6 +351,7 @@ export interface GithubComChaitinPandaWikiProApiAuthV1AuthSetReq {
 export interface GithubComChaitinPandaWikiProApiContributeV1ContributeAuditReq {
   id: string;
   kb_id: string;
+  nav_id: string;
   parent_id?: string;
   position?: number;
   status: "approved" | "rejected";

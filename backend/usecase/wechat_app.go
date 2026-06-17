@@ -52,9 +52,10 @@ func (u *WechatAppUsecase) Wechat(ctx context.Context, msg *wechat.ReceivedMessa
 	wc.WeRepo = u.weRepo
 
 	useTextResponse := domain.GetBaseEditionLimitation(ctx).AllowAdvancedBot && (weChatAppAdvancedSetting != nil && weChatAppAdvancedSetting.TextResponseEnable)
+	disclaimerContent := u.AppUsecase.GetWebAppCopyright(ctx, KbId)
 
 	// 发送消息给用户
-	err = wc.Wechat(*msg, getQA, userinfo, useTextResponse, weChatAppAdvancedSetting)
+	err = wc.Wechat(*msg, getQA, userinfo, useTextResponse, disclaimerContent)
 
 	if err != nil {
 		u.logger.Error("wc wechat failed", log.Error(err))
@@ -64,15 +65,15 @@ func (u *WechatAppUsecase) Wechat(ctx context.Context, msg *wechat.ReceivedMessa
 }
 
 func (u *WechatAppUsecase) NewWechatConfig(ctx context.Context, appInfo *domain.AppDetailResp, kbID string) (*wechat.WechatConfig, error) {
-	return wechat.NewWechatConfig(
+	return wechat.NewWechatAppConfig(
 		ctx,
+		u.logger,
+		kbID,
 		appInfo.Settings.WeChatAppCorpID,
 		appInfo.Settings.WeChatAppToken,
 		appInfo.Settings.WeChatAppEncodingAESKey,
-		kbID,
 		appInfo.Settings.WeChatAppSecret,
 		appInfo.Settings.WeChatAppAgentID,
-		u.logger,
 	)
 }
 

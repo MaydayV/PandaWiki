@@ -23,11 +23,16 @@ import {
   DomainResponse,
   DomainUpdateNodeReq,
   GetApiV1NodeDetailParams,
+  GetApiV1NodeListGroupNavParams,
   GetApiV1NodeListParams,
   GetApiV1NodeRecommendNodesParams,
+  GetApiV1NodeStatsParams,
+  GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp,
   V1NodeDetailResp,
+  V1NodeMoveNavReq,
   V1NodeRestudyReq,
   V1NodeRestudyResp,
+  V1NodeStatsResp,
 } from "./types";
 
 /**
@@ -209,6 +214,38 @@ export const getApiV1NodeList = (
   });
 
 /**
+ * @description Get unpublished or unstudied document list grouped by nav
+ *
+ * @tags node
+ * @name GetApiV1NodeListGroupNav
+ * @summary Get Node List Grouped by Nav
+ * @request GET:/api/v1/node/list/group/nav
+ * @secure
+ * @response `200` `(DomainPWResponse & {
+    data?: (GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp)[],
+
+})` OK
+ */
+
+export const getApiV1NodeListGroupNav = (
+  query: GetApiV1NodeListGroupNavParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<
+    DomainPWResponse & {
+      data?: GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp[];
+    }
+  >({
+    path: `/api/v1/node/list/group/nav`,
+    method: "GET",
+    query: query,
+    secure: true,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
  * @description Move Node
  *
  * @tags node
@@ -225,6 +262,31 @@ export const postApiV1NodeMove = (
 ) =>
   httpRequest<DomainResponse>({
     path: `/api/v1/node/move`,
+    method: "POST",
+    body: body,
+    secure: true,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
+ * @description Move node (and all its descendants if folder) to a different nav
+ *
+ * @tags node
+ * @name PostApiV1NodeMoveNav
+ * @summary Move Node to Nav
+ * @request POST:/api/v1/node/move/nav
+ * @secure
+ * @response `200` `DomainResponse` OK
+ */
+
+export const postApiV1NodeMoveNav = (
+  body: V1NodeMoveNavReq,
+  params: RequestParams = {},
+) =>
+  httpRequest<DomainResponse>({
+    path: `/api/v1/node/move/nav`,
     method: "POST",
     body: body,
     secure: true,
@@ -298,11 +360,43 @@ export const postApiV1NodeRestudy = (
   });
 
 /**
+ * @description Get Node Statistics
+ *
+ * @tags node
+ * @name GetApiV1NodeStats
+ * @summary Get Node Statistics
+ * @request GET:/api/v1/node/stats
+ * @secure
+ * @response `200` `(DomainPWResponse & {
+    data?: V1NodeStatsResp,
+
+})` OK
+ */
+
+export const getApiV1NodeStats = (
+  query: GetApiV1NodeStatsParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<
+    DomainPWResponse & {
+      data?: V1NodeStatsResp;
+    }
+  >({
+    path: `/api/v1/node/stats`,
+    method: "GET",
+    query: query,
+    secure: true,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+/**
  * @description Summary Node
  *
  * @tags node
  * @name PostApiV1NodeSummary
- * @summary Summary Node
+ * @summary Summary Node 异步后台生成
  * @request POST:/api/v1/node/summary
  * @secure
  * @response `200` `DomainResponse` OK
@@ -319,5 +413,29 @@ export const postApiV1NodeSummary = (
     secure: true,
     type: ContentType.Json,
     format: "json",
+    ...params,
+  });
+
+/**
+ * @description Stream Summary Node for single document
+ *
+ * @tags node
+ * @name PostApiV1NodeSummaryStream
+ * @summary Stream Summary Node
+ * @request POST:/api/v1/node/summary/stream
+ * @secure
+ * @response `200` `string` SSE stream
+ */
+
+export const postApiV1NodeSummaryStream = (
+  body: DomainNodeSummaryReq,
+  params: RequestParams = {},
+) =>
+  httpRequest<string>({
+    path: `/api/v1/node/summary/stream`,
+    method: "POST",
+    body: body,
+    secure: true,
+    type: ContentType.Json,
     ...params,
   });

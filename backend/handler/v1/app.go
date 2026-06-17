@@ -35,10 +35,10 @@ func NewAppHandler(e *echo.Echo, baseHandler *handler.BaseHandler, logger *log.L
 		config:              config,
 	}
 
-	group := e.Group("/api/v1/app", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
-	group.GET("/detail", h.GetAppDetail)
-	group.PUT("", h.UpdateApp)
-	group.DELETE("", h.DeleteApp)
+	group := e.Group("/api/v1/app", h.auth.Authorize)
+	group.GET("/detail", h.GetAppDetail, h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage))
+	group.PUT("", h.UpdateApp, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
+	group.DELETE("", h.DeleteApp, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 
 	return h
 }
@@ -72,6 +72,9 @@ func (h *AppHandler) GetAppDetail(c echo.Context) error {
 	app, err := h.usecase.GetAppDetailByKBIDAndAppType(ctx, kbID, domain.AppType(appTypeInt))
 	if err != nil {
 		return h.NewResponseWithError(c, "get app detail failed", err)
+	}
+	if authInfo := domain.GetAuthInfoFromCtx(ctx); authInfo != nil && authInfo.Permission == consts.UserKBPermissionDocManage {
+		app = h.usecase.SanitizeAppDetailForDocManage(app)
 	}
 	return h.NewResponseWithData(c, app)
 }

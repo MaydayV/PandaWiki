@@ -31,7 +31,7 @@ var ProviderSet = wire.NewSet(
 
 	NewRAGMQHandler,
 	NewRagDocUpdateHandler,
-	NewStatCronHandler,
+	NewCronHandler,
 
 	wire.Struct(new(MQHandlers), "*"),
 )

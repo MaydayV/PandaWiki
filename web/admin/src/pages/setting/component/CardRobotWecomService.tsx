@@ -19,7 +19,8 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
+import UploadFile from '@/components/UploadFile';
 import VersionMask from '@/components/VersionMask';
 import { PROFESSION_VERSION_PERMISSION } from '@/constant/version';
 
@@ -50,6 +51,7 @@ const CardRobotWecomService = ({
       wechat_service_corpid: '',
       wechat_service_contain_keywords: [] as string[],
       wechat_service_equal_keywords: [] as string[],
+      wechat_service_logo: '',
     },
   });
 
@@ -60,6 +62,7 @@ const CardRobotWecomService = ({
       reset({
         wechat_service_is_enabled:
           res.settings?.wechat_service_is_enabled ?? false,
+        wechat_service_logo: res.settings?.wechat_service_logo ?? '',
         wechat_service_secret: res.settings?.wechat_service_secret ?? '',
         wechat_service_token: res.settings?.wechat_service_token ?? '',
         wechat_service_encodingaeskey:
@@ -102,6 +105,7 @@ const CardRobotWecomService = ({
         kb_id,
         settings: {
           wechat_service_is_enabled: data.wechat_service_is_enabled,
+          wechat_service_logo: data.wechat_service_logo,
           wechat_service_secret: data.wechat_service_secret,
           wechat_service_token: data.wechat_service_token,
           wechat_service_encodingaeskey: data.wechat_service_encodingaeskey,
@@ -198,7 +202,7 @@ const CardRobotWecomService = ({
                 required: 'Corp Secret',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -220,7 +224,7 @@ const CardRobotWecomService = ({
                 required: 'Suite Token',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -242,7 +246,7 @@ const CardRobotWecomService = ({
                 required: 'Suite Encoding Aes Key',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -252,6 +256,25 @@ const CardRobotWecomService = ({
                   }}
                   error={!!errors.wechat_service_encodingaeskey}
                   helperText={errors.wechat_service_encodingaeskey?.message}
+                />
+              )}
+            />
+          </FormItem>
+          <FormItem label='卡片 logo'>
+            <Controller
+              control={control}
+              name='wechat_service_logo'
+              render={({ field }) => (
+                <UploadFile
+                  {...field}
+                  id='wechat_service_logo2'
+                  type='url'
+                  accept='image/jpeg,image/png'
+                  width={80}
+                  onChange={url => {
+                    field.onChange(url);
+                    setIsEdit(true);
+                  }}
                 />
               )}
             />

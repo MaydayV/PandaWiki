@@ -13,7 +13,7 @@ import {
   DomainAppDetailResp,
 } from '@/request/types';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 import { useAppSelector } from '@/store';
 
 const CardRobotDiscord = ({ kb }: { kb: DomainKnowledgeBaseDetail }) => {
@@ -117,7 +117,7 @@ const CardRobotDiscord = ({ kb }: { kb: DomainKnowledgeBaseDetail }) => {
               required: 'Token',
             }}
             render={({ field }) => (
-              <TextField
+              <SecretTextField
                 {...field}
                 fullWidth
                 placeholder='在 Discord 中创建机器人，并获取 Token'

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { CommonItem, StyledCommonWrapper } from '../../components/StyledCommon';
 import { TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
@@ -13,7 +13,6 @@ import AddRecommendContent from '@/pages/setting/component/AddRecommendContent';
 import { getApiV1NodeRecommendNodes } from '@/request/Node';
 import useDebounceAppPreviewData from '@/hooks/useDebounceAppPreviewData';
 import { DEFAULT_DATA } from '../../../constants';
-import ColorPickerField from '../../components/ColorPickerField';
 import { findConfigById, handleLandingConfigs } from '../../../utils';
 
 const DirDocConfig = ({ setIsEdit, id }: ConfigProps) => {
@@ -122,7 +121,7 @@ const DirDocConfig = ({ setIsEdit, id }: ConfigProps) => {
           )}
         />
       </CommonItem> */}
-      <CommonItem title='推荐目录' onAdd={() => setOpen(true)}>
+      <CommonItem title='推荐文件夹' onAdd={() => setOpen(true)}>
         {nodes.length === 0 ? (
           <Empty />
         ) : (

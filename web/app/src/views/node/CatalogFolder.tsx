@@ -11,14 +11,9 @@ import { useParams } from 'next/navigation';
 interface CatalogFolderProps {
   item: ITreeItem;
   depth?: number;
-  searchTerm?: string;
 }
 
-const CatalogFolder = ({
-  item,
-  depth = 1,
-  searchTerm = '',
-}: CatalogFolderProps) => {
+const CatalogFolder = ({ item, depth = 1 }: CatalogFolderProps) => {
   const theme = useTheme();
   const { themeMode = 'light', setTree } = useStore();
   const params = useParams() || {};
@@ -77,18 +72,18 @@ const CatalogFolder = ({
             direction='row'
             alignItems='center'
             justifyContent={'space-between'}
-            sx={{ flex: 1, pl: depth * 2, pr: 1 }}
+            sx={{ flex: 1, minWidth: 0, pl: depth * 2, pr: 1 }}
           >
             <Link
               href={`${basePath}/node/${item.id}`}
               prefetch={false}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 0, display: 'block' }}
             >
               <Stack
                 direction='row'
                 alignItems='center'
                 gap={1}
-                sx={{ flex: 1 }}
+                sx={{ flex: 1, minWidth: 0 }}
               >
                 {item.emoji ? (
                   <Box sx={{ flexShrink: 0, fontSize: 12 }}>{item.emoji}</Box>
@@ -106,14 +101,19 @@ const CatalogFolder = ({
             <IconButton
               size='small'
               sx={{
+                flexShrink: 0,
+                position: 'relative',
+                zIndex: 1,
                 '&:hover': {
                   color: 'primary.main',
                 },
               }}
-              onClick={() => {
+              onClick={e => {
+                e.stopPropagation();
                 if (item.type === 1) {
-                  item.expanded = !item.expanded;
-                  setTree?.(tree => [...(tree || [])]);
+                  setTree?.(tree =>
+                    (tree || []).map(node => toggleNodeExpanded(node, item.id)),
+                  );
                   return;
                 }
               }}
@@ -139,6 +139,17 @@ const CatalogFolder = ({
       )}
     </Stack>
   );
+};
+
+const toggleNodeExpanded = (node: ITreeItem, id: string): ITreeItem => {
+  if (node.id === id) {
+    return { ...node, expanded: !node.expanded };
+  }
+  if (!node.children?.length) return node;
+  return {
+    ...node,
+    children: node.children.map(child => toggleNodeExpanded(child, id)),
+  };
 };
 
 export default CatalogFolder;

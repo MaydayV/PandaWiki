@@ -18,7 +18,7 @@ import {
   DomainAppDetailResp,
 } from '@/request/types';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 import { useAppSelector } from '@/store';
 
 const AI_FEEDBACK_OPTIONS = ['内容不准确', '答非所问', '其他'];
@@ -250,7 +250,7 @@ const CardRobotWecom = ({
                 required: 'Secret',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -273,7 +273,7 @@ const CardRobotWecom = ({
                 required: 'Suite Token',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -296,7 +296,7 @@ const CardRobotWecom = ({
                 required: 'Suite Encoding Aes Key',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''

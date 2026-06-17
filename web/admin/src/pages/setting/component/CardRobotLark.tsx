@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 
 const CardRobotLark = ({
   kb,
@@ -163,7 +163,7 @@ const CardRobotLark = ({
                 required: 'App Secret',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -186,7 +186,7 @@ const CardRobotLark = ({
                 required: 'Verify Token',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -209,7 +209,7 @@ const CardRobotLark = ({
                 required: 'Encrypt Key',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''

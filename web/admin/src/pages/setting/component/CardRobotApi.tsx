@@ -13,7 +13,7 @@ import ShowText from '@/components/ShowText';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 import { DomainAppDetailResp } from '@/request/types';
 import { message } from '@ctzhian/ui';
 import { BUSINESS_VERSION_PERMISSION } from '@/constant/version';
@@ -150,7 +150,7 @@ const CardRobotApi = ({
                 required: 'API Token 不能为空',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   onChange={e => {

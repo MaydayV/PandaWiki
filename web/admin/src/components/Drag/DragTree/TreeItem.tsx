@@ -10,7 +10,12 @@ import { postApiV1Node, putApiV1NodeDetail } from '@/request/Node';
 import { ConstsNodeAccessPerm } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { AppContext, updateTree } from '@/utils/drag';
-import { handleMultiSelect, updateAllParentStatus } from '@/utils/tree';
+import {
+  handleMultiSelect,
+  handleParentControlledSelect,
+  hasSelectedDescendant,
+  updateAllParentStatus,
+} from '@/utils/tree';
 import { Ellipsis, message } from '@ctzhian/ui';
 import {
   Box,
@@ -95,7 +100,7 @@ const TreeItem = React.forwardRef<
   HTMLDivElement,
   TreeItemComponentProps<ITreeItem>
 >((props, ref) => {
-  const { kb_id: id } = useAppSelector(state => state.config);
+  const { kb_id: id, nav_id } = useAppSelector(state => state.config);
   const { item, collapsed } = props;
   const context = useContext(AppContext);
 
@@ -110,7 +115,9 @@ const TreeItem = React.forwardRef<
     supportSelect = false,
     menu,
     relativeSelect = true,
+    selectionModel = 'cascade-parent-sync',
     updateData,
+    refresh,
     disabled,
     scrollToItem,
   } = context;
@@ -119,6 +126,7 @@ const TreeItem = React.forwardRef<
   const [emoji, setEmoji] = useState(item.emoji);
   const isEditting = item.isEditting ?? false;
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
 
   const createItem = useCallback(
     (type: 1 | 2, contentType?: string) => {
@@ -180,8 +188,11 @@ const TreeItem = React.forwardRef<
 
   const handleSelectChange = useCallback(
     (id: string) => {
-      if (relativeSelect) {
+      if (relativeSelect && selectionModel === 'cascade-parent-sync') {
         const newSelected = handleMultiSelect(data, id, selected);
+        onSelectChange?.(newSelected || [], id);
+      } else if (relativeSelect && selectionModel === 'parent-controls-child') {
+        const newSelected = handleParentControlledSelect(data, id, selected);
         onSelectChange?.(newSelected || [], id);
       } else {
         const temp = [...selected];
@@ -195,11 +206,15 @@ const TreeItem = React.forwardRef<
         }
       }
     },
-    [onSelectChange, selected, data, relativeSelect],
+    [onSelectChange, selected, data, relativeSelect, selectionModel],
   );
 
   useEffect(() => {
-    if (relativeSelect && selected.length > 0) {
+    if (
+      relativeSelect &&
+      selectionModel === 'cascade-parent-sync' &&
+      selected.length > 0
+    ) {
       const temp = [...data];
       const selectedSet = new Set(selected);
       updateAllParentStatus(temp, selectedSet);
@@ -208,7 +223,7 @@ const TreeItem = React.forwardRef<
         onSelectChange?.(newSelected);
       }
     }
-  }, [selected, data, relativeSelect, onSelectChange]);
+  }, [selected, data, relativeSelect, onSelectChange, selectionModel]);
 
   useEffect(() => {
     setValue(item.name);
@@ -242,6 +257,13 @@ const TreeItem = React.forwardRef<
     }
     return null;
   }, [item.permissions]);
+
+  const isChecked = selectedSet.has(item.id);
+  const isIndeterminate =
+    selectionModel === 'parent-controls-child' &&
+    !isChecked &&
+    item.type === 1 &&
+    hasSelectedDescendant(item, selectedSet);
 
   return (
     <Box
@@ -280,7 +302,8 @@ const TreeItem = React.forwardRef<
               width: '35px',
               height: '35px',
             }}
-            checked={selected.includes(item.id)}
+            checked={isChecked}
+            indeterminate={isIndeterminate}
             onChange={e => {
               e.stopPropagation();
               handleSelectChange(item.id);
@@ -351,6 +374,10 @@ const TreeItem = React.forwardRef<
                         putApiV1NodeDetail({
                           id: item.id,
                           kb_id: id,
+                          nav_id:
+                            (item as { nav_id?: string }).nav_id ||
+                            nav_id ||
+                            '',
                           name: value,
                           emoji,
                         }).then(() => {
@@ -365,6 +392,7 @@ const TreeItem = React.forwardRef<
                             updated_at: dayjs().toString(),
                           });
                           updateData?.(temp);
+                          refresh?.();
                         });
                       } else {
                         if (value === '') {
@@ -375,6 +403,7 @@ const TreeItem = React.forwardRef<
                           name: value,
                           content: '',
                           kb_id: id,
+                          nav_id: nav_id || '',
                           parent_id: item.parentId,
                           type: item.type,
                           emoji,
@@ -395,6 +424,7 @@ const TreeItem = React.forwardRef<
                           }
                           updateTree(temp, item.id, newItem);
                           updateData?.(temp);
+                          refresh?.();
                           // 滚动到保存后的项
                           setTimeout(() => {
                             scrollToItem?.(res.id);
@@ -409,7 +439,6 @@ const TreeItem = React.forwardRef<
                     variant='outlined'
                     size='small'
                     onClick={e => {
-                      console.log('cancel');
                       e.stopPropagation();
                       if (!item.name) {
                         removeItem(item.id);
@@ -452,6 +481,10 @@ const TreeItem = React.forwardRef<
                           await putApiV1NodeDetail({
                             id: item.id,
                             kb_id: id,
+                            nav_id:
+                              (item as { nav_id?: string }).nav_id ||
+                              nav_id ||
+                              '',
                             emoji: value,
                           });
                           message.success('更新成功');
@@ -463,6 +496,7 @@ const TreeItem = React.forwardRef<
                             emoji: value,
                           });
                           updateData?.(temp);
+                          refresh?.();
                         } catch (error) {
                           message.error('更新失败');
                         }

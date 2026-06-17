@@ -15,7 +15,7 @@ import {
   DomainAppDetailResp,
 } from '@/request/types';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 import { useAppSelector } from '@/store';
 const CardRobotWechatOfficeAccount = ({
   kb,
@@ -168,7 +168,7 @@ const CardRobotWechatOfficeAccount = ({
                 required: 'App Secret',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -193,7 +193,7 @@ const CardRobotWechatOfficeAccount = ({
                 required: 'Token',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''
@@ -216,7 +216,7 @@ const CardRobotWechatOfficeAccount = ({
                 required: 'Suite Encoding Aes Key',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder=''

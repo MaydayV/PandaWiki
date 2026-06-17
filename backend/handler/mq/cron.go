@@ -14,13 +14,15 @@ import (
 type CronHandler struct {
 	logger      *log.Logger
 	statRepo    *pg.StatRepository
+	nodeRepo    *pg.NodeRepository
 	statUseCase *usecase.StatUseCase
 	nodeUseCase *usecase.NodeUsecase
 }
 
-func NewStatCronHandler(logger *log.Logger, statRepo *pg.StatRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
+func NewCronHandler(logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *pg.NodeRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
 	h := &CronHandler{
 		statRepo:    statRepo,
+		nodeRepo:    nodeRepo,
 		statUseCase: statUseCase,
 		nodeUseCase: nodeUseCase,
 		logger:      logger.WithModule("handler.mq.cron"),
@@ -59,6 +61,13 @@ func NewStatCronHandler(logger *log.Logger, statRepo *pg.StatRepository, statUse
 		return nil, err
 	}
 	h.logger.Info("add cron job", log.String("cron_id", "sync_rag_node_status"))
+
+	// 每天2点执行清理30天前的node_release_backup数据
+	if _, err := cron.AddFunc("0 2 * * *", h.CleanupOldNodeReleaseBackups); err != nil {
+		h.logger.Error("failed to add cron job for cleaning up old node release backups", log.Error(err))
+		return nil, err
+	}
+	h.logger.Info("add cron job", log.String("cron_id", "cleanup_old_node_release_backups"))
 
 	cron.Start()
 	h.logger.Info("start cron jobs")
@@ -112,4 +121,14 @@ func (h *CronHandler) SyncRagNodeStatus() {
 		return
 	}
 	h.logger.Info("sync rag node status successful")
+}
+
+func (h *CronHandler) CleanupOldNodeReleaseBackups() {
+	h.logger.Info("cleanup old node release backups start")
+	before := time.Now().AddDate(0, 0, -30)
+	if err := h.nodeRepo.DeleteOldNodeReleaseBackups(context.Background(), before); err != nil {
+		h.logger.Error("cleanup old node release backups failed", log.Error(err))
+		return
+	}
+	h.logger.Info("cleanup old node release backups successful")
 }

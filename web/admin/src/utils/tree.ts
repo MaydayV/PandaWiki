@@ -109,6 +109,44 @@ export const handleMultiSelect = (
   return Array.from(selectedSet);
 };
 
+export const handleParentControlledSelect = (
+  value: ITreeItem[],
+  id: string,
+  selected: string[],
+) => {
+  const node = getNodeById(value, id);
+  if (!node) return selected;
+
+  const selectedSet = new Set(selected);
+
+  if (node.type === 1) {
+    const childrenIds = getAllChildrenIds(node);
+    if (selectedSet.has(id)) {
+      childrenIds.forEach(childId => selectedSet.delete(childId));
+    } else {
+      childrenIds.forEach(childId => selectedSet.add(childId));
+    }
+  } else if (selectedSet.has(id)) {
+    selectedSet.delete(id);
+  } else {
+    selectedSet.add(id);
+  }
+
+  return Array.from(selectedSet);
+};
+
+export const hasSelectedDescendant = (
+  node: ITreeItem,
+  selectedIds: Set<string>,
+): boolean => {
+  if (!node.children?.length) return false;
+
+  return node.children.some(child => {
+    if (selectedIds.has(child.id)) return true;
+    return hasSelectedDescendant(child, selectedIds);
+  });
+};
+
 export const filterEmptyFolders = (data: ITreeItem[]): ITreeItem[] => {
   return data
     .map(item => {

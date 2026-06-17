@@ -7,6 +7,7 @@ import { filterEmptyFolders } from '@/utils/tree';
 import { message, Modal } from '@ctzhian/ui';
 import ErrorIcon from '@mui/icons-material/Error';
 import { Box, Stack } from '@mui/material';
+import { useState } from 'react';
 
 interface DocSummaryProps {
   open: boolean;
@@ -17,11 +18,26 @@ interface DocSummaryProps {
 }
 
 const DocSummary = ({ open, kb_id, onClose, data }: DocSummaryProps) => {
+  const [loading, setLoading] = useState(false);
+
   const submit = () => {
-    postApiV1NodeSummary({ kb_id, ids: data.map(it => it.id!) }).then(() => {
-      message.success('正在后台生成文档摘要');
-      onClose();
-    });
+    if (data.length === 0) {
+      message.warning('请选择文档');
+      return;
+    }
+    setLoading(true);
+    postApiV1NodeSummary({ kb_id, ids: data.map(it => it.id!) })
+      .then(() => {
+        message.success('正在后台生成文档摘要');
+        onClose();
+      })
+      .catch(error => {
+        setLoading(false);
+        message.error(error?.message || '生成摘要失败');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   if (!open) return <></>;
@@ -43,6 +59,7 @@ const DocSummary = ({ open, kb_id, onClose, data }: DocSummaryProps) => {
       onOk={submit}
       okButtonProps={{
         disabled: tree.length === 0,
+        loading,
       }}
     >
       <Card

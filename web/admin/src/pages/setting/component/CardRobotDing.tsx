@@ -13,7 +13,7 @@ import {
 import { message } from '@ctzhian/ui';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { FormItem, SettingCardItem } from './Common';
+import { FormItem, SettingCardItem, SecretTextField } from './Common';
 import { useAppSelector } from '@/store';
 
 const CardRobotDing = ({ kb }: { kb: DomainKnowledgeBaseDetail }) => {
@@ -151,7 +151,7 @@ const CardRobotDing = ({ kb }: { kb: DomainKnowledgeBaseDetail }) => {
                 required: 'Client Secret',
               }}
               render={({ field }) => (
-                <TextField
+                <SecretTextField
                   {...field}
                   fullWidth
                   placeholder='> 钉钉开发平台 > 钉钉应用 > 凭证与基础信息 > Client Secret'
