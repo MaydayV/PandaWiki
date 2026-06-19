@@ -6,6 +6,7 @@ import CardRobotDing from './CardRobotDing';
 import CardRobotDiscord from './CardRobotDiscord';
 import CardRobotFeishu from './CardRobotFeishu';
 import CardRobotLark from './CardRobotLark';
+import CardPush from './CardPush';
 import CardRobotWechatOfficeAccount from './CardRobotWechatOfficeAccount';
 import CardRobotWecom from './CardRobotWecom';
 import CardRobotWecomAIBot from './CardRobotWecomAIBot';
@@ -36,6 +37,7 @@ const CardRobot = ({
       <CardRobotFeishu kb={kb} />
       <CardRobotLark kb={kb} url={url} />
       <CardRobotDiscord kb={kb} />
+      <CardPush />
     </Box>
   );
 };

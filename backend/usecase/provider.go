@@ -17,6 +17,7 @@ var ProviderSet = wire.NewSet(
 	rag.ProviderSet,
 	s3.ProviderSet,
 
+	NewPushUsecase,
 	NewLLMUsecase,
 	NewNodeUsecase,
 	NewAppUsecase,

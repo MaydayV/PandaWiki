@@ -31,6 +31,7 @@ type AppUsecase struct {
 	kbRepo        *pg.KnowledgeBaseRepository
 	nodeUsecase   *NodeUsecase
 	chatUsecase   *ChatUsecase
+	pushUsecase   *PushUsecase
 	logger        *log.Logger
 	config        *config.Config
 	cache         *cache.Cache
@@ -53,12 +54,14 @@ func NewAppUsecase(
 	logger *log.Logger,
 	config *config.Config,
 	chatUsecase *ChatUsecase,
+	pushUsecase *PushUsecase,
 	cache *cache.Cache,
 ) *AppUsecase {
 	u := &AppUsecase{
 		repo:         repo,
 		nodeUsecase:  nodeUsecase,
 		chatUsecase:  chatUsecase,
+		pushUsecase:  pushUsecase,
 		authRepo:     authRepo,
 		nodeRepo:     nodeRepo,
 		kbRepo:       kbRepo,
@@ -325,6 +328,8 @@ func (u *AppUsecase) updateFeishuBot(app *domain.App) {
 	}()
 
 	u.feishuBots[app.ID] = feishuClient
+	// Feishu push uses webhook-based notifier (chat_id = webhook URL configured in KBUpdatePushChatIDs)
+	u.pushUsecase.RegisterNotifier(app.ID, feishu.NewFeishuWebhookNotifier())
 }
 
 func (u *AppUsecase) updateLarkBot(app *domain.App) {
@@ -416,6 +421,8 @@ func (u *AppUsecase) updateDingTalkBot(app *domain.App) {
 	}()
 
 	u.dingTalkBots[app.ID] = dingTalkClient
+	// DingTalk push uses webhook-based notifier (chat_id = webhook URL configured in KBUpdatePushChatIDs)
+	u.pushUsecase.RegisterNotifier(app.ID, dingtalk.NewDingTalkPushNotifier(u.logger))
 }
 
 func (u *AppUsecase) updateDisCordBot(app *domain.App) {

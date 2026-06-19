@@ -46,6 +46,7 @@ type UserInfo struct {
 	RealName   string      `json:"real_name"`
 	Email      string      `json:"email"`
 	Avatar     string      `json:"avatar"` // avatar
+	Mobile     string      `json:"mobile,omitempty"`
 }
 
 func (s *ConversationInfo) Scan(value any) error {

@@ -73,7 +73,9 @@ func createApp() (*App, error) {
 	ragRepository := mq2.NewRAGRepository(mqProducer)
 	userRepository := pg2.NewUserRepository(db, logger)
 	kbRepo := cache2.NewKBRepo(cacheCache)
-	knowledgeBaseUsecase, err := usecase.NewKnowledgeBaseUsecase(knowledgeBaseRepository, nodeRepository, ragRepository, userRepository, apiTokenRepo, ragService, kbRepo, logger, configConfig)
+	appRepository := pg2.NewAppRepository(db, logger)
+	pushUsecase := usecase.NewPushUsecase(appRepository, knowledgeBaseRepository, logger)
+	knowledgeBaseUsecase, err := usecase.NewKnowledgeBaseUsecase(knowledgeBaseRepository, nodeRepository, ragRepository, userRepository, apiTokenRepo, ragService, kbRepo, pushUsecase, logger, configConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,6 @@ func createApp() (*App, error) {
 	promptRepo := pg2.NewPromptRepo(db, logger)
 	llmUsecase := usecase.NewLLMUsecase(configConfig, ragService, conversationRepository, knowledgeBaseRepository, nodeRepository, modelRepository, promptRepo, logger)
 	knowledgeBaseHandler := v1.NewKnowledgeBaseHandler(baseHandler, echo, knowledgeBaseUsecase, llmUsecase, pg2.NewBlockWordRepo(db, logger), authMiddleware, logger)
-	appRepository := pg2.NewAppRepository(db, logger)
 	minioClient, err := s3.NewMinioClient(configConfig)
 	if err != nil {
 		return nil, err
@@ -112,7 +113,7 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appUsecase := usecase.NewAppUsecase(appRepository, authRepo, nodeRepository, knowledgeBaseRepository, nodeUsecase, logger, configConfig, chatUsecase, cacheCache)
+	appUsecase := usecase.NewAppUsecase(appRepository, authRepo, nodeRepository, knowledgeBaseRepository, nodeUsecase, logger, configConfig, chatUsecase, pushUsecase, cacheCache)
 	appHandler := v1.NewAppHandler(echo, baseHandler, logger, authMiddleware, appUsecase, modelUsecase, conversationUsecase, configConfig)
 	fileUsecase := usecase.NewFileUsecase(logger, minioClient, configConfig, systemSettingRepo)
 	fileHandler := v1.NewFileHandler(echo, baseHandler, logger, authMiddleware, minioClient, configConfig, fileUsecase)

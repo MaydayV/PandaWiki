@@ -87,6 +87,25 @@ func NewFeishuClient(ctx context.Context, cancel context.CancelFunc, clientID, c
 
 var cardDataTemplate = `{"schema":"2.0","header":{"title":{"content":"%s","tag":"plain_text"}},"config":{"streaming_mode":true,"summary":{"content":""}},"body":{"elements":[{"tag":"markdown","content":"%s","element_id":"markdown_1"}]}}`
 
+func (c *FeishuClient) sendTextMessage(ctx context.Context, receiveIdType string, receiveId string, text string) {
+	msgContent, _ := json.Marshal(map[string]string{"text": text})
+	resp, err := c.client.Im.Message.Create(ctx, larkim.NewCreateMessageReqBuilder().
+		ReceiveIdType(receiveIdType).
+		Body(larkim.NewCreateMessageReqBodyBuilder().
+			MsgType("text").
+			ReceiveId(receiveId).
+			Content(string(msgContent)).
+			Build()).
+		Build())
+	if err != nil {
+		c.logger.Error("failed to send fallback text message", log.Error(err))
+		return
+	}
+	if !resp.Success() {
+		c.logger.Error("failed to send fallback text message", log.Int("code", resp.Code), log.String("msg", resp.Msg))
+	}
+}
+
 func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, receiveId string, question string, additionalInfo string) {
 	// create card
 	cardData := fmt.Sprintf(cardDataTemplate, question, "稍等，让我想一想...")
@@ -132,7 +151,6 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 		c.logger.Error("failed to create message", log.Int("code", res.Code), log.String("msg", res.Msg), log.String("request_id", res.RequestId()))
 		return
 	}
-	// 打印日志
 	c.logger.Info("send QA card to user or group", log.String("receive_id_type", receiveIdType), log.String("receive_id", receiveId), log.String("question", question), log.String("additional_info(chat:user_openid/p2p:chat_id)", additionalInfo))
 
 	// start processing QA
@@ -141,47 +159,38 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 			From: domain.MessageFromPrivate, // 默认是私聊
 		},
 	}
+	var userOpenId string
 	if receiveIdType == "open_id" {
-		// 获取用户的信息，只需要获取p2p的对话的类型的用户信息 - p2p对话
-		userinfo, err := c.GetUserInfo(receiveId)
-		if err != nil {
-			c.logger.Error("get user info failed", log.Error(err))
-		} else {
-			if userinfo.UserId != nil {
-				convInfo.UserInfo.UserID = *userinfo.UserId
-			}
-			if userinfo.Name != nil {
-				convInfo.UserInfo.NickName = *userinfo.Name
-			}
-			if userinfo.Avatar != nil && userinfo.Avatar.AvatarOrigin != nil {
-				convInfo.UserInfo.Avatar = *userinfo.Avatar.AvatarOrigin
-			}
-			c.logger.Info("get user info success", log.Any("user_info", userinfo))
+		userOpenId = receiveId
+		convInfo.UserInfo.From = domain.MessageFromPrivate
+	} else {
+		userOpenId = additionalInfo
+		convInfo.UserInfo.From = domain.MessageFromGroup
+	}
+
+	userinfo, err := c.GetUserInfo(userOpenId)
+	if err != nil {
+		c.logger.Error("get user info failed", log.Error(err), log.String("open_id", userOpenId))
+	} else {
+		if userinfo.UserId != nil {
+			convInfo.UserInfo.UserID = *userinfo.UserId
 		}
-		convInfo.UserInfo.From = domain.MessageFromPrivate // 私聊
-	} else { // chat_id 中的userid
-		// 获取群聊的消息，用户如果是在群聊中@机器人，那么就获取的是群聊的消息
-		userinfo, err := c.GetUserInfo(additionalInfo)
-		if err != nil {
-			c.logger.Error("get chat info failed", log.Error(err))
-		} else {
-			if userinfo.UserId != nil {
-				convInfo.UserInfo.UserID = *userinfo.UserId
-			}
-			if userinfo.Name != nil {
-				convInfo.UserInfo.NickName = *userinfo.Name
-			}
-			if userinfo.Avatar != nil && userinfo.Avatar.AvatarOrigin != nil {
-				convInfo.UserInfo.Avatar = *userinfo.Avatar.AvatarOrigin
-			}
-			c.logger.Info("get chat user info success", log.Any("user_info", userinfo))
+		if userinfo.Name != nil {
+			convInfo.UserInfo.NickName = *userinfo.Name
 		}
-		convInfo.UserInfo.From = domain.MessageFromGroup // 群聊
+		if userinfo.Avatar != nil && userinfo.Avatar.AvatarOrigin != nil {
+			convInfo.UserInfo.Avatar = *userinfo.Avatar.AvatarOrigin
+		}
+		if userinfo.Mobile != nil {
+			convInfo.UserInfo.Mobile = *userinfo.Mobile
+		}
+		c.logger.Info("get user info success", log.Any("user_info", userinfo))
 	}
 
 	answerCh, err := c.getQA(ctx, question, convInfo, "")
 	if err != nil {
 		c.logger.Error("get QA failed", log.Error(err))
+		c.sendTextMessage(ctx, receiveIdType, receiveId, "出错了，请稍后再试")
 		return
 	}
 
@@ -190,7 +199,6 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 	for chunk := range answerCh {
 		seq += 1
 		answer += chunk
-		// 部分模型存在输出为空的情况导致飞书报错
 		if strings.TrimSpace(chunk) == "" {
 			continue
 		}
@@ -206,19 +214,49 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 			Build()
 		updateResp, err := c.client.Cardkit.V1.CardElement.Content(ctx, updateReq)
 		if err != nil {
-			c.logger.Error("failed to update card", log.Error(err))
-			return
+			c.logger.Error("failed to update card (will retry next chunk)", log.Error(err))
+			continue
 		}
 		if !updateResp.Success() {
-			c.logger.Error("failed to update card", log.String("request_id", updateResp.RequestId()), log.Any("code_error", updateResp.CodeError))
-			return
+			c.logger.Error("failed to update card (will retry next chunk)", log.String("request_id", updateResp.RequestId()), log.Any("code_error", updateResp.CodeError))
+			continue
 		}
 	}
-	c.logger.Info("start processing QA", log.String("message_id", *res.Data.MessageId))
+	// finalize card with full content
+	finalReq := larkcardkit.NewContentCardElementReqBuilder().
+		CardId(*resp.Data.CardId).
+		ElementId(`markdown_1`).
+		Body(larkcardkit.NewContentCardElementReqBodyBuilder().
+			Uuid(uuid.New().String()).
+			Content(answer).
+			Sequence(seq + 1).
+			Build()).
+		Build()
+	finalResp, err := c.client.Cardkit.V1.CardElement.Content(ctx, finalReq)
+	if err != nil {
+		c.logger.Error("failed to finalize card", log.Error(err))
+	} else if !finalResp.Success() {
+		c.logger.Error("failed to finalize card", log.String("request_id", finalResp.RequestId()), log.Any("code_error", finalResp.CodeError))
+	}
+	c.logger.Info("QA completed", log.String("message_id", *res.Data.MessageId))
 }
 
 type Message struct {
 	Text string `json:"text"`
+}
+
+// replaceMentions removes @_user_N placeholders from group chat messages.
+func (c *FeishuClient) replaceMentions(text string, mentions []*larkim.MentionEvent) string {
+	if len(mentions) == 0 {
+		return text
+	}
+	result := text
+	for _, mention := range mentions {
+		if mention.Key != nil && mention.Name != nil {
+			result = strings.ReplaceAll(result, *mention.Key, "@"+*mention.Name)
+		}
+	}
+	return result
 }
 
 func (c *FeishuClient) Start() error {
@@ -238,24 +276,30 @@ func (c *FeishuClient) Start() error {
 			if *event.Event.Message.MessageType != "text" {
 				return nil
 			}
-			switch *event.Event.Message.ChatType {
-			case "group":
-				var message Message
-				if err := json.Unmarshal([]byte(*event.Event.Message.Content), &message); err != nil {
-					c.logger.Error("failed to unmarshal message", log.Error(err))
-					return nil
-				}
-				c.sendQACard(ctx, "chat_id", *event.Event.Message.ChatId, message.Text, *event.Event.Sender.SenderId.OpenId)
-			case "p2p":
-				var message Message
-				if err := json.Unmarshal([]byte(*event.Event.Message.Content), &message); err != nil {
-					c.logger.Error("failed to unmarshal message", log.Error(err))
-					return nil
-				}
-				c.sendQACard(ctx, "open_id", *event.Event.Sender.SenderId.OpenId, message.Text, *event.Event.Message.ChatId)
-			default:
-				c.logger.Warn("unsupported chat type", log.String("chat_type", *event.Event.Message.ChatType))
+			var message Message
+			if err := json.Unmarshal([]byte(*event.Event.Message.Content), &message); err != nil {
+				c.logger.Error("failed to unmarshal message", log.Error(err))
+				return nil
 			}
+			questionText := c.replaceMentions(message.Text, event.Event.Message.Mentions)
+
+			// async processing with panic recovery
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						c.logger.Error("process feishu message panicked", log.String("msg_id", messageId), log.Any("panic", r))
+						c.msgMap.Delete(messageId)
+					}
+				}()
+				switch *event.Event.Message.ChatType {
+				case "group":
+					c.sendQACard(ctx, "chat_id", *event.Event.Message.ChatId, questionText, *event.Event.Sender.SenderId.OpenId)
+				case "p2p":
+					c.sendQACard(ctx, "open_id", *event.Event.Sender.SenderId.OpenId, questionText, *event.Event.Message.ChatId)
+				default:
+					c.logger.Warn("unsupported chat type", log.String("chat_type", *event.Event.Message.ChatType))
+				}
+			}()
 			return nil
 		})
 

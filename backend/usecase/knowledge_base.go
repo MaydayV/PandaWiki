@@ -29,11 +29,12 @@ type KnowledgeBaseUsecase struct {
 	tokenRepo *pg.APITokenRepo
 	rag       rag.RAGService
 	kbCache   *cache.KBRepo
+	push      *PushUsecase
 	logger    *log.Logger
 	config    *config.Config
 }
 
-func NewKnowledgeBaseUsecase(repo *pg.KnowledgeBaseRepository, nodeRepo *pg.NodeRepository, ragRepo *mq.RAGRepository, userRepo *pg.UserRepository, tokenRepo *pg.APITokenRepo, rag rag.RAGService, kbCache *cache.KBRepo, logger *log.Logger, config *config.Config) (*KnowledgeBaseUsecase, error) {
+func NewKnowledgeBaseUsecase(repo *pg.KnowledgeBaseRepository, nodeRepo *pg.NodeRepository, ragRepo *mq.RAGRepository, userRepo *pg.UserRepository, tokenRepo *pg.APITokenRepo, rag rag.RAGService, kbCache *cache.KBRepo, push *PushUsecase, logger *log.Logger, config *config.Config) (*KnowledgeBaseUsecase, error) {
 	u := &KnowledgeBaseUsecase{
 		repo:      repo,
 		nodeRepo:  nodeRepo,
@@ -44,6 +45,7 @@ func NewKnowledgeBaseUsecase(repo *pg.KnowledgeBaseRepository, nodeRepo *pg.Node
 		logger:    logger.WithModule("usecase.knowledge_base"),
 		config:    config,
 		kbCache:   kbCache,
+		push:      push,
 	}
 	return u, nil
 }
@@ -184,6 +186,11 @@ func (u *KnowledgeBaseUsecase) CreateKBRelease(ctx context.Context, req *domain.
 	}
 	if err := u.repo.CreateKBRelease(ctx, release); err != nil {
 		return "", fmt.Errorf("failed to create kb release: %w", err)
+	}
+
+	// async push notification to configured group chats
+	if u.push != nil {
+		go u.push.NotifyKBUpdate(context.Background(), req.KBID, release)
 	}
 
 	return release.ID, nil
