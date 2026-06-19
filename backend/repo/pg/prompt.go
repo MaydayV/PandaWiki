@@ -34,11 +34,6 @@ type PromptRepo struct {
 	logger *log.Logger
 }
 
-type promptJson struct {
-	Content        string `json:"content"`
-	SummaryContent string `json:"summary_content"`
-}
-
 func NewPromptRepo(db *pg.DB, logger *log.Logger) *PromptRepo {
 	return &PromptRepo{
 		db:     db,
