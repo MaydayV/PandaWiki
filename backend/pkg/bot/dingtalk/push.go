@@ -102,9 +102,11 @@ func (n *DingTalkPushNotifier) SendTextMessage(ctx context.Context, chatID strin
 // SignDingTalkWebhook generates the HMAC-SHA256 signature for a DingTalk webhook URL.
 // This is used when the webhook has signing enabled.
 func SignDingTalkWebhook(timestamp int64, secret string) (string, error) {
+	// DingTalk signing: HMAC-SHA256(key=timestamp+"\n"+secret, msg=empty)
 	stringToSign := fmt.Sprintf("%d\n%s", timestamp, secret)
 	h := hmac.New(sha256.New, []byte(stringToSign))
-	if _, err := h.Write([]byte(stringToSign)); err != nil {
+	// h.Write(nil) computes HMAC of empty message — this is correct per DingTalk docs
+	if _, err := h.Write(nil); err != nil {
 		return "", err
 	}
 	return url.QueryEscape(base64.StdEncoding.EncodeToString(h.Sum(nil))), nil

@@ -86,11 +86,12 @@ func (n *FeishuWebhookNotifier) SendTextMessage(ctx context.Context, chatID stri
 }
 
 // SignFeishuWebhook generates the HMAC-SHA256 signature for a Feishu webhook URL.
-// Feishu signing: timestamp + "\n" + secret → HMAC-SHA256 → base64
+// Feishu signing: HMAC-SHA256(key=timestamp+"\n"+secret, msg=empty)
 func SignFeishuWebhook(timestamp int64, secret string) string {
 	stringToSign := fmt.Sprintf("%d\n%s", timestamp, secret)
 	h := hmac.New(sha256.New, []byte(stringToSign))
-	h.Write([]byte(stringToSign))
+	// h.Write(nil) computes HMAC of empty message — this is correct per Feishu docs
+	h.Write(nil)
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 

@@ -137,7 +137,7 @@ type AppSettings struct {
 	DiscordBotIsEnabled *bool  `json:"discord_bot_is_enabled,omitempty"`
 	DiscordBotToken     string `json:"discord_bot_token,omitempty"`
 	// KBUpdatePush 知识库更新推送配置
-	KBUpdatePushEnabled bool   `json:"kb_update_push_enabled,omitempty"`
+	KBUpdatePushEnabled bool   `json:"kb_update_push_enabled"`
 	KBUpdatePushChatIDs string `json:"kb_update_push_chat_ids,omitempty"` // 推送目标群聊 ID 列表（逗号分隔）
 	KBUpdatePushContent string `json:"kb_update_push_content,omitempty"` // 推送模板内容（支持变量）
 	// WechatOfficialAccount
@@ -599,7 +599,7 @@ type AppSettingsResp struct {
 	DiscordBotIsEnabled *bool  `json:"discord_bot_is_enabled,omitempty"`
 	DiscordBotToken     string `json:"discord_bot_token,omitempty"`
 	// KBUpdatePush 知识库更新推送配置
-	KBUpdatePushEnabled bool   `json:"kb_update_push_enabled,omitempty"`
+	KBUpdatePushEnabled bool   `json:"kb_update_push_enabled"`
 	KBUpdatePushChatIDs string `json:"kb_update_push_chat_ids,omitempty"`
 	KBUpdatePushContent string `json:"kb_update_push_content,omitempty"`
 	// WechatOfficialAccount

@@ -100,7 +100,11 @@ func (u *PushUsecase) NotifyKBUpdate(ctx context.Context, kbID string, release *
 					log.String("chat_id", chatID))
 			}
 			// rate limit: 1 second between sends
-			time.Sleep(time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+			}
 		}
 	}
 }

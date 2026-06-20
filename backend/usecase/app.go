@@ -302,11 +302,11 @@ func (u *AppUsecase) updateFeishuBot(app *domain.App) {
 	}
 
 	if (app.Settings.FeishuBotIsEnabled != nil && !*app.Settings.FeishuBotIsEnabled) || app.Settings.FeishuBotAppID == "" || app.Settings.FeishuBotAppSecret == "" {
+		u.pushUsecase.UnregisterNotifier(app.ID)
 		return
 	}
 
 	getQA := u.getQAFunc(app.KBID, app.Type)
-
 	botCtx, cancel := context.WithCancel(context.Background())
 	feishuClient := feishu.NewFeishuClient(
 		botCtx,
@@ -390,6 +390,7 @@ func (u *AppUsecase) updateDingTalkBot(app *domain.App) {
 	}
 
 	if (app.Settings.DingTalkBotIsEnabled != nil && !*app.Settings.DingTalkBotIsEnabled) || app.Settings.DingTalkBotClientID == "" || app.Settings.DingTalkBotClientSecret == "" {
+		u.pushUsecase.UnregisterNotifier(app.ID)
 		return
 	}
 
@@ -597,6 +598,10 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 		ConversationSetting: app.Settings.ConversationSetting,
 
 		WecomAIBotSettings: app.Settings.WecomAIBotSettings,
+
+		KBUpdatePushEnabled: app.Settings.KBUpdatePushEnabled,
+		KBUpdatePushChatIDs: app.Settings.KBUpdatePushChatIDs,
+		KBUpdatePushContent: app.Settings.KBUpdatePushContent,
 
 		MCPServerSettings: app.Settings.MCPServerSettings,
 		StatsSetting:      app.Settings.StatsSetting,
