@@ -20,7 +20,22 @@
   "pnpm": {
     "overrides": {
       "baseline-browser-mapping": "^2.9.19",
-      "require-in-the-middle": "^7.5.2"
+      "require-in-the-middle": "^7.5.2",
+      "follow-redirects": ">=1.15.9",
+      "dompurify": ">=3.2.6",
+      "postcss": ">=8.5.6",
+      "nanoid": ">=3.3.8",
+      "lodash-es": ">=4.17.22",
+      "lodash": ">=4.17.22",
+      "minimatch": ">=3.1.2",
+      "brace-expansion": ">=2.0.2",
+      "ajv": ">=6.12.6",
+      "defu": ">=6.1.4",
+      "fast-uri": ">=3.0.6",
+      "js-cookie": ">=3.0.5",
+      "serialize-javascript": ">=6.0.2",
+      "flatted": ">=3.3.3",
+      "form-data": ">=4.0.4"
     }
   },
   "dependencies": {
