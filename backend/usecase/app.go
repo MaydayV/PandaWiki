@@ -297,6 +297,7 @@ func (u *AppUsecase) updateFeishuBot(app *domain.App) {
 	if bot, exists := u.feishuBots[app.ID]; exists {
 		if bot != nil {
 			bot.Stop()
+			<-bot.Done() // wait for old goroutine to exit
 			delete(u.feishuBots, app.ID)
 		}
 	}
@@ -344,6 +345,7 @@ func (u *AppUsecase) updateLarkBot(app *domain.App) {
 	}
 
 	if (app.Settings.LarkBotSettings.IsEnabled != nil && !*app.Settings.LarkBotSettings.IsEnabled) || app.Settings.LarkBotSettings.AppID == "" || app.Settings.LarkBotSettings.AppSecret == "" {
+		u.pushUsecase.UnregisterNotifier(app.ID)
 		return
 	}
 
@@ -376,6 +378,8 @@ func (u *AppUsecase) updateLarkBot(app *domain.App) {
 	}()
 
 	u.larkBots[app.ID] = larkClient
+	// Lark push uses the same webhook-based notifier as Feishu
+	u.pushUsecase.RegisterNotifier(app.ID, feishu.NewFeishuWebhookNotifier())
 }
 
 func (u *AppUsecase) updateDingTalkBot(app *domain.App) {
@@ -385,6 +389,7 @@ func (u *AppUsecase) updateDingTalkBot(app *domain.App) {
 	if bot, exists := u.dingTalkBots[app.ID]; exists {
 		if bot != nil {
 			bot.Stop()
+			<-bot.Done() // wait for old goroutine to exit
 			delete(u.dingTalkBots, app.ID)
 		}
 	}
@@ -553,6 +558,7 @@ func (u *AppUsecase) GetAppDetailByKBIDAndAppType(ctx context.Context, kbID stri
 		WeChatServiceEncodingAESKey:  app.Settings.WeChatServiceEncodingAESKey,
 		WeChatServiceCorpID:          app.Settings.WeChatServiceCorpID,
 		WeChatServiceSecret:          app.Settings.WeChatServiceSecret,
+		WechatServiceLogo:            app.Settings.WechatServiceLogo,
 		WechatServiceContainKeywords: app.Settings.WechatServiceContainKeywords,
 		WechatServiceEqualKeywords:   app.Settings.WechatServiceEqualKeywords,
 		// Discord

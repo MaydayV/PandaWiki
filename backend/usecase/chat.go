@@ -31,6 +31,7 @@ type ChatUsecase struct {
 	AuthRepo            *pg.AuthRepo
 	logger              *log.Logger
 	modelkit            *modelkit.ModelKit
+	llmSemaphore        chan struct{} // limits concurrent LLM calls
 }
 
 func NewChatUsecase(llmUsecase *LLMUsecase, kbRepo *pg.KnowledgeBaseRepository, conversationUsecase *ConversationUsecase, modelUsecase *ModelUsecase, appRepo *pg.AppRepository,
@@ -47,6 +48,7 @@ func NewChatUsecase(llmUsecase *LLMUsecase, kbRepo *pg.KnowledgeBaseRepository, 
 		AuthRepo:            authRepo,
 		logger:              logger.WithModule("usecase.chat"),
 		modelkit:            modelkit,
+		llmSemaphore:        make(chan struct{}, 50),
 	}
 	if err := u.initDFA(); err != nil {
 		u.logger.Error("failed to init dfa", log.Error(err))
@@ -79,6 +81,14 @@ func (u *ChatUsecase) initDFA() error {
 func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan domain.SSEEvent, error) {
 	eventCh := make(chan domain.SSEEvent, 100)
 	go func() {
+		// acquire LLM concurrency slot
+		select {
+		case u.llmSemaphore <- struct{}{}:
+		case <-ctx.Done():
+			close(eventCh)
+			return
+		}
+		defer func() { <-u.llmSemaphore }()
 		defer close(eventCh)
 		// 1. get app detail and validate app
 		app, err := u.appRepo.GetOrCreateAppByKBIDAndType(ctx, req.KBID, req.AppType)
@@ -317,6 +327,14 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 func (u *ChatUsecase) ChatRagOnly(ctx context.Context, req *domain.ChatRagOnlyRequest) (<-chan domain.SSEEvent, error) {
 	eventCh := make(chan domain.SSEEvent, 100)
 	go func() {
+		// acquire LLM concurrency slot
+		select {
+		case u.llmSemaphore <- struct{}{}:
+		case <-ctx.Done():
+			close(eventCh)
+			return
+		}
+		defer func() { <-u.llmSemaphore }()
 		defer close(eventCh)
 
 		// extra1. if user set question block words then check it

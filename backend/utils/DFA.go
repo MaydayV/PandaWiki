@@ -122,15 +122,9 @@ func (d *DFA) DeleteWord(word string) bool {
 
 // DeleteWordBatch delete word batch
 func (d *DFA) DeleteWordBatch(words []string) {
-	wg := sync.WaitGroup{}
 	for _, word := range words {
-		wg.Add(1)
-		go func() {
-			d.DeleteWord(word)
-			wg.Done()
-		}()
+		d.DeleteWord(word)
 	}
-	wg.Wait()
 }
 
 // Filter the input text and replace sensitive words

@@ -50,6 +50,7 @@ type FeishuClient struct {
 	client       *lark.Client
 	msgMap       sync.Map
 	getQA        bot.GetQAFun
+	done         chan struct{}
 }
 
 func NewFeishuClient(ctx context.Context, cancel context.CancelFunc, clientID, clientSecret string, logger *log.Logger, getQA bot.GetQAFun) *FeishuClient {
@@ -63,6 +64,7 @@ func NewFeishuClient(ctx context.Context, cancel context.CancelFunc, clientID, c
 		client:       client,
 		logger:       logger,
 		getQA:        getQA,
+		done:         make(chan struct{}),
 	}
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
@@ -194,11 +196,11 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 		return
 	}
 
-	answer := ""
+	var answer strings.Builder
 	seq := 1
 	for chunk := range answerCh {
 		seq += 1
-		answer += chunk
+		answer.WriteString(chunk)
 		if strings.TrimSpace(chunk) == "" {
 			continue
 		}
@@ -208,7 +210,7 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 			ElementId(`markdown_1`).
 			Body(larkcardkit.NewContentCardElementReqBodyBuilder().
 				Uuid(uuid.New().String()).
-				Content(answer).
+				Content(answer.String()).
 				Sequence(seq).
 				Build()).
 			Build()
@@ -228,7 +230,7 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 		ElementId(`markdown_1`).
 		Body(larkcardkit.NewContentCardElementReqBodyBuilder().
 			Uuid(uuid.New().String()).
-			Content(answer).
+			Content(answer.String()).
 			Sequence(seq + 1).
 			Build()).
 		Build()
@@ -260,6 +262,7 @@ func (c *FeishuClient) replaceMentions(text string, mentions []*larkim.MentionEv
 }
 
 func (c *FeishuClient) Start() error {
+	defer close(c.done)
 	eventHandler := dispatcher.NewEventDispatcher("", "").
 		OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
 			// ignore duplicate message
@@ -340,4 +343,9 @@ func (c *FeishuClient) GetUserInfo(UserOpenId string) (*larkcontact.User, error)
 
 func (c *FeishuClient) Stop() {
 	c.cancel()
+}
+
+// Done returns a channel that is closed when Start() has fully returned.
+func (c *FeishuClient) Done() <-chan struct{} {
+	return c.done
 }

@@ -45,6 +45,7 @@ type DingTalkClient struct {
 	messageTTL       time.Duration
 	nowFunc          func() time.Time
 	processMessageFn func(ctx context.Context, data *chatbot.BotCallbackDataModel) error
+	done             chan struct{}
 }
 
 type messageMark struct {
@@ -77,6 +78,7 @@ func NewDingTalkClient(ctx context.Context, cancel context.CancelFunc, clientId,
 		messageSeenAt: make(map[string]messageMark),
 		messageTTL:    5 * time.Minute,
 		nowFunc:       time.Now,
+		done:          make(chan struct{}),
 	}
 	client.startMessageCleanup()
 	return client, nil
@@ -120,7 +122,11 @@ func (c *DingTalkClient) GetAccessToken() (string, error) {
 		return "", tryErr
 	}
 	accessToken := *response.Body.AccessToken
-	c.logger.Info("get access token", log.String("access_token", accessToken), log.Int("expire_in", int(*response.Body.ExpireIn)))
+	masked := accessToken
+	if len(masked) > 8 {
+		masked = masked[:4] + "****" + masked[len(masked)-4:]
+	}
+	c.logger.Info("get access token", log.String("access_token", masked), log.Int("expire_in", int(*response.Body.ExpireIn)))
 	c.tokenCache.accessToken = accessToken
 	c.tokenCache.expireAt = time.Now().Add(time.Duration(*response.Body.ExpireIn-300) * time.Second)
 
@@ -414,6 +420,7 @@ func (c *DingTalkClient) processMessage(ctx context.Context, data *chatbot.BotCa
 }
 
 func (c *DingTalkClient) Start() error {
+	defer close(c.done)
 	cli := client.NewStreamClient(client.WithAppCredential(client.NewAppCredentialConfig(
 		c.clientID,
 		c.clientSecret,
@@ -430,6 +437,11 @@ func (c *DingTalkClient) Start() error {
 
 func (c *DingTalkClient) Stop() {
 	c.cancel()
+}
+
+// Done returns a channel that is closed when Start() has fully returned.
+func (c *DingTalkClient) Done() <-chan struct{} {
+	return c.done
 }
 
 // 钉钉的用户信息
