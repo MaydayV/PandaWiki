@@ -104,7 +104,7 @@ func (n *DingTalkPushNotifier) SendTextMessage(ctx context.Context, chatID strin
 func SignDingTalkWebhook(timestamp int64, secret string) (string, error) {
 	stringToSign := fmt.Sprintf("%d\n%s", timestamp, secret)
 	h := hmac.New(sha256.New, []byte(stringToSign))
-	if _, err := h.Write(nil); err != nil {
+	if _, err := h.Write([]byte(stringToSign)); err != nil {
 		return "", err
 	}
 	return url.QueryEscape(base64.StdEncoding.EncodeToString(h.Sum(nil))), nil

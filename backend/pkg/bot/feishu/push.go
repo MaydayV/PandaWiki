@@ -90,7 +90,7 @@ func (n *FeishuWebhookNotifier) SendTextMessage(ctx context.Context, chatID stri
 func SignFeishuWebhook(timestamp int64, secret string) string {
 	stringToSign := fmt.Sprintf("%d\n%s", timestamp, secret)
 	h := hmac.New(sha256.New, []byte(stringToSign))
-	h.Write([]byte{})
+	h.Write([]byte(stringToSign))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
