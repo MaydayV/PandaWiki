@@ -39,6 +39,7 @@ func NewAppHandler(e *echo.Echo, baseHandler *handler.BaseHandler, logger *log.L
 	group.GET("/detail", h.GetAppDetail, h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage))
 	group.PUT("", h.UpdateApp, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 	group.DELETE("", h.DeleteApp, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
+	group.POST("/push/test", h.TestPush, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 
 	return h
 }
@@ -142,4 +143,36 @@ func (h *AppHandler) DeleteApp(c echo.Context) error {
 	}
 
 	return h.NewResponseWithData(c, nil)
+}
+
+// TestPush test push notification
+//
+//	@Summary		Test push notification
+//	@Description	Send a test push message to verify the push configuration
+//	@Tags			app
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			body	body		TestPushReq	true	"test push request"
+//	@Success		200		{object}	domain.PWResponse
+//	@Router			/api/v1/app/push/test [post]
+func (h *AppHandler) TestPush(c echo.Context) error {
+	var req TestPushReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request params failed", err)
+	}
+
+	if err := h.usecase.TestPush(c.Request().Context(), req.AppID, req.ChatID); err != nil {
+		return h.NewResponseWithError(c, "test push failed", err)
+	}
+
+	return h.NewResponseWithData(c, nil)
+}
+
+type TestPushReq struct {
+	AppID  string `json:"app_id" validate:"required"`
+	ChatID string `json:"chat_id" validate:"required"`
 }

@@ -1193,3 +1193,8 @@ func (u *AppUsecase) GetRecommendNodesByIds(ctx context.Context, kbId string, no
 	}
 	return recommendNodes, nil
 }
+
+// TestPush sends a test push message to verify the push configuration.
+func (u *AppUsecase) TestPush(ctx context.Context, appID, chatID string) error {
+	return u.pushUsecase.TestPush(ctx, appID, chatID)
+}
