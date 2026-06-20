@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
 import store from './store';
 
 // 动态加载 CSS 文件
@@ -30,7 +31,9 @@ dayjs.locale('zh-cn');
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter basename={window.__BASENAME__}>
     <Provider store={store}>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </Provider>
   </BrowserRouter>,
 );
