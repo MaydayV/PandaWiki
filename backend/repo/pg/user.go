@@ -126,6 +126,24 @@ func (r *UserRepository) GetUsersAccountMap(ctx context.Context) (map[string]str
 	return m, nil
 }
 
+func (r *UserRepository) GetUsersAccountMapByIDs(ctx context.Context, ids []string) (map[string]string, error) {
+	if len(ids) == 0 {
+		return map[string]string{}, nil
+	}
+	var users []v1.UserListItemResp
+	err := r.db.WithContext(ctx).
+		Model(&domain.User{}).
+		Where("id IN ?", ids).
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	m := lo.SliceToMap(users, func(user v1.UserListItemResp) (string, string) {
+		return user.ID, user.Account
+	})
+	return m, nil
+}
+
 func (r *UserRepository) UpdateUserPassword(ctx context.Context, userID string, newPassword string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {

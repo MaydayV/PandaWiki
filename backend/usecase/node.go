@@ -294,7 +294,8 @@ func (u *NodeUsecase) GetNodeReleaseDetailByKBIDAndIDWithLanguage(ctx context.Co
 		return nil, err
 	}
 
-	userMap, err := u.userRepo.GetUsersAccountMap(ctx)
+	userIDs := []string{node.CreatorId, node.EditorId, node.PublisherId}
+	userMap, err := u.userRepo.GetUsersAccountMapByIDs(ctx, userIDs)
 	if err != nil {
 		return nil, err
 	}

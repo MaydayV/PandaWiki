@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/store/cache"
@@ -43,7 +44,7 @@ func (r *KBRepo) SetKB(ctx context.Context, kbID string, kb *domain.KnowledgeBas
 	if err != nil {
 		return err
 	}
-	return r.cache.Set(ctx, kbID, kbStr, 0).Err()
+	return r.cache.Set(ctx, kbID, kbStr, 10*time.Minute).Err()
 }
 
 func (r *KBRepo) DeleteKB(ctx context.Context, kbID string) error {

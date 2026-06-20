@@ -114,13 +114,32 @@ func (u *PushUsecase) renderTemplate(tmpl string, kb *domain.KnowledgeBase, rele
 		tmpl = defaultPushTemplate
 	}
 	releaseTime := release.CreatedAt.In(time.FixedZone("CST", 8*3600)).Format("2006-01-02 15:04:05")
+	// escape markdown special characters to prevent format corruption
+	safeName := escapeMarkdown(kb.Name)
+	safeTag := escapeMarkdown(release.Tag)
+	safeMsg := escapeMarkdown(release.Message)
 	replacer := strings.NewReplacer(
-		"{kb_name}", kb.Name,
-		"{tag}", release.Tag,
-		"{message}", release.Message,
+		"{kb_name}", safeName,
+		"{tag}", safeTag,
+		"{message}", safeMsg,
 		"{release_time}", releaseTime,
 	)
 	return replacer.Replace(tmpl)
+}
+
+// escapeMarkdown escapes characters that have special meaning in Markdown.
+func escapeMarkdown(s string) string {
+	replacer := strings.NewReplacer(
+		"*", "\\*",
+		"_", "\\_",
+		"#", "\\#",
+		"`", "\\`",
+		">", "\\>",
+		"[", "\\[",
+		"]", "\\]",
+		"|", "\\|",
+	)
+	return replacer.Replace(s)
 }
 
 // TestPush sends a test message to a specific chat ID via the notifier for the given app.

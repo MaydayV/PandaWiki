@@ -190,7 +190,11 @@ func (u *KnowledgeBaseUsecase) CreateKBRelease(ctx context.Context, req *domain.
 
 	// async push notification to configured group chats
 	if u.push != nil {
-		go u.push.NotifyKBUpdate(context.Background(), req.KBID, release)
+		go func() {
+			pushCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			u.push.NotifyKBUpdate(pushCtx, req.KBID, release)
+		}()
 	}
 
 	return release.ID, nil
