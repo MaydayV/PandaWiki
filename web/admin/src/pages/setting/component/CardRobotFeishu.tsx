@@ -166,28 +166,6 @@ const CardRobotFeishu = ({ kb }: { kb: DomainKnowledgeBaseDetail }) => {
           </FormItem>
         </>
       )}
-
-      {/* <Box sx={{ fontSize: 14, lineHeight: '32px', my: 1 }}>
-        用户欢迎语
-      </Box>
-      <Controller
-        control={control}
-        name="feishu_bot_welcome_str"
-        render={({ field }) => <TextField
-          {...field}
-          multiline
-          rows={4}
-          fullWidth
-          size="small"
-          placeholder={`欢迎使用网站监测 AI 助手，我将回答您关于网站监测的问题，如:\n 1. 网站监测的监控节点 IP 是什么 \n 2. 网站监测大模型落地案例`}
-          onChange={(e) => {
-            field.onChange(e.target.value)
-            setIsEdit(true)
-          }}
-          error={!!errors.feishu_bot_welcome_str}
-          helperText={errors.feishu_bot_welcome_str?.message}
-        />}
-      /> */}
     </SettingCardItem>
   );
 };

@@ -109,7 +109,6 @@ export default defineConfig(({ command, mode }) => {
               '@reduxjs/toolkit',
             ],
             'vendor-mui': ['@mui/material'],
-            'vendor-echarts': ['echarts'],
             'vendor-editor': [
               'highlight.js',
               'lowlight',

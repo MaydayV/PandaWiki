@@ -338,6 +338,10 @@ export interface DomainAppSettings {
   /** DisCordBot */
   discord_bot_is_enabled?: boolean;
   discord_bot_token?: string;
+  /** KBUpdatePush 知识库更新推送 */
+  kb_update_push_enabled?: boolean;
+  kb_update_push_chat_ids?: string;
+  kb_update_push_content?: string;
   /** document feedback */
   document_feedback_is_enabled?: boolean;
   feishu_bot_app_id?: string;
@@ -438,6 +442,10 @@ export interface DomainAppSettingsResp {
   /** DisCordBot */
   discord_bot_is_enabled?: boolean;
   discord_bot_token?: string;
+  /** KBUpdatePush 知识库更新推送 */
+  kb_update_push_enabled?: boolean;
+  kb_update_push_chat_ids?: string;
+  kb_update_push_content?: string;
   /** document feedback */
   document_feedback_is_enabled?: boolean;
   feishu_bot_app_id?: string;

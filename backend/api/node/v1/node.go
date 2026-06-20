@@ -81,3 +81,33 @@ type NodeAutoTranslateResp struct {
 	AvailableLanguages  []string `json:"available_languages"`
 	Published           bool     `json:"published"`
 }
+
+type NodeStatsReq struct {
+	KbId string `query:"kb_id" json:"kb_id" validate:"required"`
+}
+
+type NodeStatsResp struct {
+	UnpublishedCount int64 `json:"unpublished_count"`
+	UnstudiedCount   int64 `json:"unstudied_count"`
+}
+
+type NodeListGroupNavReq struct {
+	KbId string `query:"kb_id" json:"kb_id" validate:"required"`
+}
+
+type NodeListGroupNavResp struct {
+	NavID   string `json:"nav_id"`
+	NavName string `json:"nav_name"`
+	Nodes   []NodeListGroupNavNodeResp `json:"nodes"`
+}
+
+type NodeListGroupNavNodeResp struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type NodeMoveNavReq struct {
+	KbID    string   `json:"kb_id" validate:"required"`
+	NavID   string   `json:"nav_id"`
+	NodeIDs []string `json:"node_ids"`
+}

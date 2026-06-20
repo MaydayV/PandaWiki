@@ -359,6 +359,25 @@ definitions:
       is_enabled:
         type: boolean
     type: object
+  domain.APITokenListItem:
+    properties:
+      created_at:
+        type: string
+      daily_quota:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      permission:
+        $ref: '#/definitions/consts.UserKBPermission'
+      rate_limit_per_minute:
+        type: integer
+      token:
+        type: string
+      updated_at:
+        type: string
+    type: object
   domain.AccessSettings:
     properties:
       base_url:
@@ -394,6 +413,17 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  domain.AnalyticsSettings:
+    properties:
+      event_sampling_rate:
+        type: integer
+      is_enabled:
+        type: boolean
+      provider:
+        type: string
+      tracking_id:
+        type: string
     type: object
   domain.AnydocUploadResp:
     properties:
@@ -440,8 +470,12 @@ definitions:
         allOf:
         - $ref: '#/definitions/domain.AIFeedbackSettings'
         description: AI feedback
+      analytics_settings:
+        $ref: '#/definitions/domain.AnalyticsSettings'
       body_code:
         type: string
+      brand_settings:
+        $ref: '#/definitions/domain.BrandSettings'
       btns:
         items: {}
         type: array
@@ -453,6 +487,8 @@ definitions:
         $ref: '#/definitions/domain.ContributeSettings'
       conversation_setting:
         $ref: '#/definitions/domain.ConversationSetting'
+      copy_append_content:
+        type: string
       copy_setting:
         allOf:
         - $ref: '#/definitions/consts.CopySetting'
@@ -500,9 +536,23 @@ definitions:
         type: string
       home_page_setting:
         $ref: '#/definitions/consts.HomePageSetting'
+      i18n_settings:
+        $ref: '#/definitions/domain.I18nSettings'
       icon:
         type: string
+      kb_update_push_chat_ids:
+        description: 推送目标群聊 ID 列表（逗号分隔）
+        type: string
+      kb_update_push_content:
+        description: 推送模板内容（支持变量）
+        type: string
+      kb_update_push_enabled:
+        description: KBUpdatePush 知识库更新推送配置
+        type: boolean
       keyword:
+        type: string
+      language:
+        description: language
         type: string
       lark_bot_settings:
         allOf:
@@ -512,6 +562,8 @@ definitions:
         allOf:
         - $ref: '#/definitions/domain.MCPServerSettings'
         description: MCP Server Settings
+      node_meta_settings:
+        $ref: '#/definitions/domain.NodeMetaSettings'
       openai_api_bot_settings:
         allOf:
         - $ref: '#/definitions/domain.OpenAIAPIBotSettings'
@@ -526,6 +578,12 @@ definitions:
         type: array
       search_placeholder:
         type: string
+      security_settings:
+        $ref: '#/definitions/domain.SecuritySettings'
+      seo_settings:
+        allOf:
+        - $ref: '#/definitions/domain.SEOSettings'
+        description: advanced seo settings
       stats_setting:
         $ref: '#/definitions/domain.StatsSetting'
       theme_and_style:
@@ -625,8 +683,12 @@ definitions:
         allOf:
         - $ref: '#/definitions/domain.AIFeedbackSettings'
         description: AI feedback
+      analytics_settings:
+        $ref: '#/definitions/domain.AnalyticsSettings'
       body_code:
         type: string
+      brand_settings:
+        $ref: '#/definitions/domain.BrandSettings'
       btns:
         items: {}
         type: array
@@ -638,6 +700,8 @@ definitions:
         $ref: '#/definitions/domain.ContributeSettings'
       conversation_setting:
         $ref: '#/definitions/domain.ConversationSetting'
+      copy_append_content:
+        type: string
       copy_setting:
         $ref: '#/definitions/consts.CopySetting'
       desc:
@@ -680,9 +744,21 @@ definitions:
         type: string
       home_page_setting:
         $ref: '#/definitions/consts.HomePageSetting'
+      i18n_settings:
+        $ref: '#/definitions/domain.I18nSettings'
       icon:
         type: string
+      kb_update_push_chat_ids:
+        type: string
+      kb_update_push_content:
+        type: string
+      kb_update_push_enabled:
+        description: KBUpdatePush 知识库更新推送配置
+        type: boolean
       keyword:
+        type: string
+      language:
+        description: language
         type: string
       lark_bot_settings:
         allOf:
@@ -692,6 +768,8 @@ definitions:
         allOf:
         - $ref: '#/definitions/domain.MCPServerSettings'
         description: MCP Server Settings
+      node_meta_settings:
+        $ref: '#/definitions/domain.NodeMetaSettings'
       openai_api_bot_settings:
         allOf:
         - $ref: '#/definitions/domain.OpenAIAPIBotSettings'
@@ -706,6 +784,12 @@ definitions:
         type: array
       search_placeholder:
         type: string
+      security_settings:
+        $ref: '#/definitions/domain.SecuritySettings'
+      seo_settings:
+        allOf:
+        - $ref: '#/definitions/domain.SEOSettings'
+        description: advanced seo settings
       stats_setting:
         $ref: '#/definitions/domain.StatsSetting'
       theme_and_style:
@@ -907,6 +991,13 @@ definitions:
       type:
         type: string
     type: object
+  domain.BlockWords:
+    properties:
+      words:
+        items:
+          type: string
+        type: array
+    type: object
   domain.BrandGroup:
     properties:
       links:
@@ -914,6 +1005,15 @@ definitions:
           $ref: '#/definitions/domain.Link'
         type: array
       name:
+        type: string
+    type: object
+  domain.BrandSettings:
+    properties:
+      copyright_info:
+        type: string
+      hide_copyright:
+        type: boolean
+      powered_by_label:
         type: string
     type: object
   domain.BrowserCount:
@@ -1263,10 +1363,47 @@ definitions:
     type: object
   domain.ConversationSetting:
     properties:
+      ask_interval_seconds:
+        type: integer
       copyright_hide_enabled:
         type: boolean
       copyright_info:
         type: string
+    type: object
+  domain.CreateAPITokenReq:
+    properties:
+      daily_quota:
+        minimum: 0
+        type: integer
+      kb_id:
+        type: string
+      name:
+        type: string
+      permission:
+        allOf:
+        - $ref: '#/definitions/consts.UserKBPermission'
+        enum:
+        - full_control
+        - doc_manage
+        - data_operate
+      rate_limit_per_minute:
+        minimum: 0
+        type: integer
+    required:
+    - kb_id
+    - name
+    - permission
+    type: object
+  domain.CreateBlockWordsReq:
+    properties:
+      block_words:
+        items:
+          type: string
+        type: array
+      kb_id:
+        type: string
+    required:
+    - kb_id
     type: object
   domain.CreateKBReleaseReq:
     properties:
@@ -1353,8 +1490,6 @@ definitions:
         type: string
       name:
         type: string
-      nav_id:
-        type: string
       parent_id:
         type: string
       position:
@@ -1370,7 +1505,6 @@ definitions:
     required:
     - kb_id
     - name
-    - nav_id
     - type
     type: object
   domain.DirDocConfig:
@@ -1478,6 +1612,23 @@ definitions:
       icp:
         type: string
     type: object
+  domain.GetKBReleaseDocsResp:
+    properties:
+      current_release_id:
+        type: string
+      diff:
+        items:
+          $ref: '#/definitions/domain.KBReleaseDocDiffItem'
+        type: array
+      docs:
+        items:
+          $ref: '#/definitions/domain.KBReleaseDocItem'
+        type: array
+      previous_release_id:
+        type: string
+      stats:
+        $ref: '#/definitions/domain.KBReleaseDocDiffStats'
+    type: object
   domain.GetKBReleaseListResp:
     properties:
       data:
@@ -1547,6 +1698,17 @@ definitions:
       referer_host:
         type: string
     type: object
+  domain.I18nSettings:
+    properties:
+      default_language:
+        type: string
+      follow_browser:
+        type: boolean
+      supported_languages:
+        items:
+          type: string
+        type: array
+    type: object
   domain.IPAddress:
     properties:
       city:
@@ -1599,6 +1761,57 @@ definitions:
         $ref: '#/definitions/domain.StatPageScene'
       user_id:
         type: integer
+    type: object
+  domain.KBReleaseDocDiffItem:
+    properties:
+      current_node_release_id:
+        type: string
+      diff_type:
+        $ref: '#/definitions/domain.KBReleaseDocDiffType'
+      name:
+        type: string
+      node_id:
+        type: string
+      previous_node_release_id:
+        type: string
+    type: object
+  domain.KBReleaseDocDiffStats:
+    properties:
+      added:
+        type: integer
+      changed:
+        type: integer
+      removed:
+        type: integer
+      unchanged:
+        type: integer
+    type: object
+  domain.KBReleaseDocDiffType:
+    enum:
+    - added
+    - removed
+    - changed
+    - unchanged
+    type: string
+    x-enum-varnames:
+    - KBReleaseDocDiffAdded
+    - KBReleaseDocDiffRemoved
+    - KBReleaseDocDiffChanged
+    - KBReleaseDocDiffUnchanged
+  domain.KBReleaseDocItem:
+    properties:
+      name:
+        type: string
+      node_id:
+        type: string
+      node_release_id:
+        type: string
+      parent_id:
+        type: string
+      type:
+        $ref: '#/definitions/domain.NodeType'
+      updated_at:
+        type: string
     type: object
   domain.KBReleaseListItemResp:
     properties:
@@ -1715,6 +1928,9 @@ definitions:
     type: object
   domain.ModelModeSetting:
     properties:
+      auto_mode_api_base_url:
+        description: 自动配置 API 地址
+        type: string
       auto_mode_api_key:
         description: 百智云 API Key
         type: string
@@ -1837,8 +2053,6 @@ definitions:
         type: string
       name:
         type: string
-      nav_id:
-        type: string
       parent_id:
         type: string
       permissions:
@@ -1866,6 +2080,19 @@ definitions:
         type: string
       summary:
         type: string
+      translations:
+        additionalProperties:
+          $ref: '#/definitions/domain.NodeTranslationContent'
+        type: object
+    type: object
+  domain.NodeMetaSettings:
+    properties:
+      show_created_at:
+        type: boolean
+      show_updated_at:
+        type: boolean
+      show_word_count:
+        type: boolean
     type: object
   domain.NodePermissions:
     properties:
@@ -1891,16 +2118,16 @@ definitions:
     type: integer
     x-enum-comments:
       NodeStatusDraft: 更新未发布
-      NodeStatusPublished: 已发布
-      NodeStatusUnreleased: 草稿
+      NodeStatusReleased: 已发布
+      NodeStatusUnreleased: 未发布
     x-enum-descriptions:
-    - 草稿
+    - 未发布
     - 更新未发布
     - 已发布
     x-enum-varnames:
     - NodeStatusUnreleased
     - NodeStatusDraft
-    - NodeStatusPublished
+    - NodeStatusReleased
   domain.NodeSummaryReq:
     properties:
       ids:
@@ -1912,6 +2139,15 @@ definitions:
     required:
     - ids
     - kb_id
+    type: object
+  domain.NodeTranslationContent:
+    properties:
+      content:
+        type: string
+      name:
+        type: string
+      summary:
+        type: string
     type: object
   domain.NodeType:
     enum:
@@ -2137,6 +2373,47 @@ definitions:
       total:
         type: integer
     type: object
+  domain.Prompt:
+    properties:
+      content:
+        type: string
+      enable_preset:
+        type: boolean
+      enable_preset_auto_language:
+        type: boolean
+      enable_preset_general_info:
+        type: boolean
+      enable_preset_reference:
+        type: boolean
+      summary_content:
+        type: string
+    type: object
+  domain.PromptVersionDetail:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      operator_user_id:
+        type: string
+      summary_content:
+        type: string
+      version:
+        type: integer
+    type: object
+  domain.PromptVersionListItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      operator_user_id:
+        type: string
+      version:
+        type: integer
+    type: object
   domain.ProviderModelListItem:
     properties:
       model:
@@ -2175,10 +2452,6 @@ definitions:
         type: string
       name:
         type: string
-      nav_id:
-        type: string
-      nav_name:
-        type: string
       parent_id:
         type: string
       permissions:
@@ -2202,6 +2475,57 @@ definitions:
       success:
         type: boolean
     type: object
+  domain.RollbackKBReleaseReq:
+    properties:
+      kb_id:
+        type: string
+      release_id:
+        type: string
+    required:
+    - kb_id
+    - release_id
+    type: object
+  domain.RollbackKBReleaseResp:
+    properties:
+      count:
+        type: integer
+      release_id:
+        type: string
+      rollback_node_id:
+        items:
+          type: string
+        type: array
+    type: object
+  domain.RollbackPromptVersionReq:
+    properties:
+      kb_id:
+        type: string
+      version:
+        type: integer
+    required:
+    - kb_id
+    - version
+    type: object
+  domain.RollbackPromptVersionResp:
+    properties:
+      prompt:
+        $ref: '#/definitions/domain.Prompt'
+      version:
+        type: integer
+    type: object
+  domain.SEOSettings:
+    properties:
+      canonical_url:
+        type: string
+      json_ld:
+        type: string
+      og_image:
+        type: string
+      robots:
+        type: string
+      twitter_card:
+        type: string
+    type: object
   domain.ScoreType:
     enum:
     - 1
@@ -2210,6 +2534,17 @@ definitions:
     x-enum-varnames:
     - Like
     - DisLike
+  domain.SecuritySettings:
+    properties:
+      allow_widget_image_upload:
+        type: boolean
+      copy_protection_mode:
+        type: string
+      strict_no_copy:
+        type: boolean
+      watermark_trace_enable:
+        type: boolean
+    type: object
   domain.ShareCommentListItem:
     properties:
       content:
@@ -2351,6 +2686,9 @@ definitions:
     type: object
   domain.SwitchModeReq:
     properties:
+      auto_mode_api_base_url:
+        description: 自动配置 API 地址
+        type: string
       auto_mode_api_key:
         description: 百智云 API Key
         type: string
@@ -2409,6 +2747,31 @@ definitions:
         type: string
       doc_width:
         type: string
+    type: object
+  domain.UpdateAPITokenReq:
+    properties:
+      daily_quota:
+        minimum: 0
+        type: integer
+      id:
+        type: string
+      kb_id:
+        type: string
+      name:
+        type: string
+      permission:
+        allOf:
+        - $ref: '#/definitions/consts.UserKBPermission'
+        enum:
+        - full_control
+        - doc_manage
+        - data_operate
+      rate_limit_per_minute:
+        minimum: 0
+        type: integer
+    required:
+    - id
+    - kb_id
     type: object
   domain.UpdateAppReq:
     properties:
@@ -2481,14 +2844,23 @@ definitions:
         type: string
       name:
         type: string
-      nav_id:
-        type: string
       position:
         type: number
       summary:
         type: string
     required:
     - id
+    - kb_id
+    type: object
+  domain.UpdatePromptReq:
+    properties:
+      content:
+        type: string
+      kb_id:
+        type: string
+      summary_content:
+        type: string
+    required:
     - kb_id
     type: object
   domain.UploadByUrlReq:
@@ -2511,6 +2883,8 @@ definitions:
         type: string
       from:
         $ref: '#/definitions/domain.MessageFrom'
+      mobile:
+        type: string
       name:
         type: string
       real_name:
@@ -2717,20 +3091,14 @@ definitions:
     type: object
   github_com_chaitin_panda-wiki_api_node_v1.NodeListGroupNavResp:
     properties:
-      count:
-        type: integer
-      is_released:
-        type: boolean
-      list:
-        items:
-          $ref: '#/definitions/domain.NodeListItemResp'
-        type: array
       nav_id:
         type: string
       nav_name:
         type: string
-      position:
-        type: number
+      nodes:
+        items:
+          $ref: '#/definitions/v1.NodeListGroupNavNodeResp'
+        type: array
     type: object
   github_com_chaitin_panda-wiki_api_share_v1.AuthGetResp:
     properties:
@@ -3218,8 +3586,6 @@ definitions:
         $ref: '#/definitions/domain.NodeMeta'
       name:
         type: string
-      nav_id:
-        type: string
       parent_id:
         type: string
       permissions:
@@ -3237,21 +3603,25 @@ definitions:
       updated_at:
         type: string
     type: object
+  v1.NodeListGroupNavNodeResp:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   v1.NodeMoveNavReq:
     properties:
-      ids:
-        items:
-          type: string
-        minItems: 1
-        type: array
       kb_id:
         type: string
       nav_id:
         type: string
+      node_ids:
+        items:
+          type: string
+        type: array
     required:
-    - ids
     - kb_id
-    - nav_id
     type: object
   v1.NodePermissionEditReq:
     properties:
@@ -3324,13 +3694,8 @@ definitions:
   v1.NodeStatsResp:
     properties:
       unpublished_count:
-        description: 未发布的文档数
-        type: integer
-      unreleased_nav_count:
-        description: 未发布目录数量
         type: integer
       unstudied_count:
-        description: 未学习的文档数
         type: integer
     type: object
   v1.ResetPasswordReq:
@@ -3361,6 +3726,10 @@ definitions:
     type: object
   v1.ShareNodeDetailResp:
     properties:
+      available_languages:
+        items:
+          type: string
+        type: array
       content:
         type: string
       created_at:
@@ -3395,6 +3764,8 @@ definitions:
         type: string
       pv:
         type: integer
+      served_language:
+        type: string
       status:
         $ref: '#/definitions/domain.NodeStatus'
       type:
@@ -3419,6 +3790,49 @@ definitions:
         type: integer
       session_count:
         type: integer
+    type: object
+  v1.StatFunnelData:
+    properties:
+      conversations:
+        type: integer
+      conversion_rate:
+        type: number
+      page_visit_count:
+        type: integer
+      sessions:
+        type: integer
+      visits:
+        type: integer
+    type: object
+  v1.StatFunnelResp:
+    properties:
+      funnel:
+        $ref: '#/definitions/v1.StatFunnelData'
+      sources:
+        items:
+          $ref: '#/definitions/v1.StatSourceItem'
+        type: array
+    type: object
+  v1.StatSourceItem:
+    properties:
+      conversion_rate:
+        type: number
+      estimated:
+        type: boolean
+      referer_host:
+        type: string
+      visits:
+        type: integer
+    type: object
+  v1.TestPushReq:
+    properties:
+      app_id:
+        type: string
+      chat_id:
+        type: string
+    required:
+    - app_id
+    - chat_id
     type: object
   v1.UserInfoResp:
     properties:
@@ -3474,6 +3888,313 @@ info:
   title: panda-wiki API
   version: "1.0"
 paths:
+  /api/pro/v1/block:
+    get:
+      consumes:
+      - application/json
+      description: Get question block words
+      parameters:
+      - description: knowledge base ID
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.BlockWords'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: Get question block words
+      tags:
+      - block
+    post:
+      consumes:
+      - application/json
+      description: Create new block words
+      parameters:
+      - description: Create block words request
+        in: body
+        name: param
+        required: true
+        schema:
+          $ref: '#/definitions/domain.CreateBlockWordsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Response'
+      security:
+      - bearerAuth: []
+      summary: Create new block words
+      tags:
+      - block
+  /api/pro/v1/prompt:
+    get:
+      consumes:
+      - application/json
+      description: get prompt settings
+      parameters:
+      - description: kb id
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Prompt'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: get prompt settings
+      tags:
+      - prompt
+    post:
+      consumes:
+      - application/json
+      description: update prompt settings
+      parameters:
+      - description: prompt settings
+        in: body
+        name: prompt
+        required: true
+        schema:
+          $ref: '#/definitions/domain.UpdatePromptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Prompt'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: update prompt settings
+      tags:
+      - prompt
+  /api/pro/v1/prompt/version/detail:
+    get:
+      consumes:
+      - application/json
+      description: get prompt version detail
+      parameters:
+      - description: kb id
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      - description: version
+        in: query
+        name: version
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.PromptVersionDetail'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: get prompt version detail
+      tags:
+      - prompt
+  /api/pro/v1/prompt/version/list:
+    get:
+      consumes:
+      - application/json
+      description: get prompt version list
+      parameters:
+      - description: kb id
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.PromptVersionListItem'
+                  type: array
+              type: object
+      security:
+      - bearerAuth: []
+      summary: get prompt version list
+      tags:
+      - prompt
+  /api/pro/v1/prompt/version/rollback:
+    post:
+      consumes:
+      - application/json
+      description: rollback prompt version
+      parameters:
+      - description: rollback prompt version request
+        in: body
+        name: prompt
+        required: true
+        schema:
+          $ref: '#/definitions/domain.RollbackPromptVersionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.RollbackPromptVersionResp'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: rollback prompt version
+      tags:
+      - prompt
+  /api/pro/v1/token/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建 APIToken
+      parameters:
+      - description: Create API Token Request
+        in: body
+        name: param
+        required: true
+        schema:
+          $ref: '#/definitions/domain.CreateAPITokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.APITokenListItem'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: 创建 APIToken
+      tags:
+      - ApiToken
+  /api/pro/v1/token/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的API Token，需要full_control权限
+      parameters:
+      - in: query
+        name: id
+        required: true
+        type: string
+      - in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Response'
+      security:
+      - bearerAuth: []
+      summary: 删除API Token
+      tags:
+      - ApiToken
+  /api/pro/v1/token/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的所有API Token列表，需要full_control权限
+      parameters:
+      - in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.APITokenListItem'
+                  type: array
+              type: object
+      security:
+      - bearerAuth: []
+      summary: 获取API Token列表
+      tags:
+      - ApiToken
+  /api/pro/v1/token/update:
+    patch:
+      consumes:
+      - application/json
+      description: 更新API Token的名称和权限，需要full_control权限
+      parameters:
+      - description: Update API Token Request
+        in: body
+        name: param
+        required: true
+        schema:
+          $ref: '#/definitions/domain.UpdateAPITokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Response'
+      security:
+      - bearerAuth: []
+      summary: 更新API Token
+      tags:
+      - ApiToken
   /api/v1/app:
     delete:
       consumes:
@@ -3559,6 +4280,30 @@ paths:
       security:
       - bearerAuth: []
       summary: Get app detail
+      tags:
+      - app
+  /api/v1/app/push/test:
+    post:
+      consumes:
+      - application/json
+      description: Send a test push message to verify the push configuration
+      parameters:
+      - description: test push request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.TestPushReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.PWResponse'
+      security:
+      - bearerAuth: []
+      summary: Test push notification
       tags:
       - app
   /api/v1/auth/delete:
@@ -4248,6 +4993,37 @@ paths:
       summary: CreateKBRelease
       tags:
       - knowledge_base
+  /api/v1/knowledge_base/release/docs:
+    get:
+      consumes:
+      - application/json
+      description: GetKBReleaseDocs
+      parameters:
+      - description: Knowledge Base ID
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      - description: Release ID
+        in: query
+        name: release_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.GetKBReleaseDocsResp'
+              type: object
+      summary: GetKBReleaseDocs
+      tags:
+      - knowledge_base
   /api/v1/knowledge_base/release/list:
     get:
       consumes:
@@ -4272,6 +5048,33 @@ paths:
                   $ref: '#/definitions/domain.GetKBReleaseListResp'
               type: object
       summary: GetKBReleaseList
+      tags:
+      - knowledge_base
+  /api/v1/knowledge_base/release/rollback:
+    post:
+      consumes:
+      - application/json
+      description: RollbackKBRelease
+      parameters:
+      - description: RollbackKBRelease Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/domain.RollbackKBReleaseReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.RollbackKBReleaseResp'
+              type: object
+      summary: RollbackKBRelease
       tags:
       - knowledge_base
   /api/v1/knowledge_base/user/delete:
@@ -4823,9 +5626,6 @@ paths:
         required: true
         type: string
       - in: query
-        name: nav_id
-        type: string
-      - in: query
         name: search
         type: string
       produces:
@@ -4856,22 +5656,6 @@ paths:
       - in: query
         name: kb_id
         required: true
-        type: string
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
-        name: nav_ids
-        type: array
-      - in: query
-        name: search
-        type: string
-      - enum:
-        - released
-        - unpublished
-        - unstudied
-        in: query
-        name: status
         type: string
       produces:
       - application/json
@@ -5016,13 +5800,8 @@ paths:
         in: query
         items:
           type: string
-        name: nav_ids
-        type: array
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
         name: node_ids
+        required: true
         type: array
       produces:
       - application/json
@@ -5268,6 +6047,46 @@ paths:
       security:
       - bearerAuth: []
       summary: 全局统计
+      tags:
+      - stat
+  /api/v1/stat/funnel:
+    get:
+      consumes:
+      - application/json
+      description: 漏斗和来源转化统计
+      parameters:
+      - enum:
+        - 1
+        - 7
+        - 30
+        - 90
+        in: query
+        name: day
+        type: integer
+        x-enum-varnames:
+        - StatDay1
+        - StatDay7
+        - StatDay30
+        - StatDay90
+      - in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.StatFunnelResp'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: 漏斗和来源转化统计
       tags:
       - stat
   /api/v1/stat/geo_count:
@@ -6037,6 +6856,11 @@ paths:
         name: captcha_token
         required: true
         type: string
+      - description: app_type
+        in: formData
+        name: app_type
+        required: true
+        type: integer
       produces:
       - application/json
       responses:

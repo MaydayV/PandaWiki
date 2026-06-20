@@ -40,14 +40,10 @@ const CardPush = () => {
     if (!kb_id) return;
     getApiV1AppDetail({ kb_id, type: '1' }).then(res => {
       setDetail(res);
-      // @ts-expect-error 新增字段，swagger 类型待更新
       setIsEnabled(res.settings?.kb_update_push_enabled ?? false);
       reset({
-        // @ts-expect-error 新增字段，swagger 类型待更新
         kb_update_push_enabled: res.settings?.kb_update_push_enabled ?? false,
-        // @ts-expect-error 新增字段，swagger 类型待更新
         kb_update_push_chat_ids: res.settings?.kb_update_push_chat_ids ?? '',
-        // @ts-expect-error 新增字段，swagger 类型待更新
         kb_update_push_content: res.settings?.kb_update_push_content ?? '',
       });
     });
@@ -60,7 +56,6 @@ const CardPush = () => {
       {
         kb_id,
         settings: {
-          // @ts-expect-error 新增字段，swagger 类型待更新
           kb_update_push_enabled: data.kb_update_push_enabled,
           kb_update_push_chat_ids: data.kb_update_push_chat_ids,
           kb_update_push_content: data.kb_update_push_content,
