@@ -17,6 +17,7 @@ import (
 	"github.com/samber/lo"
 	"gorm.io/gorm"
 
+	navV1 "github.com/chaitin/panda-wiki/api/nav/v1"
 	v1 "github.com/chaitin/panda-wiki/api/node/v1"
 	shareV1 "github.com/chaitin/panda-wiki/api/share/v1"
 	"github.com/chaitin/panda-wiki/consts"
@@ -31,6 +32,7 @@ import (
 
 type NodeUsecase struct {
 	nodeRepo     *pg.NodeRepository
+	navRepo      *pg.NavRepository
 	appRepo      *pg.AppRepository
 	ragRepo      *mq.RAGRepository
 	kbRepo       *pg.KnowledgeBaseRepository
@@ -46,6 +48,7 @@ type NodeUsecase struct {
 
 func NewNodeUsecase(
 	nodeRepo *pg.NodeRepository,
+	navRepo *pg.NavRepository,
 	appRepo *pg.AppRepository,
 	ragRepo *mq.RAGRepository,
 	userRepo *pg.UserRepository,
@@ -60,6 +63,7 @@ func NewNodeUsecase(
 ) *NodeUsecase {
 	return &NodeUsecase{
 		nodeRepo:     nodeRepo,
+		navRepo:      navRepo,
 		rAGService:   ragService,
 		appRepo:      appRepo,
 		ragRepo:      ragRepo,
@@ -348,39 +352,219 @@ func (u *NodeUsecase) MoveNode(ctx context.Context, req *domain.MoveNodeReq) err
 	return u.nodeRepo.MoveNodeBetween(ctx, req.ID, req.ParentID, req.PrevID, req.NextID, req.KbID)
 }
 
-func (u *NodeUsecase) SummaryNode(ctx context.Context, req *domain.NodeSummaryReq) (string, error) {
-	model, err := u.modelUsecase.GetChatModel(ctx)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return "", domain.ErrModelNotConfigured
-		}
-		return "", err
-	}
+func (u *NodeUsecase) SummaryNode(ctx context.Context, req *domain.NodeSummaryReq) error {
 	if len(req.IDs) == 1 {
+		model, err := u.modelUsecase.GetChatModel(ctx)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrModelNotConfigured
+			}
+			return err
+		}
 		node, err := u.nodeRepo.GetNodeByID(ctx, req.IDs[0])
 		if err != nil {
-			return "", fmt.Errorf("get latest node release failed: %w", err)
+			return fmt.Errorf("get latest node release failed: %w", err)
 		}
-		summary, err := u.llmUsecase.SummaryNode(ctx, req.KBID, model, node.Name, node.Content)
-		if err != nil {
-			return "", fmt.Errorf("summary node failed: %w", err)
+		if _, err := u.llmUsecase.SummaryNode(ctx, req.KBID, model, node.Name, node.Content); err != nil {
+			return fmt.Errorf("summary node failed: %w", err)
 		}
-		return summary, nil
-	} else {
-		// async create node summary
-		nodeVectorContentRequests := make([]*domain.NodeReleaseVectorRequest, 0)
-		for _, id := range req.IDs {
-			nodeVectorContentRequests = append(nodeVectorContentRequests, &domain.NodeReleaseVectorRequest{
-				KBID:   req.KBID,
-				NodeID: id,
-				Action: "summary",
-			})
-		}
-		if err := u.ragRepo.AsyncUpdateNodeReleaseVector(ctx, nodeVectorContentRequests); err != nil {
-			return "", err
+		return nil
+	}
+	// async create node summary
+	nodeVectorContentRequests := make([]*domain.NodeReleaseVectorRequest, 0)
+	for _, id := range req.IDs {
+		nodeVectorContentRequests = append(nodeVectorContentRequests, &domain.NodeReleaseVectorRequest{
+			KBID:   req.KBID,
+			NodeID: id,
+			Action: "summary",
+		})
+	}
+	if err := u.ragRepo.AsyncUpdateNodeReleaseVector(ctx, nodeVectorContentRequests); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (u *NodeUsecase) GetNodeStats(ctx context.Context, kbId string) (*v1.NodeStatsResp, error) {
+	resp, err := u.nodeRepo.GetNodeStats(ctx, kbId)
+	if err != nil {
+		return nil, err
+	}
+
+	navs, err := u.navRepo.GetList(ctx, kbId)
+	if err != nil {
+		return nil, err
+	}
+
+	navsReleased, err := u.navRepo.GetReleaseList(ctx, kbId)
+	if err != nil {
+		return nil, err
+	}
+
+	navsReleasedMap := make(map[string]*navV1.NavListResp, len(navsReleased))
+	for _, nr := range navsReleased {
+		navsReleasedMap[nr.ID] = &nr
+	}
+
+	for _, nav := range navs {
+		navsRelease, found := navsReleasedMap[nav.ID]
+		if !found || navsRelease.Position != nav.Position || navsRelease.Name != nav.Name {
+			resp.UnreleasedNavCount++
 		}
 	}
-	return "", nil
+	return resp, nil
+}
+
+func (u *NodeUsecase) GetNodeListGroupByNav(ctx context.Context, req v1.NodeListGroupNavReq) ([]*v1.NodeListGroupNavResp, error) {
+	nodes, err := u.nodeRepo.GetNodeListByStatus(ctx, req.KbId, req.Status, req.Search)
+	if err != nil {
+		return nil, err
+	}
+
+	navs, err := u.navRepo.GetListByIds(ctx, req.KbId, req.NavIds)
+	if err != nil {
+		return nil, err
+	}
+
+	navsReleased, err := u.navRepo.GetReleaseList(ctx, req.KbId)
+	if err != nil {
+		return nil, err
+	}
+
+	navsReleasedMap := make(map[string]*navV1.NavListResp, len(navsReleased))
+	for _, nr := range navsReleased {
+		navsReleasedMap[nr.ID] = &nr
+	}
+
+	// 按 position 顺序预建分组，用 map 做 O(1) 索引
+	result := make([]*v1.NodeListGroupNavResp, 0, len(navs))
+	navIndexMap := make(map[string]int, len(navs))
+	for _, nav := range navs {
+		release, found := navsReleasedMap[nav.ID]
+		navIndexMap[nav.ID] = len(result)
+		result = append(result, &v1.NodeListGroupNavResp{
+			NavID:      nav.ID,
+			NavName:    nav.Name,
+			Position:   nav.Position,
+			IsReleased: found && release.Position == nav.Position && release.Name == nav.Name,
+			List:       []domain.NodeListItemResp{},
+		})
+	}
+
+	for _, node := range nodes {
+		if idx, ok := navIndexMap[node.NavId]; ok {
+			result[idx].List = append(result[idx].List, *node)
+			result[idx].Count++
+		}
+	}
+
+	// 搜索时过滤掉空分组
+	if req.Search != "" {
+		filtered := make([]*v1.NodeListGroupNavResp, 0, len(result))
+		for _, group := range result {
+			if group.Count > 0 {
+				filtered = append(filtered, group)
+			}
+		}
+		return filtered, nil
+	}
+
+	return result, nil
+}
+
+func (u *NodeUsecase) GetShareNodeList(ctx context.Context, kbId string, authId uint) ([]*shareV1.NodeListGroupNavResp, error) {
+	nodes, err := u.nodeRepo.GetNodeReleaseListByKBID(ctx, kbId)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeGroupIds, err := u.GetNodeIdsByAuthId(ctx, authId, consts.NodePermNameVisible)
+	if err != nil {
+		return nil, err
+	}
+
+	navs, err := u.navRepo.GetReleaseList(ctx, kbId)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*shareV1.NodeListGroupNavResp, 0, len(navs))
+	navIndexMap := make(map[string]int, len(navs))
+	for _, nav := range navs {
+		navIndexMap[nav.ID] = len(result)
+		result = append(result, &shareV1.NodeListGroupNavResp{
+			NavID:    nav.ID,
+			NavName:  nav.Name,
+			Position: nav.Position,
+			List:     []domain.ShareNodeListItemResp{},
+		})
+	}
+
+	// O(1) auth group lookup
+	nodeGroupIdSet := lo.SliceToMap(nodeGroupIds, func(id string) (string, struct{}) {
+		return id, struct{}{}
+	})
+
+	for _, node := range nodes {
+		switch node.Permissions.Visible {
+		case consts.NodeAccessPermOpen:
+		case consts.NodeAccessPermPartial:
+			if _, ok := nodeGroupIdSet[node.ID]; !ok {
+				continue
+			}
+		default:
+			continue
+		}
+		if idx, ok := navIndexMap[node.NavId]; ok {
+			result[idx].List = append(result[idx].List, *node)
+		}
+	}
+
+	// 过滤掉空分组
+	filtered := make([]*shareV1.NodeListGroupNavResp, 0, len(result))
+	for _, group := range result {
+		if len(group.List) > 0 {
+			filtered = append(filtered, group)
+		}
+	}
+	return filtered, nil
+}
+
+func (u *NodeUsecase) MoveNodeNav(ctx context.Context, req *v1.NodeMoveNavReq) error {
+	nav, err := u.navRepo.GetById(ctx, req.NavID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("nav not found: %w", err)
+		}
+		return err
+	}
+	if nav.KbID != req.KbID {
+		return fmt.Errorf("nav does not belong to kb %s", req.KbID)
+	}
+	return u.nodeRepo.MoveNodeNav(ctx, req.KbID, req.NavID, req.NodeIDs)
+}
+
+func (u *NodeUsecase) StreamSummaryNode(ctx context.Context, req *domain.NodeSummaryReq, onChunk func(ctx context.Context, dataType, chunk string) error) error {
+	model, err := u.modelUsecase.GetChatModel(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.ErrModelNotConfigured
+		}
+		return err
+	}
+	if len(req.IDs) != 1 {
+		return fmt.Errorf("stream summary only supports single node")
+	}
+
+	node, err := u.nodeRepo.GetNodeByID(ctx, req.IDs[0])
+	if err != nil {
+		return fmt.Errorf("get latest node release failed: %w", err)
+	}
+
+	if err := u.llmUsecase.StreamSummaryNode(ctx, req.KBID, model, node.Name, node.Content, onChunk); err != nil {
+		return fmt.Errorf("summary node failed: %w", err)
+	}
+	return nil
 }
 
 func (u *NodeUsecase) GetRecommendNodeList(ctx context.Context, req *domain.GetRecommendNodeListReq) ([]*domain.RecommendNodeListResp, error) {

@@ -1490,6 +1490,8 @@ definitions:
         type: string
       name:
         type: string
+      nav_id:
+        type: string
       parent_id:
         type: string
       position:
@@ -1505,6 +1507,7 @@ definitions:
     required:
     - kb_id
     - name
+    - nav_id
     - type
     type: object
   domain.DirDocConfig:
@@ -2057,6 +2060,8 @@ definitions:
         type: string
       name:
         type: string
+      nav_id:
+        type: string
       parent_id:
         type: string
       permissions:
@@ -2122,16 +2127,16 @@ definitions:
     type: integer
     x-enum-comments:
       NodeStatusDraft: 更新未发布
-      NodeStatusReleased: 已发布
-      NodeStatusUnreleased: 未发布
+      NodeStatusPublished: 已发布
+      NodeStatusUnreleased: 草稿
     x-enum-descriptions:
-    - 未发布
+    - 草稿
     - 更新未发布
     - 已发布
     x-enum-varnames:
     - NodeStatusUnreleased
     - NodeStatusDraft
-    - NodeStatusReleased
+    - NodeStatusPublished
   domain.NodeSummaryReq:
     properties:
       ids:
@@ -2455,6 +2460,10 @@ definitions:
       id:
         type: string
       name:
+        type: string
+      nav_id:
+        type: string
+      nav_name:
         type: string
       parent_id:
         type: string
@@ -2852,6 +2861,8 @@ definitions:
         type: string
       name:
         type: string
+      nav_id:
+        type: string
       position:
         type: number
       summary:
@@ -3099,14 +3110,20 @@ definitions:
     type: object
   github_com_chaitin_panda-wiki_api_node_v1.NodeListGroupNavResp:
     properties:
+      count:
+        type: integer
+      is_released:
+        type: boolean
+      list:
+        items:
+          $ref: '#/definitions/domain.NodeListItemResp'
+        type: array
       nav_id:
         type: string
       nav_name:
         type: string
-      nodes:
-        items:
-          $ref: '#/definitions/v1.NodeListGroupNavNodeResp'
-        type: array
+      position:
+        type: number
     type: object
   github_com_chaitin_panda-wiki_api_share_v1.AuthGetResp:
     properties:
@@ -3613,13 +3630,6 @@ definitions:
       updated_at:
         type: string
     type: object
-  v1.NodeListGroupNavNodeResp:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-    type: object
   v1.NodeMoveNavReq:
     properties:
       kb_id:
@@ -3704,6 +3714,8 @@ definitions:
   v1.NodeStatsResp:
     properties:
       unpublished_count:
+        type: integer
+      unreleased_nav_count:
         type: integer
       unstudied_count:
         type: integer
@@ -5636,6 +5648,9 @@ paths:
         required: true
         type: string
       - in: query
+        name: nav_id
+        type: string
+      - in: query
         name: search
         type: string
       produces:
@@ -5666,6 +5681,22 @@ paths:
       - in: query
         name: kb_id
         required: true
+        type: string
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: nav_ids
+        type: array
+      - in: query
+        name: search
+        type: string
+      - enum:
+        - released
+        - unpublished
+        - unstudied
+        in: query
+        name: status
         type: string
       produces:
       - application/json
@@ -5806,6 +5837,12 @@ paths:
         name: kb_id
         required: true
         type: string
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: nav_ids
+        type: array
       - collectionFormat: csv
         in: query
         items:

@@ -7,7 +7,7 @@ import { parsePathname } from '@/utils';
 import { postShareV1StatPage } from '@/request/ShareStat';
 import { getShareV1NodeList } from '@/request/ShareNode';
 import { getShareV1AppWebInfo } from '@/request/ShareApp';
-import { filterEmptyFolders, convertToTree } from '@/utils/drag';
+import { filterEmptyFolders, convertToTree } from '@/utils/tree';
 import { deepSearchFirstNode } from '@/utils';
 
 const StatPage = {

@@ -47,6 +47,7 @@ func (l *LarkBotLogger) Warn(ctx context.Context, args ...interface{}) {
 type LarkClient struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
+	done         chan struct{}
 	clientID     string
 	clientSecret string
 	logger       *log.Logger
@@ -71,6 +72,7 @@ func NewLarkClient(ctx context.Context, cancel context.CancelFunc, clientID, cli
 	c := &LarkClient{
 		ctx:          ctx,
 		cancel:       cancel,
+		done:         make(chan struct{}),
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		client:       client,
@@ -312,6 +314,7 @@ func (c *LarkClient) replaceMentions(text string, mentions []*larkim.MentionEven
 // Note: Unlike Feishu, Lark doesn't use WebSocket. Events are handled via HTTP callbacks.
 // The actual HTTP endpoint needs to be registered separately in the HTTP router.
 func (c *LarkClient) Start() error {
+	defer close(c.done)
 	c.logger.Info("lark bot client initialized (HTTP callback mode)",
 		log.String("app_id", c.clientID),
 		log.String("note", "Register HTTP callback endpoint to receive events"))
@@ -343,4 +346,9 @@ func (c *LarkClient) GetUserInfo(UserOpenId string) (*larkcontact.User, error) {
 
 func (c *LarkClient) Stop() {
 	c.cancel()
+}
+
+// Done returns a channel that is closed when Start() has fully returned.
+func (c *LarkClient) Done() <-chan struct{} {
+	return c.done
 }

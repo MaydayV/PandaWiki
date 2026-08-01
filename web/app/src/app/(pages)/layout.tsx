@@ -3,7 +3,7 @@ import { getShareV1AppWebInfo } from '@/request/ShareApp';
 import { getShareV1NodeList } from '@/request/ShareNode';
 import parse, { DOMNode, domToReact } from 'html-react-parser';
 import Script from 'next/script';
-import { filterEmptyFolders, convertToTree } from '@/utils/drag';
+import { filterEmptyFolders, convertToTree } from '@/utils/tree';
 
 const Layout = async ({
   children,

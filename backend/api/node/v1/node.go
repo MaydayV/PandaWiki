@@ -87,23 +87,25 @@ type NodeStatsReq struct {
 }
 
 type NodeStatsResp struct {
-	UnpublishedCount int64 `json:"unpublished_count"`
-	UnstudiedCount   int64 `json:"unstudied_count"`
+	UnpublishedCount   int64 `json:"unpublished_count"`
+	UnstudiedCount     int64 `json:"unstudied_count"`
+	UnreleasedNavCount int64 `json:"unreleased_nav_count"`
 }
 
 type NodeListGroupNavReq struct {
-	KbId string `query:"kb_id" json:"kb_id" validate:"required"`
+	KbId   string   `json:"kb_id" query:"kb_id" validate:"required"`
+	NavIds []string `json:"nav_ids" query:"nav_ids[]"`
+	Search string   `json:"search" query:"search"`
+	Status string   `json:"status" query:"status" validate:"omitempty,oneof=released unpublished unstudied"`
 }
 
 type NodeListGroupNavResp struct {
-	NavID   string `json:"nav_id"`
-	NavName string `json:"nav_name"`
-	Nodes   []NodeListGroupNavNodeResp `json:"nodes"`
-}
-
-type NodeListGroupNavNodeResp struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	NavName    string                    `json:"nav_name"`
+	NavID      string                    `json:"nav_id"`
+	Position   float64                   `json:"position"`
+	Count      int64                     `json:"count"`
+	IsReleased bool                      `json:"is_released"`
+	List       []domain.NodeListItemResp `json:"list"`
 }
 
 type NodeMoveNavReq struct {

@@ -35,6 +35,7 @@ func createApp() (*App, error) {
 	}
 	logger := log.NewLogger(configConfig)
 	nodeRepository := pg2.NewNodeRepository(db, logger)
+	navRepository := pg2.NewNavRepository(db, logger)
 	appRepository := pg2.NewAppRepository(db, logger)
 	mqProducer, err := mq.NewMQProducer(configConfig, logger)
 	if err != nil {
@@ -60,10 +61,10 @@ func createApp() (*App, error) {
 		return nil, err
 	}
 	authRepo := pg2.NewAuthRepo(db, logger, cacheCache)
-	apiTokenRepo := pg2.NewAPITokenRepo(db, logger, cacheCache)
 	systemSettingRepo := pg2.NewSystemSettingRepo(db, logger)
 	modelUsecase := usecase.NewModelUsecase(modelRepository, nodeRepository, ragRepository, ragService, logger, configConfig, knowledgeBaseRepository, systemSettingRepo)
-	nodeUsecase := usecase.NewNodeUsecase(nodeRepository, appRepository, ragRepository, userRepository, knowledgeBaseRepository, llmUsecase, ragService, logger, minioClient, modelRepository, authRepo, modelUsecase)
+	nodeUsecase := usecase.NewNodeUsecase(nodeRepository, navRepository, appRepository, ragRepository, userRepository, knowledgeBaseRepository, llmUsecase, ragService, logger, minioClient, modelRepository, authRepo, modelUsecase)
+	apiTokenRepo := pg2.NewAPITokenRepo(db, logger, cacheCache)
 	kbRepo := cache2.NewKBRepo(cacheCache)
 	pushUsecase := usecase.NewPushUsecase(appRepository, knowledgeBaseRepository, logger)
 	knowledgeBaseUsecase, err := usecase.NewKnowledgeBaseUsecase(knowledgeBaseRepository, nodeRepository, ragRepository, userRepository, apiTokenRepo, ragService, kbRepo, pushUsecase, logger, configConfig)
@@ -74,11 +75,13 @@ func createApp() (*App, error) {
 	migrationCreateBotAuth := fns.NewMigrationCreateBotAuth(logger)
 	migrationFixGroupIds := fns.NewMigrationFixGroupIds(logger, ragRepository)
 	migrationUpdateNodeStatusUnreleased := fns.NewMigrationUpdateNodeStatusUnreleased(logger)
+	migrationCreateFirstNavs := fns.NewMigrationCreateFirstNavs(logger)
 	migrationFuncs := &migration.MigrationFuncs{
 		NodeMigration:                       migrationNodeVersion,
 		BotAuthMigration:                    migrationCreateBotAuth,
 		FixGroupIdsMigration:                migrationFixGroupIds,
 		UpdateNodeStatusUnreleasedMigration: migrationUpdateNodeStatusUnreleased,
+		CreateFirstNavs:                     migrationCreateFirstNavs,
 	}
 	manager, err := migration.NewManager(db, logger, migrationFuncs)
 	if err != nil {

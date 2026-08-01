@@ -23,6 +23,7 @@ import (
 )
 
 const maxConversationAskIntervalSeconds = 300
+const defaultWebAppCopyright = "本回答由 PandaWiki 基于 AI 生成，仅供参考。"
 
 type AppUsecase struct {
 	repo          *pg.AppRepository
@@ -340,6 +341,7 @@ func (u *AppUsecase) updateLarkBot(app *domain.App) {
 	if bot, exists := u.larkBots[app.ID]; exists {
 		if bot != nil {
 			bot.Stop()
+			<-bot.Done() // wait for old goroutine to exit
 			delete(u.larkBots, app.ID)
 		}
 	}
@@ -1203,4 +1205,57 @@ func (u *AppUsecase) GetRecommendNodesByIds(ctx context.Context, kbId string, no
 // TestPush sends a test push message to verify the push configuration.
 func (u *AppUsecase) TestPush(ctx context.Context, appID, chatID string) error {
 	return u.pushUsecase.TestPush(ctx, appID, chatID)
+}
+
+func (u *AppUsecase) GetWebAppCopyright(ctx context.Context, kbID string) string {
+	if !domain.GetBaseEditionLimitation(ctx).AllowCustomCopyright {
+		return defaultWebAppCopyright
+	}
+
+	webAppInfo, err := u.GetAppDetailByKBIDAndAppType(ctx, kbID, domain.AppTypeWeb)
+	if err != nil {
+		u.logger.Error("failed to get web app disclaimer content", log.Error(err), log.String("kb_id", kbID))
+		return defaultWebAppCopyright
+	}
+
+	if webAppInfo.Settings.ConversationSetting.CopyrightHideEnabled {
+		return ""
+	}
+
+	if webAppInfo.Settings.ConversationSetting.CopyrightInfo == "" {
+		return defaultWebAppCopyright
+	}
+
+	return webAppInfo.Settings.ConversationSetting.CopyrightInfo
+}
+
+func (u *AppUsecase) SanitizeAppDetailForDocManage(app *domain.AppDetailResp) *domain.AppDetailResp {
+	if app == nil {
+		return nil
+	}
+
+	sanitized := &domain.AppDetailResp{
+		ID:   app.ID,
+		KBID: app.KBID,
+		Name: app.Name,
+		Type: app.Type,
+	}
+
+	if app.Type != domain.AppTypeWeb {
+		return sanitized
+	}
+
+	sanitized.Settings = domain.AppSettingsResp{
+		ThemeMode:           app.Settings.ThemeMode,
+		ThemeAndStyle:       app.Settings.ThemeAndStyle,
+		CatalogSettings:     app.Settings.CatalogSettings,
+		WatermarkContent:    app.Settings.WatermarkContent,
+		WatermarkSetting:    app.Settings.WatermarkSetting,
+		CopySetting:         app.Settings.CopySetting,
+		ContributeSettings:  app.Settings.ContributeSettings,
+		ConversationSetting: app.Settings.ConversationSetting,
+		HomePageSetting:     app.Settings.HomePageSetting,
+	}
+
+	return sanitized
 }

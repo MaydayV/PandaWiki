@@ -36,7 +36,7 @@
     "react-image-crop": "^11.0.10",
     "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
-    "react-router-dom": "^7.0.2",
+    "react-router-dom": "^7.18.0",
     "react-syntax-highlighter": "^15.6.1",
     "react-virtuoso": "^4.12.6",
     "rehype-katex": "^7.0.1",
@@ -59,8 +59,9 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
     "rollup-plugin-visualizer": "^6.0.3",
+    "typescript": "5.9.3",
     "typescript-eslint": "^8.30.1",
-    "vite": "^6.0.1"
+    "vite": "^8.0.16"
   },
   "packageManager": "pnpm@10.12.1+sha512.f0dda8580f0ee9481c5c79a1d927b9164f2c478e90992ad268bbb2465a736984391d6333d2c327913578b2804af33474ca554ba29c04a8b13060a717675ae3ac"
 }

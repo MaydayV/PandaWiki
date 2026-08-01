@@ -175,6 +175,9 @@ func overrideWithEnv(c *Config) {
 	if env := os.Getenv("S3_SECRET_KEY"); env != "" {
 		c.S3.SecretKey = env
 	}
+	if env := os.Getenv("S3_ACCESS_KEY"); env != "" {
+		c.S3.AccessKey = env
+	}
 	if env := os.Getenv("ADMIN_PASSWORD"); env != "" {
 		c.AdminPassword = env
 	}

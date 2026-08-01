@@ -1,6 +1,7 @@
 'use client';
 
 import { ITreeItem, KBDetail, NodeListItem, WidgetInfo } from '@/assets/type';
+import { NavItem } from '@/utils/tree';
 import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -34,6 +35,13 @@ interface StoreContextType {
   setCatalogWidth?: (value: number) => void;
   qaModalOpen?: boolean;
   setQaModalOpen?: (value: boolean) => void;
+  /** 栏目列表，多栏目时展示导航栏 */
+  navList?: NavItem[];
+  /** 当前选中的栏目 id */
+  selectedNavId?: string;
+  setSelectedNavId?: Dispatch<SetStateAction<string | undefined>>;
+  /** 各栏目对应的文档列表 nav_id -> NodeListItem[] */
+  navDataMap?: Record<string, NodeListItem[]>;
 }
 
 export const StoreContext = createContext<StoreContextType | undefined>(

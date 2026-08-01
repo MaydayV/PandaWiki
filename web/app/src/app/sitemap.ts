@@ -101,7 +101,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     node =>
       node?.id &&
       node.type === DomainNodeType.NodeTypeDocument &&
-      node.status === DomainNodeStatus.NodeStatusReleased,
+      node.status === DomainNodeStatus.NodeStatusPublished,
   );
   const uniquePublishedDocs = Array.from(
     new Map(

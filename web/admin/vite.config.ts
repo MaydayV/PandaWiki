@@ -100,31 +100,52 @@ export default defineConfig(({ command, mode }) => {
       assetsDir: 'panda-wiki-admin-assets',
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': [
-              'react',
-              'react-dom',
-              'react-router-dom',
-              'react-redux',
-              '@reduxjs/toolkit',
-            ],
-            'vendor-mui': ['@mui/material'],
-            'vendor-editor': [
-              'highlight.js',
-              'lowlight',
-              'katex',
-              'prosemirror-state',
-            ],
-            'vendor-markdown': [
-              'react-markdown',
-              'remark-gfm',
-              'remark-math',
-              'remark-breaks',
-              'rehype-katex',
-              'rehype-raw',
-              'rehype-sanitize',
-            ],
-            'vendor-yjs': ['yjs', 'y-websocket'],
+          manualChunks(id: string) {
+            if (id.includes('node_modules')) {
+              if (
+                [
+                  'react/',
+                  'react-dom/',
+                  'react-router-dom/',
+                  'react-redux/',
+                  '@reduxjs/toolkit/',
+                ].some(pkg => id.includes(`node_modules/${pkg}`))
+              ) {
+                return 'vendor-react';
+              }
+              if (id.includes('node_modules/@mui/')) {
+                return 'vendor-mui';
+              }
+              if (
+                [
+                  'highlight.js/',
+                  'lowlight/',
+                  'katex/',
+                  'prosemirror-state/',
+                ].some(pkg => id.includes(`node_modules/${pkg}`))
+              ) {
+                return 'vendor-editor';
+              }
+              if (
+                [
+                  'react-markdown/',
+                  'remark-gfm/',
+                  'remark-math/',
+                  'remark-breaks/',
+                  'rehype-katex/',
+                  'rehype-raw/',
+                  'rehype-sanitize/',
+                ].some(pkg => id.includes(`node_modules/${pkg}`))
+              ) {
+                return 'vendor-markdown';
+              }
+              if (
+                id.includes('node_modules/yjs/') ||
+                id.includes('node_modules/y-websocket/')
+              ) {
+                return 'vendor-yjs';
+              }
+            }
           },
         },
       },

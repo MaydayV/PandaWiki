@@ -2882,6 +2882,11 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "name": "nav_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "name": "search",
                         "in": "query"
                     }
@@ -2935,6 +2940,30 @@ const docTemplate = `{
                         "name": "kb_id",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "nav_ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "released",
+                            "unpublished",
+                            "unstudied"
+                        ],
+                        "type": "string",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3171,6 +3200,15 @@ const docTemplate = `{
                         "name": "kb_id",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "nav_ids",
+                        "in": "query"
                     },
                     {
                         "type": "array",
@@ -7446,6 +7484,7 @@ const docTemplate = `{
             "required": [
                 "kb_id",
                 "name",
+                "nav_id",
                 "type"
             ],
             "properties": {
@@ -7462,6 +7501,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nav_id": {
                     "type": "string"
                 },
                 "parent_id": {
@@ -8326,6 +8368,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nav_id": {
+                    "type": "string"
+                },
                 "parent_id": {
                     "type": "string"
                 },
@@ -8428,18 +8473,18 @@ const docTemplate = `{
             ],
             "x-enum-comments": {
                 "NodeStatusDraft": "更新未发布",
-                "NodeStatusReleased": "已发布",
-                "NodeStatusUnreleased": "未发布"
+                "NodeStatusPublished": "已发布",
+                "NodeStatusUnreleased": "草稿"
             },
             "x-enum-descriptions": [
-                "未发布",
+                "草稿",
                 "更新未发布",
                 "已发布"
             ],
             "x-enum-varnames": [
                 "NodeStatusUnreleased",
                 "NodeStatusDraft",
-                "NodeStatusReleased"
+                "NodeStatusPublished"
             ]
         },
         "domain.NodeSummaryReq": {
@@ -8937,6 +8982,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "nav_id": {
+                    "type": "string"
+                },
+                "nav_name": {
                     "type": "string"
                 },
                 "parent_id": {
@@ -9546,6 +9597,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nav_id": {
+                    "type": "string"
+                },
                 "position": {
                     "type": "number"
                 },
@@ -9918,17 +9972,26 @@ const docTemplate = `{
         "github_com_chaitin_panda-wiki_api_node_v1.NodeListGroupNavResp": {
             "type": "object",
             "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "is_released": {
+                    "type": "boolean"
+                },
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.NodeListItemResp"
+                    }
+                },
                 "nav_id": {
                     "type": "string"
                 },
                 "nav_name": {
                     "type": "string"
                 },
-                "nodes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.NodeListGroupNavNodeResp"
-                    }
+                "position": {
+                    "type": "number"
                 }
             }
         },
@@ -10699,17 +10762,6 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.NodeListGroupNavNodeResp": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
         "v1.NodeMoveNavReq": {
             "type": "object",
             "required": [
@@ -10833,6 +10885,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "unpublished_count": {
+                    "type": "integer"
+                },
+                "unreleased_nav_count": {
                     "type": "integer"
                 },
                 "unstudied_count": {

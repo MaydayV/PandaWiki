@@ -3,7 +3,7 @@
 import { IconNav } from '@/components/icons';
 import { IconXiajiantou } from '@panda-wiki/icons';
 import { filterTreeBySearch } from '@/utils';
-import { addExpandState } from '@/utils/drag';
+import { addExpandState } from '@/utils/tree';
 import { useParams } from 'next/navigation';
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, Stack, TextField } from '@mui/material';
@@ -144,11 +144,7 @@ const CatalogH5 = () => {
         />
         <Box sx={{ py: 3 }}>
           {tree.map(item => (
-            <CatalogFolder
-              key={item.id}
-              item={item}
-              searchTerm={debouncedSearchTerm}
-            />
+            <CatalogFolder key={item.id} item={item} />
           ))}
         </Box>
       </Box>
