@@ -1,8 +1,10 @@
 import { TrendData } from '@/api';
-import { Box, useTheme } from '@mui/material';
-import type { ECharts } from 'echarts';
-import { useEffect, useRef, useState } from 'react';
 import { loadScript } from '@/utils/loadScript';
+import { Box, useTheme } from '@mui/material';
+import * as echarts from 'echarts';
+import { useEffect, useRef, useState } from 'react';
+
+type ECharts = ReturnType<typeof echarts.init>;
 
 interface Props {
   map: 'china' | 'world' | string;
@@ -12,15 +14,9 @@ interface Props {
   tooltipNameFormatter?: (name: string) => string;
 }
 
-type EchartsGlobal = {
-  init: (el: HTMLDivElement) => ECharts;
-  registerMap: (name: string, geoJson: unknown) => void;
-  getMap?: (name: string) => unknown;
-};
-
 type GlobalMapWindow = Window & {
   __BASENAME__?: string;
-  echarts?: EchartsGlobal;
+  echarts?: typeof echarts;
   $GeoJSON?: unknown;
 };
 
@@ -75,23 +71,20 @@ const MapChart = ({
       try {
         setResourceLoaded(false);
 
-        await loadScriptWithFallback(
-          withBasenameCandidates('/echarts/echarts.5.4.1.min.js'),
-        );
+        // Expose npm echarts for legacy map scripts that expect a global.
+        const globalWindow = window as GlobalMapWindow;
+        globalWindow.echarts = echarts;
 
         if (map === 'china') {
-          await loadScriptWithFallback(
-            withBasenameCandidates('/echarts/china.js'),
-          );
+          if (!echarts.getMap('china')) {
+            await loadScriptWithFallback(
+              withBasenameCandidates('/echarts/china.js'),
+            );
+          }
         } else if (map === 'world') {
           await loadScriptWithFallback(withBasenameCandidates('/geo/geo.js'));
-          const globalWindow = window as GlobalMapWindow;
-          if (
-            globalWindow.echarts &&
-            globalWindow.$GeoJSON &&
-            !globalWindow.echarts.getMap?.('world')
-          ) {
-            globalWindow.echarts.registerMap('world', globalWindow.$GeoJSON);
+          if (globalWindow.$GeoJSON && !echarts.getMap('world')) {
+            echarts.registerMap('world', globalWindow.$GeoJSON as never);
           }
         }
 
@@ -113,10 +106,7 @@ const MapChart = ({
       chartData.map(it => ({ name: it.name, value: normalizeCount(it.count) })),
     );
     if (domWrapRef.current && !echartRef.current) {
-      type EchartsGlobal = { init: (el: HTMLDivElement) => ECharts };
-      const echartsGlobal = (window as unknown as { echarts: EchartsGlobal })
-        .echarts;
-      echartRef.current = echartsGlobal.init(domWrapRef.current);
+      echartRef.current = echarts.init(domWrapRef.current);
     }
   }, [chartData, resourceLoaded]);
 
@@ -192,7 +182,6 @@ const MapChart = ({
     tooltipText,
   ]);
 
-  // if (!loading) return <div style={{ width: '100%', height: 292 }} />
   return (
     <Box
       sx={{ width: '100%', height: 292, pr: '200px' }}

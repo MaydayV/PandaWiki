@@ -1,6 +1,6 @@
 import Card from '@/components/Card';
 
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 
 import { useState } from 'react';
 import Comments from './Comments';

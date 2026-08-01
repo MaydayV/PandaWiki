@@ -1,6 +1,6 @@
 import { useTiptap } from '@ctzhian/tiptap';
 import { Box, Skeleton, Stack } from '@mui/material';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { WrapContext } from '..';
 import Header from './Header';
 import Toolbar from './Toolbar';

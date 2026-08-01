@@ -2,7 +2,7 @@ import { useAppSelector } from '@/store';
 import { Ellipsis } from '@ctzhian/ui';
 import { Stack } from '@mui/material';
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { IconZuzhi } from '@panda-wiki/icons';
 
 const KBSwitch = () => {

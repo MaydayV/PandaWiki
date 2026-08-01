@@ -106,7 +106,7 @@ export default defineConfig(({ command, mode }) => {
                 [
                   'react/',
                   'react-dom/',
-                  'react-router-dom/',
+                  'react-router/',
                   'react-redux/',
                   '@reduxjs/toolkit/',
                 ].some(pkg => id.includes(`node_modules/${pkg}`))

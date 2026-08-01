@@ -2,7 +2,7 @@ import { useAppSelector } from '@/store';
 import { Box, Stack, useTheme } from '@mui/material';
 import { IconXiala } from '@panda-wiki/icons';
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router';
 import KBSelect from '../KB/KBSelect';
 
 const HomeBread = { title: '文档', to: '/' };

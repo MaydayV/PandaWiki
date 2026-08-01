@@ -29,7 +29,7 @@ import {
   useNavigate,
   useOutletContext,
   useParams,
-} from 'react-router-dom';
+} from 'react-router';
 import { WrapContext } from '..';
 import AIGenerate from './AIGenerate';
 import FullTextEditor from './FullTextEditor';

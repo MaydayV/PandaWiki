@@ -1,7 +1,7 @@
 import { DocWidth } from '@/constant/enums';
 import { Editor, UseTiptapReturn } from '@ctzhian/tiptap';
 import { Box } from '@mui/material';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { WrapContext } from '..';
 
 interface FullTextEditorProps {

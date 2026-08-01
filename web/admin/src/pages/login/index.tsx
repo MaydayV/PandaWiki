@@ -7,7 +7,7 @@ import { useURLSearchParams } from '@/hooks';
 import { Box, Button, IconButton, Stack, TextField } from '@mui/material';
 import { Icon, message } from '@ctzhian/ui';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
   IconZhanghao,
   IconIcon_tool_close,

@@ -4,7 +4,7 @@
 // import Collaboration from '@tiptap/extension-collaboration';
 // import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 // import { useEffect, useMemo } from 'react';
-// import { useParams } from 'react-router-dom';
+// import { useParams } from 'react-router';
 // import { WebsocketProvider } from 'y-websocket';
 // import * as Y from 'yjs';
 

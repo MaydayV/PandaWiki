@@ -1,7 +1,7 @@
 import router from '@/router';
 import { theme } from '@/themes';
 import { ThemeProvider } from '@ctzhian/ui';
-import { useLocation, useRoutes } from 'react-router-dom';
+import { useLocation, useRoutes } from 'react-router';
 
 import '@ctzhian/tiptap/dist/index.css';
 

@@ -4,7 +4,7 @@ import { Box, Button, Stack, Typography, useTheme } from '@mui/material';
 import { ConstsUserKBPermission } from '@/request/types';
 import { Modal } from '@ctzhian/ui';
 import { useState, useMemo, useEffect } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import Avatar from '../Avatar';
 import Version from './Version';
 import { useAppSelector } from '@/store';
@@ -281,7 +281,8 @@ const Sidebar = () => {
                 乘风版支持说明
               </Typography>
               <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-                乘风版基于 PandaWiki 开源项目进行深度二次开发，功能边界与技术实现已和原版存在差异。
+                乘风版基于 PandaWiki
+                开源项目进行深度二次开发，功能边界与技术实现已和原版存在差异。
                 为了保护原作者宝贵时间，也为了你能更快拿到可执行的修复，请按下方指引反馈问题。
               </Typography>
             </Box>
@@ -301,7 +302,8 @@ const Sidebar = () => {
                 <br />
                 2. 请不要拿乘风版问题去原版仓库提 issue，别让原作者“在线背锅”。
                 <br />
-                3. 如果你确认是原版问题，请先在原版环境复现后，再联系原版开发者。
+                3.
+                如果你确认是原版问题，请先在原版环境复现后，再联系原版开发者。
               </Typography>
             </Box>
 

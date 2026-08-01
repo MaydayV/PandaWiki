@@ -11,7 +11,7 @@ import { Box, Checkbox, Divider, Stack, TextField } from '@mui/material';
 import { message, Modal } from '@ctzhian/ui';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import Card from '../Card';
 import FileText from '../UploadFile/FileText';
 

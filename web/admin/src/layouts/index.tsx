@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import KBCreate from '@/components/KB/KBCreate';
@@ -17,7 +17,7 @@ import {
 } from '@/store/slices/config';
 import { ConstsUserRole } from '@/request/types';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 const useAuth = (hasAuth: boolean) => {
   const { pathname } = useLocation();

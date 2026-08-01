@@ -24,13 +24,13 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
-    "dayjs": "^1.11.18",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "react-hook-form": "^7.62.0",
     "@panda-wiki/icons": "workspace:*",
     "@panda-wiki/themes": "workspace:*",
-    "@panda-wiki/ui": "workspace:*"
+    "@panda-wiki/ui": "workspace:*",
+    "dayjs": "^1.11.18",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.62.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",

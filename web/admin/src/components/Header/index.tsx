@@ -5,7 +5,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { Button, IconButton, Stack, Tooltip } from '@mui/material';
 import { message, Modal } from '@ctzhian/ui';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import System from '../System';
 import Bread from './Bread';
 import { IconDengchu } from '@panda-wiki/icons';

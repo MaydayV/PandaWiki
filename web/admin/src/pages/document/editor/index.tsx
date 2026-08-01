@@ -17,7 +17,7 @@ import { convertToTree } from '@/utils/drag';
 import { message } from '@ctzhian/ui';
 import { Box, Drawer, Stack, useMediaQuery } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router';
 import Catalog from './Catalog';
 
 export interface WrapContext {

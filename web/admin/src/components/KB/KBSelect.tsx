@@ -20,7 +20,7 @@ import {
   Stack,
 } from '@mui/material';
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import KBDelete from './KBDelete';
 import KBModify from './KBModify';
 

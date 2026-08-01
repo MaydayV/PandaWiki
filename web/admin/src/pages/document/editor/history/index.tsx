@@ -34,7 +34,7 @@ import {
 import dayjs from 'dayjs';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import ReactDiffViewer from 'react-diff-viewer';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router';
 import { WrapContext } from '..';
 import VersionRollback from '../../component/VersionRollback';
 

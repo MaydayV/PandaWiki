@@ -1,6 +1,6 @@
 import { filterEmpty } from '@/utils';
 import { useEffect, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router';
 
 export const useURLSearchParams = (): [
   URLSearchParams,

@@ -1,7 +1,7 @@
 import React from 'react';
 import NoPermissionImg from '@/assets/images/no-permission.png';
 import { styled, Box, Typography, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 const StyledContainer = styled(Box)(({ theme }) => ({
   display: 'flex',

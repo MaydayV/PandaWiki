@@ -26,7 +26,7 @@ import {
 } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router';
 import { WrapContext } from '..';
 import DocAddByCustomText from '../../component/DocAddByCustomText';
 import DocDelete from '../../component/DocDelete';

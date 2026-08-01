@@ -3,7 +3,7 @@ import { V1NodeDetailResp } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { useOutletContext, useParams } from 'react-router-dom';
+import { useOutletContext, useParams } from 'react-router';
 import { WrapContext } from '..';
 import LoadingEditorWrap from './Loading';
 import EditorWrap from './Wrap';

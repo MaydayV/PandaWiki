@@ -9,7 +9,7 @@ import { Modal, message } from '@ctzhian/ui';
 import { Box, Step, StepLabel, Stepper } from '@mui/material';
 import dayjs from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import {
   Step1Model,
   Step2Config,

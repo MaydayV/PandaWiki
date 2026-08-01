@@ -9,7 +9,7 @@ import SSEClient from '@/utils/fetch';
 import { message, Modal } from '@ctzhian/ui';
 import { Button, CircularProgress, Stack, TextField } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { WrapContext } from '..';
 import { IconDJzhinengzhaiyao } from '@panda-wiki/icons';
 
