@@ -13,6 +13,26 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 
+// 默认百智云 Chat 模型列表
+const DEFAULT_BAIZHI_CLOUD_CHAT_MODELS: string[] = [
+  'qwen-flash',
+  'qwen3.5-flash',
+  'deepseek-v4-flash',
+  'deepseek-v4-pro',
+  'qwen3.6-plus',
+  'minimax-m2.7',
+  'glm-5.1',
+  'kimi-k2.6',
+];
+
+const getDefaultChatModel = (chatModel: string) => {
+  if (DEFAULT_BAIZHI_CLOUD_CHAT_MODELS.includes(chatModel)) {
+    return chatModel;
+  }
+
+  return DEFAULT_BAIZHI_CLOUD_CHAT_MODELS[0];
+};
+
 export interface AutoModelConfigRef {
   getFormData: () => {
     apiKey: string;
@@ -26,11 +46,16 @@ interface AutoModelConfigProps {
   initialApiKey?: string;
   initialChatModel?: string;
   initialApiBaseURL?: string;
+  showLegacyConfigTip?: boolean;
   onDataChange?: () => void;
 }
 
-export const DEFAULT_AUTO_MODE_API_BASE_URL =
+/** 旧版百智云模型广场地址 */
+export const LEGACY_AUTO_MODE_API_BASE_URL =
   'https://model-square.app.baizhi.cloud/v1';
+/** 新版模型商店地址（与上游默认供应商一致） */
+export const DEFAULT_AUTO_MODE_API_BASE_URL =
+  'https://ai-models.app.baizhi.cloud/api/openai';
 
 const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
   (props, ref) => {
@@ -39,24 +64,17 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
       initialApiKey = '',
       initialChatModel = '',
       initialApiBaseURL = DEFAULT_AUTO_MODE_API_BASE_URL,
+      showLegacyConfigTip = false,
       onDataChange,
     } = props;
     const [autoConfigApiKey, setAutoConfigApiKey] = useState(initialApiKey);
-    const [selectedAutoChatModel, setSelectedAutoChatModel] =
-      useState(initialChatModel);
+    const [selectedAutoChatModel, setSelectedAutoChatModel] = useState(
+      getDefaultChatModel(initialChatModel),
+    );
     const [autoConfigApiBaseURL, setAutoConfigApiBaseURL] = useState(
       initialApiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL,
     );
     const [showApiKey, setShowApiKey] = useState(false);
-
-    // 默认百智云 Chat 模型列表
-    const DEFAULT_BAIZHI_CLOUD_CHAT_MODELS: string[] = [
-      'deepseek-chat',
-      'deepseek-r1',
-      'kimi-k2-0711-preview',
-      'qwen-vl-max-latest',
-      'glm-4.5',
-    ];
 
     const modelList = DEFAULT_BAIZHI_CLOUD_CHAT_MODELS;
 
@@ -68,9 +86,7 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
     }, [initialApiKey]);
 
     useEffect(() => {
-      if (initialChatModel) {
-        setSelectedAutoChatModel(initialChatModel);
-      }
+      setSelectedAutoChatModel(getDefaultChatModel(initialChatModel));
     }, [initialChatModel]);
 
     useEffect(() => {
@@ -174,7 +190,7 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
             </Box>
             <Box
               component='a'
-              href='https://model-square.app.baizhi.cloud/token'
+              href='https://ai-models.app.baizhi.cloud/console/keys'
               target='_blank'
               sx={{
                 color: 'primary.main',
@@ -216,6 +232,33 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
               },
             }}
           />
+          {showLegacyConfigTip && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1,
+                p: 1.5,
+                mt: 1.5,
+                bgcolor: 'rgba(237, 108, 2, 0.08)',
+                borderRadius: '8px',
+                border: '1px solid rgba(237, 108, 2, 0.2)',
+                fontSize: 12,
+                lineHeight: 1.6,
+                color: 'warning.main',
+              }}
+            >
+              <InfoOutlineSharpIcon
+                sx={{
+                  fontSize: 16,
+                  color: 'warning.main',
+                  flexShrink: 0,
+                  mt: 0.2,
+                }}
+              />
+              当前配置将于2026年12月31日失效，请及时前往模型商店更新 API Key。
+            </Box>
+          )}
 
           <Box
             sx={{
@@ -248,7 +291,7 @@ const AutoModelConfig = forwardRef<AutoModelConfigRef, AutoModelConfigProps>(
               setAutoConfigApiBaseURL(e.target.value);
               onDataChange?.();
             }}
-            helperText='默认使用百智云地址，可替换为自定义 OpenAI 兼容 API 中转地址'
+            helperText='默认使用百智云模型商店地址，可替换为自定义 OpenAI 兼容 API 中转地址'
             sx={{
               '& .MuiInputBase-root': {
                 borderRadius: '10px',

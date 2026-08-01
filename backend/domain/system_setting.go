@@ -24,7 +24,8 @@ func (SystemSetting) TableName() string {
 type ModelModeSetting struct {
 	Mode                     consts.ModelSettingMode `json:"mode"`                        // 模式: manual 或 auto
 	AutoModeAPIKey           string                  `json:"auto_mode_api_key"`           // 百智云 API Key
-	AutoModeAPIBaseURL       string                  `json:"auto_mode_api_base_url"`      // 自动配置 API 地址
+	AutoModeAPIBaseURL       string                  `json:"auto_mode_api_base_url"`      // 自动配置 API 地址（乘风版：可自定义）
+	AutoModeProvider         ModelProvider           `json:"auto_mode_provider"`          // 自动模式供应商
 	ChatModel                string                  `json:"chat_model"`                  // 自定义对话模型名称
 	IsManualEmbeddingUpdated bool                    `json:"is_manual_embedding_updated"` // 手动模式下嵌入模型是否更新
 }

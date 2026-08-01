@@ -6,7 +6,11 @@ import {
   putApiV1Model,
   getApiV1ModelModeSetting,
 } from '@/request/Model';
-import { GithubComChaitinPandaWikiDomainModelListItem } from '@/request/types';
+import {
+  DomainSwitchModeReq,
+  GithubComChaitinPandaWikiDomainModelListItem,
+  GithubComChaitinPandaWikiDomainModelProvider,
+} from '@/request/types';
 import { addOpacityToColor } from '@/utils';
 import { message, Modal } from '@ctzhian/ui';
 import {
@@ -96,6 +100,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
     const [initialApiBaseURL, setInitialApiBaseURL] = useState(
       DEFAULT_AUTO_MODE_API_BASE_URL,
     );
+    const [isLegacyAutoConfig, setIsLegacyAutoConfig] = useState(false);
     const [hasConfigChanged, setHasConfigChanged] = useState(false);
 
     const [modelData, setModelData] = useState<Record<string, any>>({
@@ -177,6 +182,12 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             }
             setInitialApiBaseURL(
               setting.auto_mode_api_base_url || DEFAULT_AUTO_MODE_API_BASE_URL,
+            );
+            setIsLegacyAutoConfig(
+              isAuto &&
+                !!setting.auto_mode_api_key &&
+                (!setting.auto_mode_provider ||
+                  setting.auto_mode_provider === 'BaiZhiCloud'),
             );
           }
         } catch (err) {
@@ -286,12 +297,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
       const modelConfigList = Object.keys(cacheModelData.current);
 
       try {
-        const requestData: {
-          mode: 'auto' | 'manual';
-          auto_mode_api_key?: string;
-          chat_model?: string;
-          auto_mode_api_base_url?: string;
-        } = {
+        const requestData: DomainSwitchModeReq = {
           mode: tempMode,
         };
 
@@ -300,6 +306,8 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
           const formData = autoConfigRef.current.getFormData();
           if (formData) {
             requestData.auto_mode_api_key = formData.apiKey;
+            requestData.auto_mode_provider =
+              GithubComChaitinPandaWikiDomainModelProvider.ModelProviderBaiZhiCloudModelStore;
             requestData.chat_model = formData.selectedModel;
             requestData.auto_mode_api_base_url =
               formData.apiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL;
@@ -320,6 +328,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             setInitialApiBaseURL(
               formData.apiBaseURL || DEFAULT_AUTO_MODE_API_BASE_URL,
             );
+            setIsLegacyAutoConfig(false);
           }
         }
 
@@ -483,6 +492,7 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
             initialApiKey={initialApiKey}
             initialChatModel={initialChatModel}
             initialApiBaseURL={initialApiBaseURL}
+            showLegacyConfigTip={isLegacyAutoConfig}
             onDataChange={() => setHasConfigChanged(true)}
           />
         ) : (

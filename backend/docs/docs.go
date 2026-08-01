@@ -8141,6 +8141,14 @@ const docTemplate = `{
                     "description": "百智云 API Key",
                     "type": "string"
                 },
+                "auto_mode_provider": {
+                    "description": "自动模式供应商",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                        }
+                    ]
+                },
                 "chat_model": {
                     "description": "自定义对话模型名称",
                     "type": "string"
@@ -9299,6 +9307,14 @@ const docTemplate = `{
                     "description": "百智云 API Key",
                     "type": "string"
                 },
+                "auto_mode_provider": {
+                    "description": "自动模式供应商",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_chaitin_panda-wiki_domain.ModelProvider"
+                        }
+                    ]
+                },
                 "chat_model": {
                     "description": "自定义对话模型名称",
                     "type": "string"
@@ -10065,10 +10081,12 @@ const docTemplate = `{
         "github_com_chaitin_panda-wiki_domain.ModelProvider": {
             "type": "string",
             "enum": [
-                "BaiZhiCloud"
+                "BaiZhiCloud",
+                "BaiZhiCloudModelStore"
             ],
             "x-enum-varnames": [
-                "ModelProviderBrandBaiZhiCloud"
+                "ModelProviderBrandBaiZhiCloud",
+                "ModelProviderBaiZhiCloudModelStore"
             ]
         },
         "gocap.ChallengeData": {
