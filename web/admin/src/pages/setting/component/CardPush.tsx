@@ -137,7 +137,7 @@ const CardPush = () => {
                   <TextField
                     {...field}
                     fullWidth
-                    placeholder='Webhook URL，多个用逗号分隔。开启签名校验时用 URL|密钥'
+                    placeholder='Webhook URL 或 Discord 频道 ID，多个用逗号分隔。飞书/钉钉签名用 URL|密钥'
                     onChange={e => {
                       field.onChange(e.target.value);
                       setIsEdit(true);
@@ -181,7 +181,8 @@ const CardPush = () => {
               sx={{ mt: 0.5 }}
             >
               支持变量：{'{kb_name}'} {'{tag}'} {'{message}'} {'{release_time}'}
-              。留空使用默认模板。
+              。目标支持飞书 / 钉钉 / 企业微信 Webhook，以及 Discord 频道
+              ID（需启用 Discord 机器人）。留空使用默认模板。
             </Typography>
           </FormItem>
         </>

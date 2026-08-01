@@ -1,8 +1,9 @@
 # 飞书机器人增强 + 知识库更新主动推送 — 开发计划
 
-> 状态（2026-08-01）：Phase 1–3 已落地；Phase 4 单元测试已补齐（模板渲染 / Webhook 签名 / 带密钥发送）。
-> Discord / 企业微信推送未实现（当前支持飞书、钉钉 Webhook）。
+> 状态（2026-08-01）：Phase 1–4 已落地。
+> 推送平台：飞书 / 钉钉 / 企业微信 Webhook，Discord 频道（Bot Token）。
 > 签名校验配置格式：`WebhookURL|密钥`。
+> Web 应用保存的推送目标按 URL/频道 ID 自动路由，不再依赖 bot appID 注册（Discord 除外）。
 
 ## 一、现状分析
 

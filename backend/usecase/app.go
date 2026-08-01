@@ -447,6 +447,7 @@ func (u *AppUsecase) updateDisCordBot(app *domain.App) {
 	}
 	token := app.Settings.DiscordBotToken
 	if (app.Settings.DiscordBotIsEnabled != nil && !*app.Settings.DiscordBotIsEnabled) || token == "" {
+		u.pushUsecase.UnregisterNotifier(app.ID)
 		return
 	}
 
@@ -467,6 +468,7 @@ func (u *AppUsecase) updateDisCordBot(app *domain.App) {
 
 	u.logger.Info("discord bot is starting", log.String("token", token))
 	u.discordBots[app.ID] = discordBots
+	u.pushUsecase.RegisterNotifier(app.ID, discord.NewDiscordPushNotifier(u.logger, token))
 }
 
 func (u *AppUsecase) DeleteApp(ctx context.Context, id, kbID string) error {

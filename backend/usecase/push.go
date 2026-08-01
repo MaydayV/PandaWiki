@@ -10,19 +10,24 @@ import (
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/pkg/bot"
+	"github.com/chaitin/panda-wiki/pkg/bot/dingtalk"
+	"github.com/chaitin/panda-wiki/pkg/bot/discord"
+	"github.com/chaitin/panda-wiki/pkg/bot/feishu"
+	"github.com/chaitin/panda-wiki/pkg/bot/wecom"
 	"github.com/chaitin/panda-wiki/repo/pg"
 )
 
 const defaultPushTemplate = "📚 知识库「{kb_name}」已更新\n版本：{tag} | 发布说明：{message}\n发布时间：{release_time}"
 
 // PushUsecase manages push notifications for knowledge base updates.
-// Notifiers are registered at runtime when bots start (via RegisterNotifier).
+// Webhook targets (Feishu/DingTalk/WeCom) are routed by URL.
+// Discord channel IDs use notifiers registered when Discord bots start.
 type PushUsecase struct {
 	appRepo   *pg.AppRepository
 	kbRepo    *pg.KnowledgeBaseRepository
 	logger    *log.Logger
 	mu        sync.RWMutex
-	notifiers map[string]bot.PushNotifier // appID → notifier
+	notifiers map[string]bot.PushNotifier // appID → Discord (or other token-based) notifier
 }
 
 func NewPushUsecase(appRepo *pg.AppRepository, kbRepo *pg.KnowledgeBaseRepository, logger *log.Logger) *PushUsecase {
@@ -34,8 +39,7 @@ func NewPushUsecase(appRepo *pg.AppRepository, kbRepo *pg.KnowledgeBaseRepositor
 	}
 }
 
-// RegisterNotifier registers a push notifier for an app.
-// Called by AppUsecase when a bot starts.
+// RegisterNotifier registers a token-based push notifier for an app (e.g. Discord).
 func (u *PushUsecase) RegisterNotifier(appID string, notifier bot.PushNotifier) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -74,19 +78,19 @@ func (u *PushUsecase) NotifyKBUpdate(ctx context.Context, kbID string, release *
 			continue
 		}
 
-		u.mu.RLock()
-		notifier, ok := u.notifiers[app.ID]
-		u.mu.RUnlock()
-		if !ok {
-			u.logger.Debug("push: no notifier for app", log.String("app_id", app.ID))
-			continue
-		}
-
 		content := u.renderTemplate(app.Settings.KBUpdatePushContent, kb, release)
 		chatIDs := strings.Split(app.Settings.KBUpdatePushChatIDs, ",")
 		for _, chatID := range chatIDs {
 			chatID = strings.TrimSpace(chatID)
 			if chatID == "" {
+				continue
+			}
+			notifier, err := u.resolveNotifier(ctx, kbID, app.ID, chatID)
+			if err != nil {
+				u.logger.Error("push: resolve notifier failed",
+					log.String("app_id", app.ID),
+					log.String("chat_id", chatID),
+					log.Error(err))
 				continue
 			}
 			if err := notifier.SendTextMessage(ctx, chatID, content); err != nil {
@@ -107,6 +111,62 @@ func (u *PushUsecase) NotifyKBUpdate(ctx context.Context, kbID string, release *
 			}
 		}
 	}
+}
+
+func (u *PushUsecase) resolveNotifier(ctx context.Context, kbID, preferredAppID, chatID string) (bot.PushNotifier, error) {
+	rawURL, _ := bot.ParseWebhookTarget(chatID)
+	lower := strings.ToLower(rawURL)
+	switch {
+	case strings.Contains(lower, "qyapi.weixin.qq.com"):
+		return wecom.NewWecomWebhookNotifier(u.logger), nil
+	case strings.Contains(lower, "oapi.dingtalk.com"), strings.Contains(lower, "dingtalk.com"):
+		return dingtalk.NewDingTalkPushNotifier(u.logger), nil
+	case strings.Contains(lower, "feishu.cn"),
+		strings.Contains(lower, "larksuite.com"),
+		strings.Contains(lower, "larkoffice.com"):
+		return feishu.NewFeishuWebhookNotifier(), nil
+	case strings.HasPrefix(lower, "http://"), strings.HasPrefix(lower, "https://"):
+		return nil, fmt.Errorf("unsupported webhook host for push target")
+	}
+
+	// Non-URL targets are treated as Discord channel IDs.
+	if n := u.lookupRegisteredNotifier(preferredAppID); n != nil {
+		return n, nil
+	}
+	if kbID == "" && preferredAppID != "" {
+		app, err := u.appRepo.GetAppDetail(ctx, preferredAppID)
+		if err == nil {
+			kbID = app.KBID
+		}
+	}
+	if kbID != "" {
+		apps, err := u.appRepo.GetAppList(ctx, kbID)
+		if err != nil {
+			return nil, fmt.Errorf("list apps for discord notifier: %w", err)
+		}
+		for _, app := range apps {
+			if app.Type != domain.AppTypeDisCordBot {
+				continue
+			}
+			if n := u.lookupRegisteredNotifier(app.ID); n != nil {
+				return n, nil
+			}
+			token := strings.TrimSpace(app.Settings.DiscordBotToken)
+			if token != "" && (app.Settings.DiscordBotIsEnabled == nil || *app.Settings.DiscordBotIsEnabled) {
+				return discord.NewDiscordPushNotifier(u.logger, token), nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("no discord push notifier available (enable Discord bot and configure channel id)")
+}
+
+func (u *PushUsecase) lookupRegisteredNotifier(appID string) bot.PushNotifier {
+	if appID == "" {
+		return nil
+	}
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	return u.notifiers[appID]
 }
 
 func (u *PushUsecase) renderTemplate(tmpl string, kb *domain.KnowledgeBase, release *domain.KBRelease) string {
@@ -142,13 +202,12 @@ func escapeMarkdown(s string) string {
 	return replacer.Replace(s)
 }
 
-// TestPush sends a test message to a specific chat ID via the notifier for the given app.
+// TestPush sends a test message to a specific chat ID.
+// Webhook URLs are routed by host; Discord channel IDs use the KB's Discord bot token.
 func (u *PushUsecase) TestPush(ctx context.Context, appID, chatID string) error {
-	u.mu.RLock()
-	notifier, ok := u.notifiers[appID]
-	u.mu.RUnlock()
-	if !ok {
-		return fmt.Errorf("no push notifier registered for app %s", appID)
+	notifier, err := u.resolveNotifier(ctx, "", appID, chatID)
+	if err != nil {
+		return err
 	}
 	return notifier.SendTextMessage(ctx, chatID, "✅ PandaWiki 推送测试成功")
 }
