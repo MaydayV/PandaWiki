@@ -186,6 +186,9 @@ func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, rec
 		if userinfo.Mobile != nil {
 			convInfo.UserInfo.Mobile = *userinfo.Mobile
 		}
+		if userinfo.Email != nil {
+			convInfo.UserInfo.Email = *userinfo.Email
+		}
 		c.logger.Info("get user info success", log.Any("user_info", userinfo))
 	}
 

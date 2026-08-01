@@ -137,7 +137,7 @@ const CardPush = () => {
                   <TextField
                     {...field}
                     fullWidth
-                    placeholder='飞书或钉钉群聊 Webhook URL，多个用逗号分隔'
+                    placeholder='Webhook URL，多个用逗号分隔。开启签名校验时用 URL|密钥'
                     onChange={e => {
                       field.onChange(e.target.value);
                       setIsEdit(true);
