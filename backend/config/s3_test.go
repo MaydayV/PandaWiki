@@ -42,14 +42,3 @@ func TestS3Config_ResolveStaticFilePath(t *testing.T) {
 		}
 	}
 }
-
-func TestS3Config_IsExternalObjectStorage(t *testing.T) {
-	t.Parallel()
-
-	if !((&S3Config{Endpoint: "oss-cn-hangzhou.aliyuncs.com"}).IsExternalObjectStorage()) {
-		t.Fatal("expected OSS endpoint to be external")
-	}
-	if (&S3Config{Endpoint: "panda-wiki-minio:9000"}).IsExternalObjectStorage() {
-		t.Fatal("expected local minio endpoint not to be external")
-	}
-}

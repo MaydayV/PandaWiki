@@ -37,14 +37,12 @@ Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG�
       + API + Consumer + App + Admin
       ≈ 11 容器
 
-目标：Caddy + Postgres + Redis + API（含后台任务）+ App
-      +（过渡期可保留 MinIO；稳定后改成本地盘）
-      ≈ 5 个容器
+目标：Caddy + Postgres + Redis + NATS + API（含 Consumer/Admin）+ App
+      + OSS（外部）
+      = 6 容器
 ```
 
-Phase 2 完成后默认 **9 容器**（已合并 Consumer + Admin 进 API）。
-
-Phase 4 完成后默认 **6 容器**（Caddy + Postgres + Redis + NATS + API + App；Qdrant/Raglite/MinIO 仅在 `legacy-rag` profile）。
+Phase 1–5 已完成：**6 容器**（Caddy + Postgres + Redis + NATS + API + App）。
 
 流量仍走 Caddy → App / API。Admin 静态资源改由 Caddy 或 API 托管，不再单独起 Nginx。
 
@@ -70,7 +68,7 @@ Phase 4 完成后默认 **6 容器**（Caddy + Postgres + Redis + NATS + API + A
 | 切块 | Raglite 内部 | API 内按标题/token 切 |
 | 中文短词 | 主要靠向量 | 向量 + Postgres 全文（`pg_trgm` 或简单分词） |
 
-代码已有 `RAGService` 接口（`backend/store/rag`）。`pg` 为默认实现；`ct`（Raglite）保留在 `legacy-rag` profile，用 `RAG_PROVIDER=pg|ct` 切换。
+代码已有 `RAGService` 接口（`backend/store/rag`）。默认 `pg` 实现；compose 不再包含 Qdrant/Raglite。
 
 ### 对问答效果的预期
 
@@ -90,7 +88,7 @@ pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine
 `web/admin` 构建产物挂到 Caddy 或由 API 提供静态文件，去掉 `2443` 和 Admin Nginx。
 
 **对象存储（OSS）**  
-默认使用 S3 兼容 API 连接阿里云 OSS：`S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_PUBLIC_BASE_URL`。API 反代 `/static-file/*` 到 OSS；Caddy 静态路由指向 API。桶需预先创建并配置公共读或 CDN。Legacy Raglite 仍可用 profile 内的 MinIO。
+默认使用 S3 兼容 API 连接阿里云 OSS。API 反代 `/static-file/*` 到 OSS；Caddy 静态路由指向 API。桶需预先创建并配置公共读或 CDN。
 
 **Redis**  
 保留。去 Redis 省不下有意义的内存，却要重做 Session 和限流。
@@ -99,10 +97,9 @@ pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine
 
 | 指标 | 现在 | 目标 |
 |---|---|---|
-| 容器数 | ~11 | ~5 |
-| 内存（经验） | Qdrant+Raglite 常占 1GB+，整体轻松 3GB+ | 主要剩 Postgres + Next + API，视文档量和模型调用而定 |
-| 部署步骤 | 装 Node、pnpm build、填一堆密钥、compose | 镜像 + 生成密钥 + `docker compose up -d` |
-| 必填密钥 | Postgres/Redis/S3/NATS/Qdrant/JWT/Admin | Postgres/Redis/JWT/Admin（其余可生成或取消） |
+| 容器数 | ~11 | 6 |
+| 内存（经验） | Qdrant+Raglite 常占 1GB+，整体轻松 3GB+ | 主要剩 Postgres + Next + API |
+| 必填密钥 | Postgres/Redis/S3/NATS/Qdrant/JWT/Admin | Postgres/Redis/S3/OSS/NATS/JWT/Admin |
 
 Linux 建议仍按现有文档：**4C8G 起步，8C16G 更从容**。精简后 4C8G 会明显好过现在。
 

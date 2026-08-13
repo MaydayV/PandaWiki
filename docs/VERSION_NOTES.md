@@ -236,10 +236,9 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 
 ## 追加记录（2026-08-13，stack-slim 默认 OSS 对象存储）
 - 部署精简：
-  - 默认 compose 去掉 MinIO 容器（6 容器：Caddy + Postgres + Redis + NATS + API + App）。
-  - 附件/图片改走阿里云 OSS（S3 兼容 API）；`legacy-rag` profile 仍保留 MinIO 供 Raglite 使用。
+  - 默认 compose 6 容器（Caddy + Postgres + Redis + NATS + API + App）；已移除 MinIO/Qdrant/Raglite 及 legacy profile。
+  - 附件/图片走阿里云 OSS（S3 兼容 API）。
 - 配置：
-  - 新增/扩展 `S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_REGION`、`S3_USE_SSL`、`S3_PUBLIC_BASE_URL`。
-  - App `STATIC_FILE_TARGET` 默认指向 API（`http://panda-wiki-api:8000`），由 API 反代 `/static-file/*` 到 OSS。
-- 兼容：
-  - Legacy Admin Nginx（`legacy-admin` profile）的 `/static-file` 亦改为反代 API，不再直连 MinIO。
+  - `S3_*` 与 `S3_PUBLIC_BASE_URL`；App `STATIC_FILE_TARGET` 指向 API。
+- 清理：
+  - compose 删除 `split-worker`、`legacy-admin`、`legacy-rag` 及相关数据卷。

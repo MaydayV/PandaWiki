@@ -8,7 +8,7 @@
 ## 一、原则
 
 1. 业务逻辑仍在 `usecase/`，新 RAG 只加 `store/rag` 的实现，不把检索写进 handler。
-2. 过渡期 `RAG_PROVIDER=ct|pg` 可切换；**默认 `pg`**。回退 Raglite 需启用 compose profile `legacy-rag` 并设 `RAG_PROVIDER=ct`。
+2. 过渡期 `RAG_PROVIDER=pg` 为唯一部署路径；compose 已移除 Qdrant/Raglite/MinIO 及 legacy profile。
 3. 不把「导出/SEO 那批未提交改动」混进本分支（已 stash）。
 4. 每阶段可单独上线；阶段 3 之前不要求用户全量重新学习。
 
@@ -68,11 +68,11 @@
 
 ### Phase 5 — 对象存储改用 OSS（已完成）
 
-- [x] 默认栈去掉 MinIO 容器；`store/s3` 支持 S3 兼容 OSS（DNS 寻址、公网 URL）。
+- [x] 默认栈去掉 MinIO 容器；`store/s3` 支持 S3 兼容 OSS。
 - [x] API/Caddy/Admin/App 的 `/static-file/*` 统一经 API 反代 OSS。
-- [x] Legacy Raglite（`legacy-rag` profile）仍保留 MinIO 供 Raglite 使用。
+- [x] compose 移除 legacy-rag（Qdrant/Raglite/MinIO）、split-worker、legacy-admin。
 
-验收：compose 默认 6 容器；配置 `S3_*` 后上传与静态访问走 OSS。
+验收：compose 固定 6 容器；配置 `S3_*` 后上传与静态访问走 OSS。
 
 ## 三、不在本计划内
 

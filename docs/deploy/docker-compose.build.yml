@@ -50,28 +50,6 @@ services:
       timeout: 5s
       retries: 10
 
-  panda-wiki-minio:
-    profiles:
-      - legacy-rag
-    image: minio/minio:latest
-    container_name: panda-wiki-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
-    volumes:
-      - pwk_minio_data:/data
-    networks:
-      default:
-        ipv4_address: 172.19.0.12
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   panda-wiki-nats:
     image: nats:2.10-alpine
     container_name: panda-wiki-nats
@@ -87,60 +65,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
-  panda-wiki-qdrant:
-    profiles:
-      - legacy-rag
-    image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/panda-wiki-qdrant:v1.14.1
-    container_name: panda-wiki-qdrant
-    restart: unless-stopped
-    environment:
-      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
-    volumes:
-      - pwk_qdrant_data:/qdrant/storage
-    networks:
-      default:
-        ipv4_address: 172.19.0.5
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --header=\"api-key: ${QDRANT_API_KEY}\" -O- http://127.0.0.1:6333/healthz | grep -q ok"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
-  panda-wiki-raglite:
-    profiles:
-      - legacy-rag
-    image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/raglite:v2.14.1
-    container_name: panda-wiki-raglite
-    restart: unless-stopped
-    depends_on:
-      panda-wiki-postgres:
-        condition: service_healthy
-      panda-wiki-minio:
-        condition: service_healthy
-      panda-wiki-qdrant:
-        condition: service_healthy
-      panda-wiki-nats:
-        condition: service_healthy
-    environment:
-      GIN_MODE: release
-      DATABASE_POSTGRESQL_HOST: panda-wiki-postgres
-      DATABASE_POSTGRESQL_USER: panda-wiki
-      DATABASE_POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_QDRANT_HOST: panda-wiki-qdrant
-      DATABASE_QDRANT_API_KEY: ${QDRANT_API_KEY}
-      STORAGE_MINIO_ENDPOINT: panda-wiki-minio:9000
-      STORAGE_MINIO_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
-      STORAGE_MINIO_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
-      NATS_URL: nats://panda-wiki-nats:4222
-      NATS_USER: panda-wiki
-      NATS_PASSWORD: ${NATS_PASSWORD}
-      EMBEDDER_RPM: "800"
-      LLM_RPM: "50"
-    networks:
-      default:
-        ipv4_address: 172.19.0.18
 
   panda-wiki-api:
     build:
@@ -166,9 +90,7 @@ services:
       S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      QDRANT_API_KEY: ${QDRANT_API_KEY}
       SENTRY_ENABLED: "false"
-      RAG_CT_RAG_BASE_URL: http://panda-wiki-raglite:5050
       CADDY_API: /app/run/caddy-admin.sock
       SUBNET_PREFIX: 172.19.0
       RUN_WORKER: ${RUN_WORKER:-1}
@@ -194,47 +116,6 @@ services:
       default:
         ipv4_address: 172.19.0.2
 
-  panda-wiki-consumer:
-    profiles:
-      - split-worker
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile.consumer
-    container_name: panda-wiki-consumer
-    restart: unless-stopped
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PG_DSN: host=panda-wiki-postgres user=panda-wiki password=${POSTGRES_PASSWORD} dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai
-      MQ_NATS_SERVER: nats://panda-wiki-nats:4222
-      NATS_PASSWORD: ${NATS_PASSWORD}
-      REDIS_ADDR: panda-wiki-redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
-      S3_BUCKET: ${S3_BUCKET:-static-file}
-      S3_REGION: ${S3_REGION:-oss-cn-hangzhou}
-      S3_USE_SSL: ${S3_USE_SSL:-1}
-      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
-      JWT_SECRET: ${JWT_SECRET}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      QDRANT_API_KEY: ${QDRANT_API_KEY}
-      SENTRY_ENABLED: "false"
-      RAG_CT_RAG_BASE_URL: http://panda-wiki-raglite:5050
-      RUN_WORKER: "1"
-      RAG_PROVIDER: ${RAG_PROVIDER:-pg}
-      RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
-    depends_on:
-      panda-wiki-postgres:
-        condition: service_healthy
-      panda-wiki-redis:
-        condition: service_started
-      panda-wiki-nats:
-        condition: service_started
-    networks:
-      default:
-        ipv4_address: 172.19.0.7
-
   panda-wiki-app:
     build:
       context: ../../web/app
@@ -254,29 +135,10 @@ services:
       default:
         ipv4_address: 172.19.0.112
 
-  panda-wiki-admin:
-    profiles:
-      - legacy-admin
-    build:
-      context: ../../web/admin
-      dockerfile: Dockerfile
-    container_name: panda-wiki-admin
-    restart: unless-stopped
-    depends_on:
-      panda-wiki-api:
-        condition: service_started
-    ports:
-      - "2444:8080"
-    networks:
-      default:
-        ipv4_address: 172.19.0.11
-
 volumes:
   pwk_postgres_data:
   pwk_redis_data:
-  pwk_minio_data:
   pwk_nats_data:
-  pwk_qdrant_data:
 
 networks:
   default:

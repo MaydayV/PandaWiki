@@ -34,14 +34,13 @@ S3_USE_SSL=1
 S3_PUBLIC_BASE_URL=https://your-bucket.oss-cn-hangzhou.aliyuncs.com
 # ↑ OSS 凭证与桶信息须改为真实值（generate-env.sh 不会自动生成 OSS AK/SK）
 NATS_PASSWORD=$(rand_hex)
-QDRANT_API_KEY=$(rand_hex)
 JWT_SECRET=$(rand_hex)
 ADMIN_PASSWORD=$(rand_hex)
 # 生产经 Caddy 注入 X-KB-ID 时可留空；仅直连 App 调试时需要
 DEV_KB_ID=
 PANDAWIKI_IMAGE_REPO=docker.io/caodanv
 PANDAWIKI_IMAGE_TAG=latest
-# API 内嵌 MQ 消费者与定时任务（Phase 2 默认开启；独立 Consumer 容器用 split-worker profile）
+# API 内嵌 MQ 消费者与定时任务
 RUN_WORKER=1
 ADMIN_ENABLED=1
 RAG_PROVIDER=pg
