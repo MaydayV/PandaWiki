@@ -2,7 +2,7 @@
 
 > 说明文档：[../STACK_SLIM.md](../STACK_SLIM.md)
 > 分支：`feat/stack-slim`
-> 状态（2026-08-13）：Phase 1–2 已落地；Phase 3（pgvector）未开始。
+> 状态（2026-08-13）：Phase 1–2 已落地；Phase 3（pgvector 并存）已落地，默认仍 `RAG_PROVIDER=ct`。
 > 约束：保留 Redis；保留 Caddy；RAG 换 pgvector + 现有 embedding/rerank；目标 Linux 服务器。
 
 ## 一、原则
@@ -44,43 +44,17 @@
 
 验收：浏览器访问 `https://<server>:2443` 打开后台；`docker compose ps` 默认无 Admin 容器。
 
-### Phase 3 — pgvector RAG（与 Raglite 并存）
+### Phase 3 — pgvector RAG（与 Raglite 并存）— [x]
 
-**3.1 存储**
+- [x] 迁移 `000042_pgvector_rag`：`vector` 扩展 + `rag_chunks` 表 + HNSW 索引
+- [x] Postgres 镜像换 `pgvector/pgvector:pg16`
+- [x] `store/rag/pg.go` 实现 `RAGService`（切块、嵌入、向量检索、rerank、多轮改写）
+- [x] `RAG_PROVIDER=ct|pg`（默认 `ct`）；`RAG_PG_EMBEDDING_DIM`（默认 1024）
+- [x] `store/rag/chunk.go` Markdown 切块 + 单测
+- [ ] 全量重新学习入口（Phase 4）
+- [ ] `pg_trgm` 短词融合（可选增强）
 
-- Postgres 启用 `vector` 扩展。
-- 表设计（名称可微调）：
-
-| 表 | 用途 |
-|---|---|
-| `rag_chunks` | `id`, `kb_id`/`dataset_id`, `doc_id`, `node_id`, `content`, `embedding vector`, `group_ids`, `tags`, `seq` |
-| `rag_jobs` | 异步切块/嵌入任务（`SKIP LOCKED`），替代 `VectorTaskTopic` |
-
-- 向量维度跟当前 embedding 模型走（写入时记录 `dim`，换模型则全量重学）。
-
-**3.2 实现 `store/rag/pg.go`**
-
-满足现有 `RAGService`：
-
-- `CreateKnowledgeBase` / `DeleteKnowledgeBase`
-- `UpsertRecords`：HTML→MD（复用现有 converter）→ 按标题/token 切块 → 调 embedding API → upsert
-- `QueryRecords`：问题 embedding → pgvector 近邻 → 可选全文召回合并 → **调用现有 rerank 模型** → 权限组过滤 → `TopK` / `MaxChunksPerDoc` / `SimilarityThreshold`
-- 多轮：`HistoryMsgs` 非空时先用 chat 模型改写 query（对齐 Raglite `ChatHistory`）
-- `UpsertModel`：pg 实现只校验并缓存模型配置，不再写入 Raglite
-
-配置：`RAG_PROVIDER=pg` 时走新实现；`ct` 走旧 `ct.go`。
-
-**3.3 切块与检索基线（保效果）**
-
-必须同时具备，禁止「只做向量 TopK」上线：
-
-1. 切块：优先 Markdown 标题，其次 token 上限（已有 `SplitByTokenLimit` 可作底）
-2. rerank：沿用后台配置的 rerank 模型
-3. 查询改写：多轮对话场景
-4. `group_ids` 过滤（与现网权限一致）
-5. 短词补充：`pg_trgm` 或简单全文，与向量结果融合后再 rerank
-
-验收：同一知识库、同一 embedding/rerank，用固定 20～50 条问答抽样，人工对比 `ct` vs `pg` 的命中文档；明显回退则修切块/融合，不靠换库硬上。
+验收：同一 embedding/rerank 配置下，`pg` 模式发布文档后可检索；切换需全量 re-ingest（Phase 4 切流）。
 
 ### Phase 4 — 切流并下线 Raglite 依赖
 

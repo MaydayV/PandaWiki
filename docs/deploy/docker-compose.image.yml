@@ -14,7 +14,7 @@ services:
     network_mode: host
 
   panda-wiki-postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: panda-wiki-postgres
     restart: unless-stopped
     environment:
@@ -159,6 +159,8 @@ services:
       RUN_WORKER: ${RUN_WORKER:-1}
       ADMIN_ENABLED: ${ADMIN_ENABLED:-1}
       ADMIN_PORT: "2443"
+      RAG_PROVIDER: ${RAG_PROVIDER:-ct}
+      RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
     volumes:
       - ./data/caddy/run:/app/run
     depends_on:

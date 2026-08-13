@@ -43,13 +43,13 @@ func createApp() (*App, error) {
 	}
 	ragRepository := mq2.NewRAGRepository(mqProducer)
 	userRepository := pg2.NewUserRepository(db, logger)
-	ragService, err := rag.NewRAGService(configConfig, logger)
+	modelRepository := pg2.NewModelRepository(db, logger)
+	ragService, err := rag.NewRAGService(configConfig, logger, db, modelRepository)
 	if err != nil {
 		return nil, err
 	}
 	knowledgeBaseRepository := pg2.NewKnowledgeBaseRepository(db, configConfig, logger, ragService)
 	conversationRepository := pg2.NewConversationRepository(db, logger)
-	modelRepository := pg2.NewModelRepository(db, logger)
 	promptRepo := pg2.NewPromptRepo(db, logger)
 	llmUsecase := usecase.NewLLMUsecase(configConfig, ragService, conversationRepository, knowledgeBaseRepository, nodeRepository, modelRepository, promptRepo, logger)
 	minioClient, err := s3.NewMinioClient(configConfig)

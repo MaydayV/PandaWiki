@@ -41,6 +41,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.91
 	github.com/nats-io/nats.go v1.42.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
+	github.com/pgvector/pgvector-go v0.4.1
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/pkoukk/tiktoken-go-loader v0.0.1
 	github.com/redis/go-redis/v9 v9.11.0

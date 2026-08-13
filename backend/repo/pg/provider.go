@@ -4,6 +4,7 @@ import (
 	"github.com/google/wire"
 
 	"github.com/chaitin/panda-wiki/store/pg"
+	"github.com/chaitin/panda-wiki/store/rag"
 )
 
 var ProviderSet = wire.NewSet(
@@ -27,4 +28,6 @@ var ProviderSet = wire.NewSet(
 	NewSystemSettingRepo,
 	NewMCPRepository,
 	NewNavRepository,
+
+	wire.Bind(new(rag.ModelProvider), new(*ModelRepository)),
 )

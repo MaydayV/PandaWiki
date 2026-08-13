@@ -38,6 +38,8 @@ PANDAWIKI_IMAGE_TAG=latest
 # API 内嵌 MQ 消费者与定时任务（Phase 2 默认开启；独立 Consumer 容器用 split-worker profile）
 RUN_WORKER=1
 ADMIN_ENABLED=1
+RAG_PROVIDER=ct
+RAG_PG_EMBEDDING_DIM=1024
 EOF
 
 chmod 600 "$ENV_FILE" 2>/dev/null || true

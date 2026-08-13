@@ -10,6 +10,7 @@ import (
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
+	storepg "github.com/chaitin/panda-wiki/store/pg"
 )
 
 type QueryRecordsRequest struct {
@@ -62,10 +63,12 @@ type RAGService interface {
 	DeleteModel(ctx context.Context, model *domain.Model) error
 }
 
-func NewRAGService(config *config.Config, logger *log.Logger) (RAGService, error) {
+func NewRAGService(config *config.Config, logger *log.Logger, db *storepg.DB, models ModelProvider) (RAGService, error) {
 	switch config.RAG.Provider {
 	case "ct":
 		return NewCTRAG(config, logger)
+	case "pg":
+		return NewPGRAG(config, logger, db, models)
 	default:
 		return nil, fmt.Errorf("unsupported vector provider: %s", config.RAG.Provider)
 	}

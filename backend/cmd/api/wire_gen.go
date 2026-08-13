@@ -61,7 +61,8 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ragService, err := rag.NewRAGService(configConfig, logger)
+	modelRepository := pg2.NewModelRepository(db, logger)
+	ragService, err := rag.NewRAGService(configConfig, logger, db, modelRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,6 @@ func createApp() (*App, error) {
 	}
 	userHandler := v1.NewUserHandler(echo, baseHandler, logger, userUsecase, authMiddleware, configConfig, cacheCache)
 	conversationRepository := pg2.NewConversationRepository(db, logger)
-	modelRepository := pg2.NewModelRepository(db, logger)
 	promptRepo := pg2.NewPromptRepo(db, logger)
 	llmUsecase := usecase.NewLLMUsecase(configConfig, ragService, conversationRepository, knowledgeBaseRepository, nodeRepository, modelRepository, promptRepo, logger)
 	blockWordRepo := pg2.NewBlockWordRepo(db, logger)
