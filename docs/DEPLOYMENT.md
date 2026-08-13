@@ -294,7 +294,7 @@ docker compose -f docker-compose.image.yml up -d
 
 ### 5.5 CI 自动发布到 Docker Hub（推荐）
 
-当前仓库已配置 GitHub Actions 自动推送四个镜像（`api/consumer/app/admin`）到 Docker Hub。
+当前仓库 CI 自动推送 **`api`** 与 **`app`** 镜像到 Docker Hub（admin 静态资源已内嵌 API 镜像）。
 
 先在 GitHub 仓库设置 Secrets：
 
@@ -313,9 +313,7 @@ git push origin v2.6.2
 推送完成后会自动发布：
 
 - `docker.io/caodanv/pandawiki-api:v2.6.2`
-- `docker.io/caodanv/pandawiki-consumer:v2.6.2`
 - `docker.io/caodanv/pandawiki-app:v2.6.2`
-- `docker.io/caodanv/pandawiki-admin:v2.6.2`
 
 ## 6. 方式三：外层 Nginx + 内层 Caddy（推荐公网生产）
 

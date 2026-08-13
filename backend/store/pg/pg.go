@@ -38,18 +38,6 @@ func NewDB(config *config.Config) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// create raglite database if not exists (ct provider only)
-	if config.RAG.Provider != "pg" {
-		var exists bool
-		if err := db.Raw("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = 'raglite')").Scan(&exists).Error; err != nil {
-			return nil, err
-		}
-		if !exists {
-			if err := db.Exec("CREATE DATABASE raglite").Error; err != nil {
-				return nil, err
-			}
-		}
-	}
 	if err := doMigrate(dsn); err != nil {
 		return nil, err
 	}

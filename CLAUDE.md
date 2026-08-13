@@ -8,7 +8,7 @@ PandaWiki is an AI-powered open-source knowledge base system. This is the "Fly V
 
 ## Repository Layout
 
-- `backend/` — Go backend (API server, MQ consumer, migrations). Entry points: `backend/cmd/api/`, `backend/cmd/consumer/`, `backend/cmd/migrate/`
+- `backend/` — Go backend (API server with embedded worker, migrations). Entry points: `backend/cmd/api/`, `backend/cmd/migrate/`
 - `web/` — pnpm workspace root for frontend apps
 - `web/admin/` — React 19 + Vite admin console (Redux Toolkit, MUI, TipTap editor)
 - `web/app/` — Next.js 16 user-facing web app (MUI, markdown-it, mermaid)
@@ -125,7 +125,7 @@ No dedicated test scripts. Use lint, typecheck (`tsc`), and build as verificatio
 ## Infrastructure
 
 The system requires 9 services (managed via Docker Compose):
-- PostgreSQL 16, Redis 7, MinIO (S3), NATS 2.10 (JetStream), Qdrant (vector DB)
+- PostgreSQL 16 (pgvector), Redis 7, NATS 2.10, 阿里云 OSS (S3 API), Caddy 2.10
 - RAG-lite service (Go-based RAG engine)
 - API server (port 8000), Consumer worker, Caddy reverse proxy
 

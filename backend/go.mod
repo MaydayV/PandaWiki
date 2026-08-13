@@ -14,7 +14,6 @@ require (
 	github.com/boj/redistore v1.4.1
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/chaitin/ModelKit/v2 v2.14.3
-	github.com/chaitin/raglite-go-sdk v0.2.1
 	github.com/cloudwego/eino v0.7.13
 	github.com/cloudwego/eino-ext/components/model/deepseek v0.1.0
 	github.com/getsentry/sentry-go v0.35.1

@@ -28,7 +28,6 @@ func createApp() (*App, error) {
 			share.ProviderSet,
 
 			mqhandler.NewRAGMQHandler,
-			mqhandler.NewRagDocUpdateHandler,
 			mqhandler.NewRAGJobWorker,
 			mqhandler.NewCronHandler,
 		),
@@ -44,8 +43,7 @@ type App struct {
 	Logger              *log.Logger
 	Telemetry           *telemetry.Client
 	MQConsumer          mq.MQConsumer
-	RAGMQHandler        *mqhandler.RAGMQHandler
-	RagDocUpdateHandler *mqhandler.RagDocUpdateHandler
-	RAGJobWorker        *mqhandler.RAGJobWorker
-	StatCronHandler     *mqhandler.CronHandler
+	RAGMQHandler    *mqhandler.RAGMQHandler
+	RAGJobWorker    *mqhandler.RAGJobWorker
+	StatCronHandler *mqhandler.CronHandler
 }

@@ -56,18 +56,12 @@ type NATSConfig struct {
 
 type RAGConfig struct {
 	Provider string      `mapstructure:"provider"`
-	CTRAG    CTRAGConfig `mapstructure:"ct_rag"`
 	PG       PGRAGConfig `mapstructure:"pg"`
 }
 
 type PGRAGConfig struct {
 	EmbeddingDim    int `mapstructure:"embedding_dim"`
 	ChunkTokenLimit int `mapstructure:"chunk_token_limit"`
-}
-
-type CTRAGConfig struct {
-	BaseURL string `mapstructure:"base_url"`
-	APIKey  string `mapstructure:"api_key"`
 }
 
 type RedisConfig struct {
@@ -131,10 +125,6 @@ func NewConfig() (*Config, error) {
 		},
 		RAG: RAGConfig{
 			Provider: "pg",
-			CTRAG: CTRAGConfig{
-				BaseURL: fmt.Sprintf("http://%s.18:5050", SUBNET_PREFIX),
-				APIKey:  "sk-1234567890",
-			},
 			PG: PGRAGConfig{
 				EmbeddingDim:    1024,
 				ChunkTokenLimit: 512,
@@ -223,13 +213,8 @@ func overrideWithEnv(c *Config) {
 	if env := os.Getenv("MQ_NATS_SERVER"); env != "" {
 		c.MQ.NATS.Server = env
 	}
-	// rag
-	if env := os.Getenv("RAG_CT_RAG_BASE_URL"); env != "" {
-		c.RAG.CTRAG.BaseURL = env
-	}
-	if env := os.Getenv("RAG_PROVIDER"); env != "" {
-		c.RAG.Provider = env
-	}
+	// rag — pgvector only
+	c.RAG.Provider = "pg"
 	if env := os.Getenv("RAG_PG_EMBEDDING_DIM"); env != "" {
 		if i, err := strconv.Atoi(env); err == nil {
 			c.RAG.PG.EmbeddingDim = i

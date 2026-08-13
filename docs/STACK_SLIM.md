@@ -68,7 +68,7 @@ Phase 1–5 已完成：**6 容器**（Caddy + Postgres + Redis + NATS + API + A
 | 切块 | Raglite 内部 | API 内按标题/token 切 |
 | 中文短词 | 主要靠向量 | 向量 + Postgres 全文（`pg_trgm` 或简单分词） |
 
-代码已有 `RAGService` 接口（`backend/store/rag`）。默认 `pg` 实现；compose 不再包含 Qdrant/Raglite。
+代码已有 `RAGService` 接口（`backend/store/rag`）。唯一实现为 Postgres pgvector（`pg`）。
 
 ### 对问答效果的预期
 
@@ -115,4 +115,4 @@ Linux 建议仍按现有文档：**4C8G 起步，8C16G 更从容**。精简后 4
 - 实现计划：[plans/stack-slim-plan.md](./plans/stack-slim-plan.md)
 - 现有部署：[DEPLOYMENT.md](./DEPLOYMENT.md)
 - RAG 接口：`backend/store/rag/rag.go`
-- 现实现：`backend/store/rag/ct.go`（Raglite）
+- pgvector 实现：`backend/store/rag/pg.go`

@@ -206,10 +206,6 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ragDocUpdateHandler, err := mq3.NewRagDocUpdateHandler(configConfig, mqConsumer, logger, nodeRepository)
-	if err != nil {
-		return nil, err
-	}
 	ragJobWorker := mq3.NewRAGJobWorker(configConfig, logger, ragJobRepository, ragmqHandler)
 	cronHandler, err := mq3.NewCronHandler(configConfig, logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
 	if err != nil {
@@ -223,10 +219,9 @@ func createApp() (*App, error) {
 		Logger:              logger,
 		Telemetry:           client,
 		MQConsumer:          mqConsumer,
-		RAGMQHandler:        ragmqHandler,
-		RagDocUpdateHandler: ragDocUpdateHandler,
-		RAGJobWorker:        ragJobWorker,
-		StatCronHandler:     cronHandler,
+		RAGMQHandler:    ragmqHandler,
+		RAGJobWorker:    ragJobWorker,
+		StatCronHandler: cronHandler,
 	}
 	return app, nil
 }
@@ -241,8 +236,7 @@ type App struct {
 	Logger              *log.Logger
 	Telemetry           *telemetry.Client
 	MQConsumer          mq.MQConsumer
-	RAGMQHandler        *mq3.RAGMQHandler
-	RagDocUpdateHandler *mq3.RagDocUpdateHandler
-	RAGJobWorker        *mq3.RAGJobWorker
-	StatCronHandler     *mq3.CronHandler
+	RAGMQHandler    *mq3.RAGMQHandler
+	RAGJobWorker    *mq3.RAGJobWorker
+	StatCronHandler *mq3.CronHandler
 }

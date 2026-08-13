@@ -600,7 +600,7 @@ type GetRankNodesRequest struct {
 
 func (u *LLMUsecase) GetRankNodes(ctx context.Context, req GetRankNodesRequest) (string, []*domain.RankedNodeChunks, error) {
 	var rankedNodes []*domain.RankedNodeChunks
-	// get related documents from raglite
+	// retrieve related document chunks via pgvector RAG
 	rewrittenQuery, records, err := u.rag.QueryRecords(ctx, &rag.QueryRecordsRequest{
 		DatasetID:           req.DatasetID,
 		Query:               req.Question,
@@ -610,9 +610,9 @@ func (u *LLMUsecase) GetRankNodes(ctx context.Context, req GetRankNodesRequest) 
 		MaxChunksPerDoc:     req.MaxChunksPerDoc,
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("get records from raglite failed: %w", err)
+		return "", nil, fmt.Errorf("query RAG records failed: %w", err)
 	}
-	u.logger.Info("get related documents from raglite", log.Any("record_count", len(records)))
+	u.logger.Info("retrieved related document chunks", log.Any("record_count", len(records)))
 	rankedNodesMap := make(map[string]*domain.RankedNodeChunks)
 	// get raw node by doc_id
 	if len(records) > 0 {

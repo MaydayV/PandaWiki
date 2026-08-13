@@ -241,4 +241,4 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 配置：
   - `S3_*` 与 `S3_PUBLIC_BASE_URL`；App `STATIC_FILE_TARGET` 指向 API。
 - 清理：
-  - compose 删除 `split-worker`、`legacy-admin`、`legacy-rag` 及相关数据卷。
+  - 删除 Raglite 实现（`store/rag/ct.go`）、独立 Consumer 进程与 compose legacy 服务。

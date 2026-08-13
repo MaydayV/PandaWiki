@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [api, consumer]
+        service: [api]
     timeout-minutes: 30
 
     outputs:

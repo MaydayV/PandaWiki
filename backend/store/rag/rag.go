@@ -2,7 +2,6 @@ package rag
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/google/wire"
@@ -64,14 +63,7 @@ type RAGService interface {
 }
 
 func NewRAGService(config *config.Config, logger *log.Logger, db *storepg.DB, models ModelProvider) (RAGService, error) {
-	switch config.RAG.Provider {
-	case "ct":
-		return NewCTRAG(config, logger)
-	case "pg":
-		return NewPGRAG(config, logger, db, models)
-	default:
-		return nil, fmt.Errorf("unsupported vector provider: %s", config.RAG.Provider)
-	}
+	return NewPGRAG(config, logger, db, models)
 }
 
 var ProviderSet = wire.NewSet(NewRAGService)

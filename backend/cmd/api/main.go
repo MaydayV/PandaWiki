@@ -37,7 +37,7 @@ func main() {
 			}
 		}()
 	} else {
-		app.Logger.Info("embedded worker disabled (RUN_WORKER=0); use consumer service or set RUN_WORKER=1")
+		app.Logger.Info("embedded worker disabled (RUN_WORKER=0)")
 	}
 
 	go func() {

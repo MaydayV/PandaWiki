@@ -42,12 +42,6 @@ func NewRAGMQHandler(config *config.Config, consumer mq.MQConsumer, logger *log.
 	if !config.RunWorker {
 		return h, nil
 	}
-	if config.RAG.Provider == "pg" {
-		return h, nil
-	}
-	if err := consumer.RegisterHandler(domain.VectorTaskTopic, h.HandleNodeContentVectorRequest); err != nil {
-		return nil, err
-	}
 	return h, nil
 }
 
