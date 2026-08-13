@@ -6,6 +6,8 @@
 2. 方案 B：预构建镜像部署（Image 模式，推荐生产）
 3. 外层 Nginx + 内层 Caddy（推荐公网生产）
 
+本文描述**当前** 11 容器部署。Linux 单机减负（pgvector 替换 Raglite/Qdrant、合并进程）见 [STACK_SLIM.md](./STACK_SLIM.md)，分阶段实现计划见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
+
 ## 1. 方式对比
 
 | 方式 | 适用场景 | 优点 | 注意事项 |
