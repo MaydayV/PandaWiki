@@ -233,3 +233,13 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
   - 管理端模型参数透传新增 `temperature` 字段。
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
+
+## 追加记录（2026-08-13，stack-slim 默认 OSS 对象存储）
+- 部署精简：
+  - 默认 compose 去掉 MinIO 容器（6 容器：Caddy + Postgres + Redis + NATS + API + App）。
+  - 附件/图片改走阿里云 OSS（S3 兼容 API）；`legacy-rag` profile 仍保留 MinIO 供 Raglite 使用。
+- 配置：
+  - 新增/扩展 `S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_REGION`、`S3_USE_SSL`、`S3_PUBLIC_BASE_URL`。
+  - App `STATIC_FILE_TARGET` 默认指向 API（`http://panda-wiki-api:8000`），由 API 反代 `/static-file/*` 到 OSS。
+- 兼容：
+  - Legacy Admin Nginx（`legacy-admin` profile）的 `/static-file` 亦改为反代 API，不再直连 MinIO。

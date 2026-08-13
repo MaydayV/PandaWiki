@@ -60,7 +60,7 @@ func (u *FileUsecase) UploadFileGetUrl(ctx context.Context, kbID string, file *m
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("http://panda-wiki-minio:9000/static-file/%s", key), nil
+	return u.s3Client.PublicObjectURL(key), nil
 }
 
 func (u *FileUsecase) UploadFile(ctx context.Context, kbID string, file *multipart.FileHeader) (string, error) {
@@ -88,7 +88,7 @@ func (u *FileUsecase) UploadFile(ctx context.Context, kbID string, file *multipa
 
 	resp, err := u.s3Client.PutObject(
 		ctx,
-		domain.Bucket,
+		u.s3Client.Bucket(),
 		filename,
 		src,
 		size,
@@ -129,7 +129,7 @@ func (u *FileUsecase) UploadFileFromBytes(ctx context.Context, kbID string, file
 
 	resp, err := u.s3Client.PutObject(
 		ctx,
-		domain.Bucket,
+		u.s3Client.Bucket(),
 		s3Filename,
 		reader,
 		size,
@@ -173,7 +173,7 @@ func (u *FileUsecase) UploadFileFromReader(
 	// 上传到 S3
 	_, err := u.s3Client.PutObject(
 		ctx,
-		domain.Bucket,
+		u.s3Client.Bucket(),
 		s3Filename,
 		reader,
 		size, // 必须提供对象大小
@@ -214,7 +214,7 @@ func (u *FileUsecase) AnyDocUploadFile(ctx context.Context, file *multipart.File
 
 	resp, err := u.s3Client.PutObject(
 		ctx,
-		domain.Bucket,
+		u.s3Client.Bucket(),
 		path,
 		src,
 		size,
@@ -292,7 +292,7 @@ func (u *FileUsecase) UploadFileByUrl(ctx context.Context, kbID string, fileURL 
 
 	putResp, err := u.s3Client.PutObject(
 		ctx,
-		domain.Bucket,
+		u.s3Client.Bucket(),
 		s3Filename,
 		bytes.NewReader(data),
 		int64(len(data)),

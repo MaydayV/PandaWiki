@@ -36,7 +36,8 @@
 | PostgreSQL | `pgvector/pgvector:pg16`（容器） | 主数据库 + 向量检索（默认 RAG） |
 | Redis | `7-alpine`（容器） | 缓存/限流 |
 | NATS | `2.10-alpine`（容器） | Anydoc 导出完成事件；pg 模式向量任务已改 `rag_jobs` 表 |
-| MinIO | `latest`（容器） | 对象存储 |
+| 阿里云 OSS | 外部服务 | 图片/附件对象存储（S3 兼容 API） |
+| MinIO | `latest`（容器，profile `legacy-rag`） | 仅 Legacy Raglite 依赖 |
 | Qdrant | `v1.14.1`（容器，profile `legacy-rag`） | 旧版向量检索 |
 | Raglite | `v2.14.1`（容器，profile `legacy-rag`） | 旧版 RAG 服务 |
 | Caddy | `2.10-alpine`（容器） | 知识库访问规则与动态路由 |
@@ -72,7 +73,8 @@ cp .env.example .env
 
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
-- `S3_SECRET_KEY`
+- `S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_ENDPOINT`、`S3_BUCKET`
+- `S3_PUBLIC_BASE_URL`（OSS 桶公网 URL 或 CDN 域名）
 - `NATS_PASSWORD`
 - `QDRANT_API_KEY`
 - `JWT_SECRET`
@@ -114,7 +116,7 @@ psql -U panda-wiki -d panda-wiki
 
 ### 3.4 端口职责与流量路径（当前默认）
 
-- `3010`：前台入口，由 `panda-wiki-caddy` 监听并反向代理到 `api/app/minio`。
+- `3010`：前台入口，由 `panda-wiki-caddy` 监听并反向代理到 `api/app`；`/static-file/*` 经 API 反代 OSS。
 - `2443`：后台管理入口（内嵌于 `panda-wiki-api`，HTTPS）。
 - `2444`：旧版独立 Admin 容器（仅 `legacy-admin` profile）。
 - `8000`：API 直连入口（通常用于健康检查、联调）。
@@ -405,7 +407,7 @@ server {
 1. `.env` 中全部密码改为高强度随机值，禁止使用示例密码。
 2. 外层 Nginx 模式下，建议只对公网开放 `80/443`，限制 `8000/2443/3010` 仅本机或内网访问。
 3. 为对外域名配置真实 TLS 证书，不使用自签证书直接暴露公网。
-4. 定期备份：PostgreSQL 数据卷、MinIO 数据卷、`docs/deploy/.env`。
+4. 定期备份：PostgreSQL 数据卷、OSS 桶数据、`docs/deploy/.env`。
 5. 按 AGPL-3.0 要求提供当前运行版本对应源码链接。
 
 ## 9. 相关文件

@@ -206,7 +206,7 @@ func (e *EpubConverter) processFile(ctx context.Context, f *zip.File, kbID strin
 	e.mu.Unlock()
 	_, err = e.minioClient.PutObject(
 		ctx,
-		domain.Bucket,
+		e.minioClient.Bucket(),
 		ossPath,
 		file,
 		f.FileInfo().Size(),

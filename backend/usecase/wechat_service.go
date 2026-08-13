@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/pkg/bot"
@@ -12,15 +13,17 @@ import (
 
 type WechatServiceUsecase struct {
 	logger      *log.Logger
+	config      *config.Config
 	AppUsecase  *AppUsecase
 	authRepo    *pg.AuthRepo
 	chatUsecase *ChatUsecase
 	weRepo      *pg.WechatRepository
 }
 
-func NewWechatUsecase(logger *log.Logger, AppUsecase *AppUsecase, chatUsecase *ChatUsecase, weRepo *pg.WechatRepository, authRepo *pg.AuthRepo) *WechatServiceUsecase {
+func NewWechatUsecase(logger *log.Logger, config *config.Config, AppUsecase *AppUsecase, chatUsecase *ChatUsecase, weRepo *pg.WechatRepository, authRepo *pg.AuthRepo) *WechatServiceUsecase {
 	return &WechatServiceUsecase{
 		logger:      logger.WithModule("usecase.wechatUsecase"),
+		config:      config,
 		AppUsecase:  AppUsecase,
 		chatUsecase: chatUsecase,
 		weRepo:      weRepo,
@@ -54,6 +57,7 @@ func (u *WechatServiceUsecase) NewWechatServiceConfig(ctx context.Context, kbID 
 	return wechat_service.NewWechatServiceConfig(
 		ctx,
 		u.logger,
+		u.config,
 		kbID,
 		appInfo.Settings.WeChatServiceCorpID,
 		appInfo.Settings.WeChatServiceToken,

@@ -35,11 +35,18 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const rewritesPath = [];
-    const staticFileTarget = process.env.STATIC_FILE_TARGET || process.env.TARGET;
+    const staticFileTarget =
+      process.env.STATIC_FILE_TARGET || process.env.TARGET;
     if (staticFileTarget) {
+      const directOSS =
+        /aliyuncs\.com|amazonaws\.com|cloudfront\.net/i.test(
+          staticFileTarget,
+        ) || process.env.STATIC_FILE_DIRECT === '1';
       rewritesPath.push({
         source: '/static-file/:path*',
-        destination: `${staticFileTarget}/static-file/:path*`,
+        destination: directOSS
+          ? `${staticFileTarget.replace(/\/$/, '')}/:path*`
+          : `${staticFileTarget}/static-file/:path*`,
         basePath: false as const,
       });
     }

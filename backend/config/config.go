@@ -85,9 +85,13 @@ type JWTConfig struct {
 }
 
 type S3Config struct {
-	Endpoint  string `mapstructure:"endpoint"`
-	AccessKey string `mapstructure:"access_key"`
-	SecretKey string `mapstructure:"secret_key"`
+	Endpoint      string `mapstructure:"endpoint"`
+	AccessKey     string `mapstructure:"access_key"`
+	SecretKey     string `mapstructure:"secret_key"`
+	Bucket        string `mapstructure:"bucket"`
+	UseSSL        bool   `mapstructure:"use_ssl"`
+	Region        string `mapstructure:"region"`
+	PublicBaseURL string `mapstructure:"public_base_url"`
 }
 
 type SentryConfig struct {
@@ -145,9 +149,12 @@ func NewConfig() (*Config, error) {
 			JWT:  JWTConfig{Secret: ""},
 		},
 		S3: S3Config{
-			Endpoint:  "panda-wiki-minio:9000",
-			AccessKey: "s3panda-wiki",
+			Endpoint:  "oss-cn-hangzhou.aliyuncs.com",
+			AccessKey: "",
 			SecretKey: "",
+			Bucket:    "static-file",
+			UseSSL:    true,
+			Region:    "oss-cn-hangzhou",
 		},
 		Sentry: SentryConfig{
 			Enabled: true,
@@ -240,6 +247,18 @@ func overrideWithEnv(c *Config) {
 	// s3
 	if env := os.Getenv("S3_ENDPOINT"); env != "" {
 		c.S3.Endpoint = env
+	}
+	if env := os.Getenv("S3_BUCKET"); env != "" {
+		c.S3.Bucket = env
+	}
+	if env := os.Getenv("S3_USE_SSL"); env != "" {
+		c.S3.UseSSL = env == "1" || env == "true" || env == "TRUE"
+	}
+	if env := os.Getenv("S3_REGION"); env != "" {
+		c.S3.Region = env
+	}
+	if env := os.Getenv("S3_PUBLIC_BASE_URL"); env != "" {
+		c.S3.PublicBaseURL = env
 	}
 	// sentry
 	if env := os.Getenv("SENTRY_ENABLED"); env != "" {

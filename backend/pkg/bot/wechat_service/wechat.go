@@ -19,11 +19,12 @@ import (
 	"github.com/sbzhu/weworkapi_golang/wxbizmsgcrypt"
 
 	"github.com/chaitin/panda-wiki/domain"
+	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/pkg/bot"
 )
 
-func NewWechatServiceConfig(ctx context.Context, logger *log.Logger, KbId, CorpID, Token, EncodingAESKey, secret, logo string, containKeywords, equalKeywords []string) (*WechatServiceConfig, error) {
+func NewWechatServiceConfig(ctx context.Context, logger *log.Logger, cfg *config.Config, KbId, CorpID, Token, EncodingAESKey, secret, logo string, containKeywords, equalKeywords []string) (*WechatServiceConfig, error) {
 	return &WechatServiceConfig{
 		Ctx:             ctx,
 		kbID:            KbId,
@@ -35,6 +36,7 @@ func NewWechatServiceConfig(ctx context.Context, logger *log.Logger, KbId, CorpI
 		containKeywords: containKeywords,
 		equalKeywords:   equalKeywords,
 		logoUrl:         logo,
+		s3Config:        &cfg.S3,
 	}, nil
 }
 
@@ -187,8 +189,6 @@ func (cfg *WechatServiceConfig) ProcessMessage(msgRet *MsgRet, GetQA bot.GetQAFu
 }
 
 func (cfg *WechatServiceConfig) getImageID(token, image string) (string, error) {
-	const minioPrefix = "http://panda-wiki-minio:9000"
-
 	// 优先使用配置的logoUrl
 	if cfg.logoUrl != "" {
 		image = cfg.logoUrl
@@ -202,7 +202,11 @@ func (cfg *WechatServiceConfig) getImageID(token, image string) (string, error) 
 	case strings.HasPrefix(image, "data:image/"):
 		imageId, err = GetDefaultImageID(token, image)
 	default:
-		imageId, err = GetUserImageID(token, fmt.Sprintf("%s%s", minioPrefix, image))
+		imageURL := image
+		if cfg.s3Config != nil {
+			imageURL = cfg.s3Config.ResolveStaticFilePath(image)
+		}
+		imageId, err = GetUserImageID(token, imageURL)
 	}
 
 	if imageId != "" && err == nil {

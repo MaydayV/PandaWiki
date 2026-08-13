@@ -2,7 +2,7 @@
 
 > 目标环境：**Linux 单机服务器**（不是开发机、不是 Mac mini）。
 > 目标：**降低内存/CPU 占用**，并让部署变成「一条 compose 命令」。
-> 状态：Phase 1–4 已落地。全新部署用 `full_fresh_deploy.sql` 一键初始化；默认 pgvector RAG、7 容器。见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
+> 状态：Phase 1–4 已落地；对象存储默认 **阿里云 OSS**（无 MinIO 容器）。全新部署用 `full_fresh_deploy.sql`；默认 pgvector RAG、**6 容器**。见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
 
 ## 1. 为什么要改
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | 应用 | API、Consumer、Next 前台、Admin Nginx | 进程重复、端口多 |
 | 网关 | Caddy（host 网络 + Unix Socket） | 动态路由难配，但不能删 |
-| 数据 | Postgres、Redis、MinIO | Redis 很轻；MinIO 单机偏重 |
+| 数据 | Postgres、Redis | Redis 很轻；附件走 **OSS**（无本地 MinIO） |
 | RAG | NATS、Qdrant、Raglite | **最占内存**，且 Raglite 还依赖上面三套中间件 |
 
 Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG，NATS / Qdrant / MinIO 就去不干净。
@@ -44,7 +44,7 @@ Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG�
 
 Phase 2 完成后默认 **9 容器**（已合并 Consumer + Admin 进 API）。
 
-Phase 4 完成后默认 **7 容器**（Caddy + Postgres + Redis + MinIO + NATS + API + App；Qdrant/Raglite 仅在 `legacy-rag` profile）。
+Phase 4 完成后默认 **6 容器**（Caddy + Postgres + Redis + NATS + API + App；Qdrant/Raglite/MinIO 仅在 `legacy-rag` profile）。
 
 流量仍走 Caddy → App / API。Admin 静态资源改由 Caddy 或 API 托管，不再单独起 Nginx。
 
@@ -89,8 +89,8 @@ pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine
 **Admin 不再独立容器**  
 `web/admin` 构建产物挂到 Caddy 或由 API 提供静态文件，去掉 `2443` 和 Admin Nginx。
 
-**MinIO**  
-文件上传可改为本地盘（Linux 数据目录）。过渡期可继续用 MinIO，避免和 RAG 切换缠在一起。
+**对象存储（OSS）**  
+默认使用 S3 兼容 API 连接阿里云 OSS：`S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_PUBLIC_BASE_URL`。API 反代 `/static-file/*` 到 OSS；Caddy 静态路由指向 API。桶需预先创建并配置公共读或 CDN。Legacy Raglite 仍可用 profile 内的 MinIO。
 
 **Redis**  
 保留。去 Redis 省不下有意义的内存，却要重做 Session 和限流。

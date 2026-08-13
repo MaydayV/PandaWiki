@@ -66,11 +66,13 @@
 
 验收：新部署无 Qdrant/Raglite；从 Raglite 迁移或新建 pg 索引后，全量重新学习完成则问答可用。
 
-### Phase 5 — 可选：本地文件替换 MinIO
+### Phase 5 — 对象存储改用 OSS（已完成）
 
-- `store/s3` 增加 `file` backend（或 MinIO 指向本地路径）。
-- 单机 Linux 默认本地盘；需要对象存储时仍可用 S3/MinIO。
-- 与 Phase 3/4 解耦，避免文件迁移和向量迁移同时炸。
+- [x] 默认栈去掉 MinIO 容器；`store/s3` 支持 S3 兼容 OSS（DNS 寻址、公网 URL）。
+- [x] API/Caddy/Admin/App 的 `/static-file/*` 统一经 API 反代 OSS。
+- [x] Legacy Raglite（`legacy-rag` profile）仍保留 MinIO 供 Raglite 使用。
+
+验收：compose 默认 6 容器；配置 `S3_*` 后上传与静态访问走 OSS。
 
 ## 三、不在本计划内
 
@@ -88,9 +90,9 @@
 | 2 减进程 | 中 | 中（少一个 Go + 一个 Nginx） | 高 |
 | 3 pgvector 并存 | 大 | 尚无（两套 RAG 会暂时更重） | 低 |
 | 4 下线 Raglite | 中 | **最高** | 高 |
-| 5 本地盘 | 中 | 中 | 中 |
+| 5 OSS 对象存储 | 中 | 中（无 MinIO 容器） | 高 |
 
-Linux 生产建议：**1 → 2 → 3（灰度）→ 4**。第 5 步按需。
+Linux 生产建议：**1 → 2 → 3（灰度）→ 4 → 5**。OSS 与 pg RAG 可并行配置。
 
 ## 五、关键代码锚点
 
@@ -116,5 +118,6 @@ Linux 生产建议：**1 → 2 → 3（灰度）→ 4**。第 5 步按需。
 - [x] `Dockerfile.api` 多阶段构建 admin
 - [ ] 权限组外的文档不会出现在检索结果（需验收）
 - [ ] 抽样问答无明显回退（需验收）
-- [x] Image compose 新部署无 Qdrant/Raglite（profile 默认不启用）
+- [x] Image compose 新部署无 Qdrant/Raglite/MinIO（profile 默认不启用）
+- [x] 默认对象存储走 OSS（`S3_*` + API `/static-file` 反代）
 - [ ] `make lint`（本机未装 golangci-lint/swag；`go test ./...` 已通过）

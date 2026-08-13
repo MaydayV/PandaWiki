@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/repo/pg"
 )
@@ -20,6 +21,7 @@ type WechatServiceConfig struct {
 	containKeywords []string
 	equalKeywords   []string
 	logoUrl         string
+	s3Config        *config.S3Config
 	// db
 	WeRepo *pg.WechatRepository
 }

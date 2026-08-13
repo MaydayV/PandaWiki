@@ -101,7 +101,7 @@ func (r *KnowledgeBaseRepository) SyncKBAccessSettingsToCaddy(ctx context.Contex
 	}
 	api := fmt.Sprintf("%s.2:8000", subnetPrefix)
 	app := fmt.Sprintf("%s.112:3010", subnetPrefix)
-	staticFile := fmt.Sprintf("%s.12:9000", subnetPrefix) // minio
+	staticFile := api // API proxies /static-file/* to configured object storage
 	servers := make(map[string]any, 0)
 	for port, hostKBMap := range portHostKBMap {
 		trustProxies := make([]string, 0)

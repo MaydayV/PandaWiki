@@ -126,7 +126,7 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	crawlerUsecase, err := usecase.NewCrawlerUsecase(logger, mqConsumer, cacheCache)
+	crawlerUsecase, err := usecase.NewCrawlerUsecase(logger, mqConsumer, cacheCache, configConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func createApp() (*App, error) {
 	shareAuthHandler := share.NewShareAuthHandler(echo, baseHandler, logger, knowledgeBaseUsecase, authUsecase)
 	shareConversationHandler := share.NewShareConversationHandler(baseHandler, echo, conversationUsecase, logger)
 	wechatRepository := pg2.NewWechatRepository(db, logger)
-	wechatServiceUsecase := usecase.NewWechatUsecase(logger, appUsecase, chatUsecase, wechatRepository, authRepo)
+	wechatServiceUsecase := usecase.NewWechatUsecase(logger, configConfig, appUsecase, chatUsecase, wechatRepository, authRepo)
 	wecomUsecase := usecase.NewWecomUsecase(logger, cacheCache, appUsecase, chatUsecase, authRepo)
 	wechatAppUsecase := usecase.NewWechatAppUsecase(logger, appUsecase, chatUsecase, wechatRepository, authRepo, appRepository)
 	shareWechatHandler := share.NewShareWechatHandler(echo, baseHandler, logger, appUsecase, conversationUsecase, wechatServiceUsecase, wecomUsecase, wechatAppUsecase)

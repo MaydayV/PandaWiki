@@ -25,8 +25,14 @@ cat >"$ENV_FILE" <<EOF
 # 由 generate-env.sh 生成 — 请妥善备份，丢失后无法恢复已加密数据
 POSTGRES_PASSWORD=$(rand_hex)
 REDIS_PASSWORD=$(rand_hex)
-S3_ACCESS_KEY=s3panda-wiki
-S3_SECRET_KEY=$(rand_hex)
+S3_ACCESS_KEY=your_oss_access_key
+S3_SECRET_KEY=your_oss_secret_key
+S3_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+S3_BUCKET=your-bucket-name
+S3_REGION=oss-cn-hangzhou
+S3_USE_SSL=1
+S3_PUBLIC_BASE_URL=https://your-bucket.oss-cn-hangzhou.aliyuncs.com
+# ↑ OSS 凭证与桶信息须改为真实值（generate-env.sh 不会自动生成 OSS AK/SK）
 NATS_PASSWORD=$(rand_hex)
 QDRANT_API_KEY=$(rand_hex)
 JWT_SECRET=$(rand_hex)

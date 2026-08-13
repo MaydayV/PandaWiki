@@ -129,6 +129,8 @@ func NewEcho(
 		})
 	})
 
+	RegisterStaticFileRoutes(e, config)
+
 	return e
 }
 

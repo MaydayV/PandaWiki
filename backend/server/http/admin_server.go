@@ -44,20 +44,9 @@ func StartAdminServer(cfg *config.Config, logger *log.Logger) error {
 	if err != nil {
 		return fmt.Errorf("parse api target: %w", err)
 	}
-	minioTarget, err := url.Parse(fmt.Sprintf("http://%s", cfg.S3.Endpoint))
-	if err != nil {
-		return fmt.Errorf("parse minio target: %w", err)
-	}
 
 	apiProxy := newReverseProxy(apiTarget, false)
 	streamProxy := newReverseProxy(apiTarget, true)
-	minioProxy := newReverseProxy(minioTarget, false)
-	minioProxy.ModifyResponse = func(resp *http.Response) error {
-		if resp.Request != nil && !nonPDFStaticFile.MatchString(resp.Request.URL.Path) {
-			resp.Header.Set("Content-Disposition", "attachment")
-		}
-		return nil
-	}
 
 	e.GET("/503", func(c echo.Context) error {
 		return c.NoContent(http.StatusServiceUnavailable)
@@ -71,7 +60,7 @@ func StartAdminServer(cfg *config.Config, logger *log.Logger) error {
 
 	e.Any("/api/*", echo.WrapHandler(apiProxy))
 	e.Any("/share/*", echo.WrapHandler(apiProxy))
-	e.Any("/static-file/*", echo.WrapHandler(minioProxy))
+	RegisterStaticFileRoutes(e, cfg)
 
 	e.GET("/*", func(c echo.Context) error {
 		reqPath := c.Request().URL.Path

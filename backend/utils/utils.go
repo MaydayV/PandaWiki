@@ -229,7 +229,7 @@ func UploadImage(ctx context.Context, minioClient *s3.MinioClient, imageURL stri
 
 	if _, err := minioClient.PutObject(
 		ctx,
-		domain.Bucket,
+		minioClient.Bucket(),
 		imgName,
 		bytes.NewReader(data),
 		int64(len(data)),
@@ -240,7 +240,7 @@ func UploadImage(ctx context.Context, minioClient *s3.MinioClient, imageURL stri
 			},
 		},
 	); err != nil {
-		return "", fmt.Errorf("failed to upload image to MinIO: %v", err)
+		return "", fmt.Errorf("failed to upload image to object storage: %v", err)
 	}
 	return fmt.Sprintf("/%s/%s", domain.Bucket, imgName), nil
 }
