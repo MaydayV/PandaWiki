@@ -21,12 +21,14 @@ func NewMinioClient(config *config.Config) (*MinioClient, error) {
 	endpoint := strings.TrimPrefix(strings.TrimPrefix(s3cfg.Endpoint, "https://"), "http://")
 
 	opts := &minio.Options{
-		Creds:        credentials.NewStaticV4(s3cfg.AccessKey, s3cfg.SecretKey, ""),
-		Secure:       s3cfg.UseSecure(),
-		BucketLookup: minio.BucketLookupDNS,
+		Creds:  credentials.NewStaticV4(s3cfg.AccessKey, s3cfg.SecretKey, ""),
+		Secure: s3cfg.UseSecure(),
 	}
 	if s3cfg.Region != "" {
 		opts.Region = s3cfg.Region
+	}
+	if s3cfg.IsExternalObjectStorage() {
+		opts.BucketLookup = minio.BucketLookupDNS
 	}
 
 	minioClient, err := minio.New(endpoint, opts)
@@ -40,7 +42,23 @@ func NewMinioClient(config *config.Config) (*MinioClient, error) {
 		return nil, fmt.Errorf("check bucket %q: %w", bucket, err)
 	}
 	if !exists {
-		return nil, fmt.Errorf("OSS bucket %q not found: create it in cloud console and set public read if needed", bucket)
+		if s3cfg.IsExternalObjectStorage() {
+			return nil, fmt.Errorf("OSS bucket %q not found: create it in cloud console and set public read if needed", bucket)
+		}
+		if err := minioClient.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{}); err != nil {
+			return nil, fmt.Errorf("make bucket: %w", err)
+		}
+		if err := minioClient.SetBucketPolicy(context.Background(), bucket, `{
+			"Version": "2012-10-17",
+			"Statement": [{
+				"Action": ["s3:GetObject"],
+				"Effect": "Allow",
+				"Principal": "*",
+				"Resource": ["arn:aws:s3:::`+bucket+`/*"]
+			}]
+		}`); err != nil {
+			return nil, fmt.Errorf("set bucket policy: %w", err)
+		}
 	}
 
 	return &MinioClient{Client: minioClient, config: config}, nil

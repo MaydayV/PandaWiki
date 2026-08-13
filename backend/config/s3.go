@@ -49,6 +49,12 @@ func (c *S3Config) StaticFileProxyTarget() (*url.URL, error) {
 	return url.Parse(raw)
 }
 
+func (c *S3Config) IsExternalObjectStorage() bool {
+	endpoint := strings.ToLower(c.Endpoint)
+	return strings.Contains(endpoint, "aliyuncs.com") ||
+		strings.Contains(endpoint, "amazonaws.com")
+}
+
 // ResolveStaticFilePath turns app-relative paths (/static-file/...) into a fetchable object URL.
 func (c *S3Config) ResolveStaticFilePath(path string) string {
 	path = strings.TrimSpace(path)
