@@ -126,7 +126,7 @@ func NewConfig() (*Config, error) {
 			},
 		},
 		RAG: RAGConfig{
-			Provider: "ct",
+			Provider: "pg",
 			CTRAG: CTRAGConfig{
 				BaseURL: fmt.Sprintf("http://%s.18:5050", SUBNET_PREFIX),
 				APIKey:  "sk-1234567890",

@@ -29,6 +29,7 @@ func createApp() (*App, error) {
 
 			mqhandler.NewRAGMQHandler,
 			mqhandler.NewRagDocUpdateHandler,
+			mqhandler.NewRAGJobWorker,
 			mqhandler.NewCronHandler,
 		),
 	)
@@ -45,5 +46,6 @@ type App struct {
 	MQConsumer          mq.MQConsumer
 	RAGMQHandler        *mqhandler.RAGMQHandler
 	RagDocUpdateHandler *mqhandler.RagDocUpdateHandler
+	RAGJobWorker        *mqhandler.RAGJobWorker
 	StatCronHandler     *mqhandler.CronHandler
 }

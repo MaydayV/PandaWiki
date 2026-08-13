@@ -26,7 +26,7 @@ func NewRagDocUpdateHandler(config *config.Config, consumer mq.MQConsumer, logge
 		logger:   logger.WithModule("mq.rag_doc_update"),
 		nodeRepo: nodeRepo,
 	}
-	if !config.RunWorker {
+	if !config.RunWorker || config.RAG.Provider == "pg" {
 		return h, nil
 	}
 	if err := consumer.RegisterHandler(domain.RagDocUpdateTopic, h.HandleRagDocUpdate); err != nil {

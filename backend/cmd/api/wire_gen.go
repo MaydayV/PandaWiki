@@ -72,7 +72,8 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ragRepository := mq2.NewRAGRepository(mqProducer)
+	ragJobRepository := pg2.NewRagJobRepository(db, logger)
+	ragRepository := mq2.NewRAGRepository(mqProducer, configConfig, ragJobRepository)
 	userRepository := pg2.NewUserRepository(db, logger)
 	kbRepo := cache2.NewKBRepo(cacheCache)
 	appRepository := pg2.NewAppRepository(db, logger)
@@ -209,6 +210,7 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	ragJobWorker := mq3.NewRAGJobWorker(configConfig, logger, ragJobRepository, ragmqHandler)
 	cronHandler, err := mq3.NewCronHandler(logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
 	if err != nil {
 		return nil, err
@@ -223,6 +225,7 @@ func createApp() (*App, error) {
 		MQConsumer:          mqConsumer,
 		RAGMQHandler:        ragmqHandler,
 		RagDocUpdateHandler: ragDocUpdateHandler,
+		RAGJobWorker:        ragJobWorker,
 		StatCronHandler:     cronHandler,
 	}
 	return app, nil
@@ -240,5 +243,6 @@ type App struct {
 	MQConsumer          mq.MQConsumer
 	RAGMQHandler        *mq3.RAGMQHandler
 	RagDocUpdateHandler *mq3.RagDocUpdateHandler
+	RAGJobWorker        *mq3.RAGJobWorker
 	StatCronHandler     *mq3.CronHandler
 }

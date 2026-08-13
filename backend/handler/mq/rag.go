@@ -3,6 +3,7 @@ package mq
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/consts"
@@ -16,6 +17,7 @@ import (
 )
 
 type RAGMQHandler struct {
+	config       *config.Config
 	consumer     mq.MQConsumer
 	logger       *log.Logger
 	rag          rag.RAGService
@@ -27,6 +29,7 @@ type RAGMQHandler struct {
 
 func NewRAGMQHandler(config *config.Config, consumer mq.MQConsumer, logger *log.Logger, rag rag.RAGService, nodeRepo *pg.NodeRepository, kbRepo *pg.KnowledgeBaseRepository, llmUsecase *usecase.LLMUsecase, modelUsecase *usecase.ModelUsecase) (*RAGMQHandler, error) {
 	h := &RAGMQHandler{
+		config:       config,
 		consumer:     consumer,
 		logger:       logger.WithModule("mq.rag"),
 		rag:          rag,
@@ -36,6 +39,9 @@ func NewRAGMQHandler(config *config.Config, consumer mq.MQConsumer, logger *log.
 		modelUsecase: modelUsecase,
 	}
 	if !config.RunWorker {
+		return h, nil
+	}
+	if config.RAG.Provider == "pg" {
 		return h, nil
 	}
 	if err := consumer.RegisterHandler(domain.VectorTaskTopic, h.HandleNodeContentVectorRequest); err != nil {
@@ -51,6 +57,10 @@ func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg t
 		h.logger.Error("unmarshal node content vector request failed", log.Error(err))
 		return nil
 	}
+	return h.ProcessVectorRequest(ctx, &request)
+}
+
+func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain.NodeReleaseVectorRequest) error {
 	switch request.Action {
 	case "update_group_ids":
 		h.logger.Info("update node group request", log.Any("request", request), log.Any("group_id", request.GroupIds))
@@ -99,7 +109,10 @@ func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg t
 		})
 		if err != nil {
 			h.logger.Error("upsert node content vector failed", log.Error(err))
-			return nil
+			if h.config.RAG.Provider == "pg" {
+				_ = h.markNodeRagFailed(ctx, nodeRelease.NodeID, err.Error())
+			}
+			return err
 		}
 		// update node doc_id
 		if err := h.nodeRepo.UpdateNodeReleaseDocID(ctx, request.NodeReleaseID, docID); err != nil {
@@ -118,6 +131,11 @@ func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg t
 			if err := h.rag.DeleteRecords(ctx, kb.DatasetID, oldDocIDs); err != nil {
 				h.logger.Error("delete old RAG records failed", log.String("kb_id", kb.ID), log.Error(err))
 				return nil
+			}
+		}
+		if h.config.RAG.Provider == "pg" {
+			if err := h.markNodeRagSucceeded(ctx, nodeRelease.NodeID); err != nil {
+				h.logger.Error("update node rag status failed", log.Error(err))
 			}
 		}
 
@@ -172,4 +190,24 @@ func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg t
 	}
 
 	return nil
+}
+
+func (h *RAGMQHandler) markNodeRagSucceeded(ctx context.Context, nodeID string) error {
+	return h.nodeRepo.Update(ctx, nodeID, map[string]interface{}{
+		"rag_info": domain.RagInfo{
+			Status:   consts.NodeRagStatusSucceeded,
+			Message:  "indexed in pgvector",
+			SyncedAt: time.Now(),
+		},
+	})
+}
+
+func (h *RAGMQHandler) markNodeRagFailed(ctx context.Context, nodeID string, message string) error {
+	return h.nodeRepo.Update(ctx, nodeID, map[string]interface{}{
+		"rag_info": domain.RagInfo{
+			Status:   consts.NodeRagStatusFailed,
+			Message:  message,
+			SyncedAt: time.Now(),
+		},
+	})
 }

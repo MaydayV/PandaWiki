@@ -6,7 +6,7 @@
 2. 方案 B：预构建镜像部署（Image 模式，推荐生产）
 3. 外层 Nginx + 内层 Caddy（推荐公网生产）
 
-本文描述**当前** 11 容器部署。Linux 单机减负（pgvector 替换 Raglite/Qdrant、合并进程）见 [STACK_SLIM.md](./STACK_SLIM.md)，分阶段实现计划见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
+本文描述 Docker 部署的三种方式。**乘风版默认编排**（`feat/stack-slim`）为 **7 容器**：pgvector RAG、API 内嵌 Consumer/Admin。完整 11 容器（含 Qdrant/Raglite）见 profile `legacy-rag`。详见 [STACK_SLIM.md](./STACK_SLIM.md) 与 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
 
 ## 1. 方式对比
 
@@ -33,12 +33,12 @@
 | Git | `2.30+` | 拉取代码 |
 | Node.js | `22.x` | 仅 Build 模式需要 |
 | pnpm | `10.x` | 仅 Build 模式需要 |
-| PostgreSQL | `16-alpine`（容器） | 主数据库 |
+| PostgreSQL | `pgvector/pgvector:pg16`（容器） | 主数据库 + 向量检索（默认 RAG） |
 | Redis | `7-alpine`（容器） | 缓存/限流 |
-| NATS | `2.10-alpine`（容器） | 消息队列 |
+| NATS | `2.10-alpine`（容器） | Anydoc 导出完成事件；pg 模式向量任务已改 `rag_jobs` 表 |
 | MinIO | `latest`（容器） | 对象存储 |
-| Qdrant | `v1.14.1`（容器） | 向量检索 |
-| Raglite | `v2.14.1`（容器） | RAG 服务 |
+| Qdrant | `v1.14.1`（容器，profile `legacy-rag`） | 旧版向量检索 |
+| Raglite | `v2.14.1`（容器，profile `legacy-rag`） | 旧版 RAG 服务 |
 | Caddy | `2.10-alpine`（容器） | 知识库访问规则与动态路由 |
 
 ## 3. 通用准备
@@ -83,6 +83,8 @@ cp .env.example .env
 - `DEV_KB_ID` — 生产经 Caddy 注入 `X-KB-ID` 时可留空
 - `RUN_WORKER` — 默认 `1`，API 内嵌 MQ 消费者与定时任务；独立 Consumer 容器时设为 `0` 并启用 profile `split-worker`
 - `ADMIN_ENABLED` — 默认 `1`，API 内嵌 HTTPS 管理端（2443）；回退独立 Admin 时设为 `0` 并启用 profile `legacy-admin`
+- `RAG_PROVIDER` — 默认 `pg`（Postgres pgvector）；回退 Raglite 时设为 `ct` 并启用 profile `legacy-rag`
+- `RAG_PG_EMBEDDING_DIM` — pgvector 嵌入维度，默认 `1024`（须与 embedding 模型一致）
 
 仅 Image 模式额外需要：
 
@@ -91,7 +93,8 @@ cp .env.example .env
 
 ### 3.3 首次部署初始化数据库（仅首次）
 
-> 当前项目使用完整部署 SQL：`backend/store/pg/migration/full_fresh_deploy.sql`
+> 当前项目使用**单一**完整部署 SQL（无增量迁移文件）：`backend/store/pg/migration/full_fresh_deploy.sql`  
+> 推荐：`docs/deploy/quickstart.sh` 检测空库后自动导入。
 
 先启动 PostgreSQL：
 
@@ -262,13 +265,15 @@ docker compose -f docker-compose.image.yml pull
 docker compose -f docker-compose.image.yml up -d
 ```
 
-默认 **9 个容器**（Consumer、Admin 已合并进 API）。回退独立进程：
+默认 **7 个容器**（pgvector RAG；Consumer、Admin 已合并进 API；无 Qdrant/Raglite）。回退独立进程或旧版 RAG：
 
 ```bash
 # Consumer
 docker compose -f docker-compose.image.yml --profile split-worker up -d
 # Admin Nginx（2444 端口）
 docker compose -f docker-compose.image.yml --profile legacy-admin up -d
+# Raglite + Qdrant（须同时设 RAG_PROVIDER=ct）
+docker compose -f docker-compose.image.yml --profile legacy-rag up -d
 ```
 
 ### 5.3 升级发布

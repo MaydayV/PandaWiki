@@ -2,13 +2,13 @@
 
 > 说明文档：[../STACK_SLIM.md](../STACK_SLIM.md)
 > 分支：`feat/stack-slim`
-> 状态（2026-08-13）：Phase 1–2 已落地；Phase 3（pgvector 并存）已落地，默认仍 `RAG_PROVIDER=ct`。
+> 状态（2026-08-13）：Phase 1–4 已落地（全新部署路径；默认 pgvector + 7 容器）。Phase 5 / 去 NATS（Anydoc）为可选后续。
 > 约束：保留 Redis；保留 Caddy；RAG 换 pgvector + 现有 embedding/rerank；目标 Linux 服务器。
 
 ## 一、原则
 
 1. 业务逻辑仍在 `usecase/`，新 RAG 只加 `store/rag` 的实现，不把检索写进 handler。
-2. 过渡期 `RAG_PROVIDER=ct|pg` 可切换，默认先 `ct`，切流完成后再改默认并下线 Raglite。
+2. 过渡期 `RAG_PROVIDER=ct|pg` 可切换；**默认 `pg`**。回退 Raglite 需启用 compose profile `legacy-rag` 并设 `RAG_PROVIDER=ct`。
 3. 不把「导出/SEO 那批未提交改动」混进本分支（已 stash）。
 4. 每阶段可单独上线；阶段 3 之前不要求用户全量重新学习。
 
@@ -46,27 +46,25 @@
 
 ### Phase 3 — pgvector RAG（与 Raglite 并存）— [x]
 
-- [x] 迁移 `000042_pgvector_rag`：`vector` 扩展 + `rag_chunks` 表 + HNSW 索引
+- [x] `full_fresh_deploy.sql` 含 `vector` 扩展 + `rag_chunks` + `rag_jobs`（无增量 `*.up.sql`）
 - [x] Postgres 镜像换 `pgvector/pgvector:pg16`
 - [x] `store/rag/pg.go` 实现 `RAGService`（切块、嵌入、向量检索、rerank、多轮改写）
-- [x] `RAG_PROVIDER=ct|pg`（默认 `ct`）；`RAG_PG_EMBEDDING_DIM`（默认 1024）
+- [x] `RAG_PROVIDER=ct|pg`（**默认 `pg`**）；`RAG_PG_EMBEDDING_DIM`（默认 1024）
 - [x] `store/rag/chunk.go` Markdown 切块 + 单测
-- [ ] 全量重新学习入口（Phase 4）
+- [x] 全量重新学习 API + Admin 入口（Phase 4）
 - [ ] `pg_trgm` 短词融合（可选增强）
 
 验收：同一 embedding/rerank 配置下，`pg` 模式发布文档后可检索；切换需全量 re-ingest（Phase 4 切流）。
 
-### Phase 4 — 切流并下线 Raglite 依赖
+### Phase 4 — 切流并下线 Raglite 依赖 — [x]（NATS 任务表待后续）
 
-1. 后台提供「全量重新学习」（遍历已发布文档写入 `rag_jobs`）。
-2. 默认 `RAG_PROVIDER=pg`。
-3. compose 去掉 `panda-wiki-qdrant`、`panda-wiki-raglite`。
-4. 停止创建 `raglite` 数据库（`backend/store/pg/pg.go`）。
-5. NATS：
-   - 向量任务、Raglite 进度事件改为 `rag_jobs` + 文档状态字段。
-   - Anydoc 导出完成改为任务表或短轮询；确认无主题后再从 compose 去掉 NATS。
+1. [x] 后台「全量重新学习」：`POST /api/v1/knowledge_base/rag/reindex` + Admin 设置页按钮
+2. [x] 默认 `RAG_PROVIDER=pg`
+3. [x] compose 将 `panda-wiki-qdrant`、`panda-wiki-raglite` 移入 profile `legacy-rag`（新部署默认 **7 容器**）
+4. [x] `RAG_PROVIDER=pg` 时不再创建 `raglite` 数据库（`backend/store/pg/pg.go`）
+5. [x] pg 模式向量任务改为 Postgres `rag_jobs` 表（`SKIP LOCKED` 轮询）；Anydoc 导出仍走 NATS
 
-验收：新部署无 Qdrant/Raglite；旧数据学习完成后问答可用；文档导入/发布仍异步可查进度。
+验收：新部署无 Qdrant/Raglite；从 Raglite 迁移或新建 pg 索引后，全量重新学习完成则问答可用。
 
 ### Phase 5 — 可选：本地文件替换 MinIO
 
@@ -110,10 +108,10 @@ Linux 生产建议：**1 → 2 → 3（灰度）→ 4**。第 5 步按需。
 
 ## 六、测试与验收清单
 
-- [ ] `go test` 覆盖切块、权限过滤、空库检索
-- [ ] 切换 `RAG_PROVIDER` 不影响 chat/embedding 配置读写
-- [ ] 发布文档后任务成功，chunk 可查
-- [ ] 权限组外的文档不会出现在检索结果
-- [ ] 抽样问答与 Raglite 对比无明显回退
-- [ ] Image compose 在干净 Linux 上可启动（阶段 4 后无 Qdrant/Raglite）
-- [ ] `cd backend && make lint` 在涉及 Go 的阶段结束时通过
+- [x] `go test` 覆盖切块（`store/rag/chunk_test.go`）
+- [x] 切换 `RAG_PROVIDER` 不影响 chat/embedding 配置读写（默认 pg）
+- [ ] 发布文档后任务成功，chunk 可查（需 Mac mini / 正式机构建验收）
+- [ ] 权限组外的文档不会出现在检索结果（需验收）
+- [ ] 抽样问答无明显回退（需验收）
+- [x] Image compose 新部署无 Qdrant/Raglite（profile 默认不启用）
+- [ ] `make lint`（本机未装 golangci-lint/swag；`go test ./...` 已通过）

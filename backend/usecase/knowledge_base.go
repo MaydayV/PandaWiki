@@ -649,3 +649,65 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 		Message: "success",
 	}, nil
 }
+
+func (u *KnowledgeBaseUsecase) ReindexRAG(ctx context.Context, kbID string, recreateDataset bool) (int, error) {
+	kb, err := u.repo.GetKnowledgeBaseByID(ctx, kbID)
+	if err != nil {
+		return 0, fmt.Errorf("get knowledge base failed: %w", err)
+	}
+
+	if recreateDataset {
+		newDatasetID, err := u.rag.CreateKnowledgeBase(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("create new dataset failed: %w", err)
+		}
+		if err := u.rag.DeleteKnowledgeBase(ctx, kb.DatasetID); err != nil {
+			return 0, fmt.Errorf("delete old dataset failed: %w", err)
+		}
+		if err := u.repo.UpdateDatasetID(ctx, kbID, newDatasetID); err != nil {
+			return 0, fmt.Errorf("update dataset id failed: %w", err)
+		}
+		kb.DatasetID = newDatasetID
+	}
+
+	releases, err := u.nodeRepo.ListLatestPublishedNodeReleasesByKB(ctx, kbID)
+	if err != nil {
+		return 0, fmt.Errorf("list published node releases failed: %w", err)
+	}
+
+	queued := 0
+	for _, release := range releases {
+		if release.Type == domain.NodeTypeFolder {
+			continue
+		}
+		if err := u.ragRepo.AsyncUpdateNodeReleaseVector(ctx, []*domain.NodeReleaseVectorRequest{
+			{
+				KBID:          kbID,
+				NodeReleaseID: release.ID,
+				Action:        "upsert",
+			},
+		}); err != nil {
+			u.logger.Error("queue rag reindex failed",
+				log.String("node_release_id", release.ID),
+				log.Error(err))
+			continue
+		}
+		if err := u.nodeRepo.Update(ctx, release.NodeID, map[string]interface{}{
+			"rag_info": domain.RagInfo{
+				Status:  consts.NodeRagStatusPending,
+				Message: "queued for reindex",
+			},
+		}); err != nil {
+			u.logger.Error("update node rag pending failed",
+				log.String("node_id", release.NodeID),
+				log.Error(err))
+		}
+		queued++
+	}
+
+	u.logger.Info("rag reindex queued",
+		log.String("kb_id", kbID),
+		log.String("dataset_id", kb.DatasetID),
+		log.Int("queued", queued))
+	return queued, nil
+}

@@ -41,7 +41,8 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ragRepository := mq2.NewRAGRepository(mqProducer)
+	ragJobRepository := pg2.NewRagJobRepository(db, logger)
+	ragRepository := mq2.NewRAGRepository(mqProducer, configConfig, ragJobRepository)
 	userRepository := pg2.NewUserRepository(db, logger)
 	modelRepository := pg2.NewModelRepository(db, logger)
 	ragService, err := rag.NewRAGService(configConfig, logger, db, modelRepository)

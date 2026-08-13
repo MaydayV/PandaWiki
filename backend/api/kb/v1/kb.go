@@ -40,3 +40,12 @@ type KBUserDeleteReq struct {
 
 type KBUserDeleteResp struct {
 }
+
+type ReindexRAGReq struct {
+	KBID            string `json:"kb_id" validate:"required"`
+	RecreateDataset bool   `json:"recreate_dataset"`
+}
+
+type ReindexRAGResp struct {
+	Queued int `json:"queued"`
+}

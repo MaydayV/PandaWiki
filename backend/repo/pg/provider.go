@@ -28,6 +28,7 @@ var ProviderSet = wire.NewSet(
 	NewSystemSettingRepo,
 	NewMCPRepository,
 	NewNavRepository,
+	NewRagJobRepository,
 
 	wire.Bind(new(rag.ModelProvider), new(*ModelRepository)),
 )

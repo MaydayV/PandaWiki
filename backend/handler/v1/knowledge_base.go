@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
 
+	kbv1 "github.com/chaitin/panda-wiki/api/kb/v1"
 	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/handler"
@@ -86,6 +87,9 @@ func NewKnowledgeBaseHandler(
 	blockGroup := echo.Group("/api/pro/v1/block", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 	blockGroup.GET("", h.GetBlockWords)
 	blockGroup.POST("", h.CreateBlockWords)
+
+	ragGroup := group.Group("/rag", h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
+	ragGroup.POST("/reindex", h.ReindexRAG)
 
 	return h
 }
@@ -721,4 +725,22 @@ func (h *KnowledgeBaseHandler) RollbackKBRelease(c echo.Context) error {
 	}
 
 	return h.NewResponseWithData(c, resp)
+}
+
+// ReindexRAG 全量重新学习（当前知识库所有已发布文档）
+func (h *KnowledgeBaseHandler) ReindexRAG(c echo.Context) error {
+	var req kbv1.ReindexRAGReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request body is invalid", err)
+	}
+	if err := c.Validate(req); err != nil {
+		return h.NewResponseWithError(c, "validate request body failed", err)
+	}
+
+	queued, err := h.usecase.ReindexRAG(c.Request().Context(), req.KBID, req.RecreateDataset)
+	if err != nil {
+		return h.NewResponseWithError(c, err.Error(), err)
+	}
+
+	return h.NewResponseWithData(c, kbv1.ReindexRAGResp{Queued: queued})
 }

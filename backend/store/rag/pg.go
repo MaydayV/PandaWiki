@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/chaitin/panda-wiki/config"
+	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
 	storepg "github.com/chaitin/panda-wiki/store/pg"
@@ -253,10 +254,10 @@ func (s *PGRAG) ListDocuments(ctx context.Context, datasetID string, documentIDs
 
 	docs := make([]Document, 0, len(documentIDs))
 	for _, docID := range documentIDs {
-		status := "processing"
+		status := string(consts.NodeRagStatusPending)
 		msg := "waiting for embedding"
 		if countMap[docID] > 0 {
-			status = "completed"
+			status = string(consts.NodeRagStatusSucceeded)
 			msg = "indexed in pgvector"
 		}
 		docs = append(docs, Document{

@@ -87,6 +87,8 @@ services:
       retries: 10
 
   panda-wiki-qdrant:
+    profiles:
+      - legacy-rag
     image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/panda-wiki-qdrant:v1.14.1
     container_name: panda-wiki-qdrant
     restart: unless-stopped
@@ -105,6 +107,8 @@ services:
       start_period: 30s
 
   panda-wiki-raglite:
+    profiles:
+      - legacy-rag
     image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/raglite:v2.14.1
     container_name: panda-wiki-raglite
     restart: unless-stopped
@@ -159,7 +163,7 @@ services:
       RUN_WORKER: ${RUN_WORKER:-1}
       ADMIN_ENABLED: ${ADMIN_ENABLED:-1}
       ADMIN_PORT: "2443"
-      RAG_PROVIDER: ${RAG_PROVIDER:-ct}
+      RAG_PROVIDER: ${RAG_PROVIDER:-pg}
       RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
     volumes:
       - ./data/caddy/run:/app/run
@@ -172,8 +176,6 @@ services:
         condition: service_healthy
       panda-wiki-nats:
         condition: service_healthy
-      panda-wiki-raglite:
-        condition: service_started
       panda-wiki-caddy:
         condition: service_started
     ports:

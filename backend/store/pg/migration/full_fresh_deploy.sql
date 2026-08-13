@@ -752,6 +752,96 @@ SET settings = jsonb_set(
 WHERE (settings->'stats_setting'->'pv_enable') IS NULL;
 -- <<< END 000041_set_default_stats_pv_enable.up.sql
 
+-- >>> BEGIN 000037_create_nav_tabs.up.sql
+CREATE TABLE IF NOT EXISTS navs (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    position FLOAT8 DEFAULT 0,
+    kb_id TEXT NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT NOW(),
+    updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE nodes ADD COLUMN IF NOT EXISTS nav_id text default '';
+
+CREATE TABLE IF NOT EXISTS nav_releases (
+    id TEXT PRIMARY KEY,
+    nav_id TEXT NOT NULL,
+    release_id TEXT NOT NULL,
+    kb_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    position FLOAT8 DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nav_releases_release_id ON nav_releases(release_id);
+CREATE INDEX IF NOT EXISTS idx_nav_releases_kb_id ON nav_releases(kb_id);
+
+ALTER TABLE kb_release_node_releases ADD COLUMN IF NOT EXISTS nav_id text default '';
+-- <<< END 000037_create_nav_tabs.up.sql
+
+-- >>> BEGIN 000038_create_node_release_backups.up.sql
+CREATE TABLE IF NOT EXISTS node_release_backup (
+    id           text        NOT NULL,
+    kb_id        text        NOT NULL,
+    node_id      text        NOT NULL,
+    doc_id       text        NOT NULL,
+    type         int2,
+    name         text,
+    meta         jsonb,
+    content      text,
+    parent_id    text,
+    position     float8,
+    created_at   timestamptz,
+    updated_at   timestamptz,
+    publisher_id text,
+    editor_id    text,
+    deleted_at   timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT node_release_backup_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS node_release_backup_deleted_at_idx ON node_release_backup (deleted_at);
+-- <<< END 000038_create_node_release_backups.up.sql
+
+-- >>> BEGIN pgvector_rag (stack-slim)
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS rag_chunks (
+    id          TEXT PRIMARY KEY,
+    dataset_id  TEXT NOT NULL,
+    doc_id      TEXT NOT NULL,
+    content     TEXT NOT NULL,
+    embedding   vector(1024) NOT NULL,
+    group_ids   INT[] NOT NULL DEFAULT '{}',
+    tags        TEXT[] NOT NULL DEFAULT '{}',
+    seq         INT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rag_chunks_dataset_id ON rag_chunks (dataset_id);
+CREATE INDEX IF NOT EXISTS idx_rag_chunks_doc_id ON rag_chunks (dataset_id, doc_id);
+CREATE INDEX IF NOT EXISTS idx_rag_chunks_group_ids ON rag_chunks USING gin (group_ids);
+CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_chunks USING hnsw (embedding vector_cosine_ops);
+-- <<< END pgvector_rag
+
+-- >>> BEGIN rag_jobs (stack-slim)
+CREATE TABLE IF NOT EXISTS rag_jobs (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    payload      JSONB NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'pending',
+    attempts     INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 5,
+    last_error   TEXT,
+    locked_at    TIMESTAMPTZ,
+    locked_by    TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT rag_jobs_status_check CHECK (status IN ('pending', 'processing', 'done', 'failed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_rag_jobs_pending ON rag_jobs (created_at) WHERE status = 'pending';
+-- <<< END rag_jobs
+
 -- Ensure migration version is recorded for fresh deployments.
 DO $$
 BEGIN
@@ -763,5 +853,5 @@ BEGIN
     END IF;
 
     DELETE FROM public.schema_migrations;
-    INSERT INTO public.schema_migrations (version, dirty) VALUES (41, FALSE);
+    INSERT INTO public.schema_migrations (version, dirty) VALUES (43, FALSE);
 END $$;

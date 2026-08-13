@@ -14,7 +14,10 @@ func main() {
 		panic(err)
 	}
 	app.StatCronHandler.Start()
-	if err := app.MQConsumer.StartConsumerHandlers(context.Background()); err != nil {
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	go app.MQHandlers.RAGJobWorker.Start(workerCtx)
+	if err := app.MQConsumer.StartConsumerHandlers(workerCtx); err != nil {
 		panic(err)
 	}
 	if err := app.MQConsumer.Close(); err != nil {

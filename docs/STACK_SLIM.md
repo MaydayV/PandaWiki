@@ -2,7 +2,7 @@
 
 > 目标环境：**Linux 单机服务器**（不是开发机、不是 Mac mini）。
 > 目标：**降低内存/CPU 占用**，并让部署变成「一条 compose 命令」。
-> 状态：Phase 1–2 已落地，见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。分支：`feat/stack-slim`。
+> 状态：Phase 1–4 已落地。全新部署用 `full_fresh_deploy.sql` 一键初始化；默认 pgvector RAG、7 容器。见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
 
 ## 1. 为什么要改
 
@@ -44,6 +44,8 @@ Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG�
 
 Phase 2 完成后默认 **9 容器**（已合并 Consumer + Admin 进 API）。
 
+Phase 4 完成后默认 **7 容器**（Caddy + Postgres + Redis + MinIO + NATS + API + App；Qdrant/Raglite 仅在 `legacy-rag` profile）。
+
 流量仍走 Caddy → App / API。Admin 静态资源改由 Caddy 或 API 托管，不再单独起 Nginx。
 
 ## 4. RAG 换成什么
@@ -68,7 +70,7 @@ Phase 2 完成后默认 **9 容器**（已合并 Consumer + Admin 进 API）。
 | 切块 | Raglite 内部 | API 内按标题/token 切 |
 | 中文短词 | 主要靠向量 | 向量 + Postgres 全文（`pg_trgm` 或简单分词） |
 
-代码已有 `RAGService` 接口（`backend/store/rag`）。新增 `pg` 实现，旧的 `ct`（Raglite）过渡期并存，用配置切换：`RAG_PROVIDER=pg|ct`。
+代码已有 `RAGService` 接口（`backend/store/rag`）。`pg` 为默认实现；`ct`（Raglite）保留在 `legacy-rag` profile，用 `RAG_PROVIDER=pg|ct` 切换。
 
 ### 对问答效果的预期
 
@@ -82,7 +84,7 @@ Phase 2 完成后默认 **9 容器**（已合并 Consumer + Admin 进 API）。
 ## 5. 其它精简
 
 **Consumer 并进 API**  
-NATS 上现在主要是：文档向量任务、Raglite 学习进度、Anydoc 导出完成。改成 Postgres 任务表（`SKIP LOCKED`）后，API 进程内 goroutine 消费即可，少一个镜像和一套环境变量。
+pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine 消费；Anydoc 导出完成仍走 NATS。去 NATS 需等 Anydoc 也改任务表。
 
 **Admin 不再独立容器**  
 `web/admin` 构建产物挂到 Caddy 或由 API 提供静态文件，去掉 `2443` 和 Admin Nginx。

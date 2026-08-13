@@ -1,11 +1,16 @@
 import { getApiProV1Prompt, putApiProV1Prompt } from '@/request/pro/Prompt';
 import { getApiV1AppDetail, putApiV1App } from '@/request/App';
-import { DomainAppDetailResp, DomainKnowledgeBaseDetail } from '@/request/types';
+import { postApiV1KnowledgeBaseRagReindex } from '@/request/ragReindex';
+import {
+  DomainAppDetailResp,
+  DomainKnowledgeBaseDetail,
+} from '@/request/types';
 import { ALL_VERSION_PERMISSION } from '@/constant/version';
 import { useAppSelector } from '@/store';
 import { message, Modal } from '@ctzhian/ui';
 import {
   Box,
+  Button,
   FormControlLabel,
   RadioGroup,
   Radio,
@@ -28,6 +33,7 @@ const StyledRadioLabel = styled(Box)(({ theme }) => ({
 
 const CardAI = ({ kb }: CardAIProps) => {
   const [isEdit, setIsEdit] = useState(false);
+  const [reindexLoading, setReindexLoading] = useState(false);
   const { license } = useAppSelector(state => state.config);
   const [webApp, setWebApp] = useState<DomainAppDetailResp>();
 
@@ -95,8 +101,7 @@ const CardAI = ({ kb }: CardAIProps) => {
   }, [license]);
 
   useEffect(() => {
-    if (!kb.id || !ALL_VERSION_PERMISSION.includes(license.edition!))
-      return;
+    if (!kb.id || !ALL_VERSION_PERMISSION.includes(license.edition!)) return;
     Promise.all([
       getApiProV1Prompt({ kb_id: kb.id! }),
       getApiV1AppDetail({ kb_id: kb.id!, type: '1' }),
@@ -112,7 +117,10 @@ const CardAI = ({ kb }: CardAIProps) => {
         'enable_preset_general_info',
         promptRes.enable_preset_general_info ?? true,
       );
-      setValue('enable_preset_reference', promptRes.enable_preset_reference ?? true);
+      setValue(
+        'enable_preset_reference',
+        promptRes.enable_preset_reference ?? true,
+      );
       setValue(
         'interval',
         Math.max(
@@ -160,6 +168,28 @@ const CardAI = ({ kb }: CardAIProps) => {
             message.success('重置成功');
           });
         });
+      },
+    });
+  };
+
+  const onReindexRAG = () => {
+    Modal.confirm({
+      title: '全量重新学习',
+      content:
+        '将重新处理当前知识库所有已发布文档的向量索引，可能需要较长时间。是否继续？',
+      onOk: async () => {
+        setReindexLoading(true);
+        try {
+          const res = await postApiV1KnowledgeBaseRagReindex({
+            kb_id: kb.id!,
+            recreate_dataset: true,
+          });
+          message.success(`已加入 ${res.queued} 篇文档的学习队列`);
+        } catch {
+          message.error('提交失败，请稍后重试');
+        } finally {
+          setReindexLoading(false);
+        }
       },
     });
   };
@@ -436,6 +466,21 @@ const CardAI = ({ kb }: CardAIProps) => {
               />
             )}
           />
+        </FormItem>
+
+        <FormItem
+          vertical
+          label='向量索引'
+          tooltip='切换 RAG 后端或迁移后，需全量重新学习以重建向量索引'
+        >
+          <Button
+            variant='outlined'
+            disabled={!canEditPrompt || reindexLoading}
+            loading={reindexLoading}
+            onClick={onReindexRAG}
+          >
+            全量重新学习
+          </Button>
         </FormItem>
       </SettingCardItem>
     </Box>

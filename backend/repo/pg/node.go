@@ -152,6 +152,22 @@ func (r *NodeRepository) GetLatestNodeReleaseByNodeIDs(ctx context.Context, kbID
 	return nodeReleases, nil
 }
 
+func (r *NodeRepository) ListLatestPublishedNodeReleasesByKB(ctx context.Context, kbID string) ([]*domain.NodeRelease, error) {
+	var nodeReleases []*domain.NodeRelease
+	err := r.db.WithContext(ctx).
+		Table("node_releases").
+		Select("DISTINCT ON (node_releases.node_id) node_releases.id, node_releases.node_id, node_releases.kb_id, node_releases.doc_id, node_releases.type").
+		Joins("JOIN nodes ON nodes.id = node_releases.node_id").
+		Where("node_releases.kb_id = ?", kbID).
+		Where("nodes.status = ?", domain.NodeStatusPublished).
+		Order("node_releases.node_id, node_releases.updated_at DESC").
+		Find(&nodeReleases).Error
+	if err != nil {
+		return nil, err
+	}
+	return nodeReleases, nil
+}
+
 func (r *NodeRepository) GetNodeReleasePublisherMap(ctx context.Context, kbID string) (map[string]string, error) {
 	type Result struct {
 		NodeID      string `gorm:"column:node_id"`
