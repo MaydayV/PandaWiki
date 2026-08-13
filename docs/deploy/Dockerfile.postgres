@@ -1,0 +1,9 @@
+# 基于本地已有 postgres:16-alpine，离线/弱网环境编译 pgvector
+FROM postgres:16-alpine
+
+RUN apk add --no-cache --virtual .build-deps \
+    git build-base clang llvm-dev postgresql16-dev \
+    && git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git /tmp/pgvector \
+    && cd /tmp/pgvector && make clean && make OPTFLAGS="" && make install \
+    && apk del .build-deps \
+    && rm -rf /tmp/pgvector
