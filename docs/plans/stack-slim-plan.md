@@ -110,7 +110,10 @@ Linux 生产建议：**1 → 2 → 3（灰度）→ 4**。第 5 步按需。
 
 - [x] `go test` 覆盖切块（`store/rag/chunk_test.go`）
 - [x] 切换 `RAG_PROVIDER` 不影响 chat/embedding 配置读写（默认 pg）
-- [ ] 发布文档后任务成功，chunk 可查（需 Mac mini / 正式机构建验收）
+- [x] RAG job 失败重试与节点 `rag_info` 状态同步
+- [x] compose `split-worker` 在 pg 模式可解析
+- [x] 空库未导入 SQL 时 API fail-fast 提示
+- [x] `Dockerfile.api` 多阶段构建 admin
 - [ ] 权限组外的文档不会出现在检索结果（需验收）
 - [ ] 抽样问答无明显回退（需验收）
 - [x] Image compose 新部署无 Qdrant/Raglite（profile 默认不启用）

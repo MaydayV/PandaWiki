@@ -172,17 +172,18 @@ const CardAI = ({ kb }: CardAIProps) => {
     });
   };
 
-  const onReindexRAG = () => {
+  const onReindexRAG = (recreateDataset = false) => {
     Modal.confirm({
-      title: '全量重新学习',
-      content:
-        '将重新处理当前知识库所有已发布文档的向量索引，可能需要较长时间。是否继续？',
+      title: recreateDataset ? '重建向量库并全量学习' : '全量重新学习',
+      content: recreateDataset
+        ? '将删除当前向量 dataset 并重建，再重新处理所有已发布文档。通常仅在切换 RAG 后端或迁移时使用。是否继续？'
+        : '将重新处理当前知识库所有已发布文档的向量索引，可能需要较长时间。是否继续？',
       onOk: async () => {
         setReindexLoading(true);
         try {
           const res = await postApiV1KnowledgeBaseRagReindex({
             kb_id: kb.id!,
-            recreate_dataset: true,
+            recreate_dataset: recreateDataset,
           });
           message.success(`已加入 ${res.queued} 篇文档的学习队列`);
         } catch {
@@ -471,16 +472,25 @@ const CardAI = ({ kb }: CardAIProps) => {
         <FormItem
           vertical
           label='向量索引'
-          tooltip='切换 RAG 后端或迁移后，需全量重新学习以重建向量索引'
+          tooltip='日常维护用「全量重新学习」；从 Raglite 迁移或切换 RAG 后端时用「重建向量库」'
         >
-          <Button
-            variant='outlined'
-            disabled={!canEditPrompt || reindexLoading}
-            loading={reindexLoading}
-            onClick={onReindexRAG}
-          >
-            全量重新学习
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant='outlined'
+              disabled={!canEditPrompt || reindexLoading}
+              loading={reindexLoading}
+              onClick={() => onReindexRAG(false)}
+            >
+              全量重新学习
+            </Button>
+            <Button
+              variant='text'
+              disabled={!canEditPrompt || reindexLoading}
+              onClick={() => onReindexRAG(true)}
+            >
+              重建向量库并学习
+            </Button>
+          </Box>
         </FormItem>
       </SettingCardItem>
     </Box>

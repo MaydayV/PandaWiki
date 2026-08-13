@@ -1,4 +1,14 @@
 # Build context: repository root (../../ from docs/deploy)
+FROM node:22-alpine AS admin-builder
+
+WORKDIR /src/web
+RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
+
+COPY web/ ./
+
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm install --frozen-lockfile \
+    && NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
+
 FROM --platform=$BUILDPLATFORM golang:1.26.4-alpine AS builder
 
 WORKDIR /src/backend
@@ -29,6 +39,6 @@ WORKDIR /app
 COPY --from=builder /build/panda-wiki-api /app/panda-wiki-api
 COPY --from=builder /build/panda-wiki-migrate /app/panda-wiki-migrate
 COPY --from=builder /src/backend/store/pg/migration /app/migration
-COPY web/admin/dist /app/admin/dist
+COPY --from=admin-builder /src/web/admin/dist /app/admin/dist
 
 CMD ["sh", "-c", "/app/panda-wiki-migrate && /app/panda-wiki-api"]

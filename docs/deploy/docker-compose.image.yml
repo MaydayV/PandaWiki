@@ -205,6 +205,9 @@ services:
       QDRANT_API_KEY: ${QDRANT_API_KEY}
       SENTRY_ENABLED: "false"
       RAG_CT_RAG_BASE_URL: http://panda-wiki-raglite:5050
+      RUN_WORKER: "1"
+      RAG_PROVIDER: ${RAG_PROVIDER:-pg}
+      RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
     depends_on:
       panda-wiki-postgres:
         condition: service_healthy
@@ -213,8 +216,6 @@ services:
       panda-wiki-minio:
         condition: service_started
       panda-wiki-nats:
-        condition: service_started
-      panda-wiki-raglite:
         condition: service_started
     networks:
       default:

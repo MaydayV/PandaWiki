@@ -53,8 +53,33 @@ func NewDB(config *config.Config) (*DB, error) {
 	if err := doMigrate(dsn); err != nil {
 		return nil, err
 	}
+	if err := ensureSchemaInitialized(db); err != nil {
+		return nil, err
+	}
 
 	return &DB{DB: db}, nil
+}
+
+func ensureSchemaInitialized(db *gorm.DB) error {
+	migrationFiles, err := filepath.Glob("migration/*.up.sql")
+	if err != nil {
+		return fmt.Errorf("scan migration files failed: %w", err)
+	}
+	if len(migrationFiles) > 0 {
+		return nil
+	}
+	var exists bool
+	if err := db.Raw(`
+SELECT EXISTS (
+	SELECT 1 FROM information_schema.tables
+	WHERE table_schema = 'public' AND table_name = 'knowledge_bases'
+)`).Scan(&exists).Error; err != nil {
+		return fmt.Errorf("check database schema failed: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("database not initialized: import backend/store/pg/migration/full_fresh_deploy.sql (or run docs/deploy/quickstart.sh)")
+	}
+	return nil
 }
 
 func doMigrate(dsn string) error {

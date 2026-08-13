@@ -258,18 +258,29 @@ cd docs/deploy
 ./quickstart.sh
 ```
 
-或手动：
+或手动（**必须先导入 SQL**，空库不能直接 `up -d`）：
 
 ```bash
+cd docs/deploy
+./generate-env.sh   # 首次
 docker compose -f docker-compose.image.yml pull
+docker compose -f docker-compose.image.yml up -d panda-wiki-postgres
+# 等待 postgres 就绪后，空库导入：
+cat ../../backend/store/pg/migration/full_fresh_deploy.sql | \
+  docker compose -f docker-compose.image.yml exec -T panda-wiki-postgres \
+  psql -U panda-wiki -d panda-wiki
 docker compose -f docker-compose.image.yml up -d
 ```
+
+推荐仍用 `./quickstart.sh`，会自动检测空库并导入 SQL。
 
 默认 **7 个容器**（pgvector RAG；Consumer、Admin 已合并进 API；无 Qdrant/Raglite）。回退独立进程或旧版 RAG：
 
 ```bash
 # Consumer
 docker compose -f docker-compose.image.yml --profile split-worker up -d
+# ct 模式独立 Consumer 还需 legacy-rag：
+# docker compose -f docker-compose.image.yml --profile split-worker --profile legacy-rag up -d
 # Admin Nginx（2444 端口）
 docker compose -f docker-compose.image.yml --profile legacy-admin up -d
 # Raglite + Qdrant（须同时设 RAG_PROVIDER=ct）

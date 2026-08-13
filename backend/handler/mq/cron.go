@@ -6,12 +6,14 @@ import (
 
 	"github.com/robfig/cron/v3"
 
+	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/usecase"
 )
 
 type CronHandler struct {
+	config      *config.Config
 	logger      *log.Logger
 	statRepo    *pg.StatRepository
 	nodeRepo    *pg.NodeRepository
@@ -21,8 +23,9 @@ type CronHandler struct {
 	started     bool
 }
 
-func NewCronHandler(logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *pg.NodeRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
+func NewCronHandler(config *config.Config, logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *pg.NodeRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
 	h := &CronHandler{
+		config:      config,
 		statRepo:    statRepo,
 		nodeRepo:    nodeRepo,
 		statUseCase: statUseCase,
@@ -52,11 +55,13 @@ func NewCronHandler(logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *p
 	}
 	h.logger.Info("add cron job", log.String("cron_id", "cleanup_old_hourly_stats"))
 
-	if _, err := h.cron.AddFunc("26 * * * *", h.SyncRagNodeStatus); err != nil {
-		h.logger.Error("failed to sync rag node status", log.Error(err))
-		return nil, err
+	if h.config.RAG.Provider != "pg" {
+		if _, err := h.cron.AddFunc("26 * * * *", h.SyncRagNodeStatus); err != nil {
+			h.logger.Error("failed to sync rag node status", log.Error(err))
+			return nil, err
+		}
+		h.logger.Info("add cron job", log.String("cron_id", "sync_rag_node_status"))
 	}
-	h.logger.Info("add cron job", log.String("cron_id", "sync_rag_node_status"))
 
 	// 每天2点执行清理30天前的node_release_backup数据
 	if _, err := h.cron.AddFunc("0 2 * * *", h.CleanupOldNodeReleaseBackups); err != nil {
@@ -72,11 +77,13 @@ func (h *CronHandler) Start() {
 		return
 	}
 	h.started = true
-	go func() {
-		if err := h.nodeUseCase.SyncRagNodeStatus(context.Background()); err != nil {
-			h.logger.Error("initial sync rag node status failed", log.Error(err))
-		}
-	}()
+	if h.config.RAG.Provider != "pg" {
+		go func() {
+			if err := h.nodeUseCase.SyncRagNodeStatus(context.Background()); err != nil {
+				h.logger.Error("initial sync rag node status failed", log.Error(err))
+			}
+		}()
+	}
 	h.cron.Start()
 	h.logger.Info("start cron jobs")
 }

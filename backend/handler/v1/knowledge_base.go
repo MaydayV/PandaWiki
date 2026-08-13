@@ -727,7 +727,16 @@ func (h *KnowledgeBaseHandler) RollbackKBRelease(c echo.Context) error {
 	return h.NewResponseWithData(c, resp)
 }
 
-// ReindexRAG 全量重新学习（当前知识库所有已发布文档）
+// ReindexRAG
+//
+//	@Summary		ReindexRAG
+//	@Description	Reindex all published documents in the knowledge base
+//	@Tags			knowledge_base
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		kbv1.ReindexRAGReq	true	"Reindex RAG Request"
+//	@Success		200		{object}	domain.Response{data=kbv1.ReindexRAGResp}
+//	@Router			/api/v1/knowledge_base/rag/reindex [post]
 func (h *KnowledgeBaseHandler) ReindexRAG(c echo.Context) error {
 	var req kbv1.ReindexRAGReq
 	if err := c.Bind(&req); err != nil {
@@ -739,7 +748,8 @@ func (h *KnowledgeBaseHandler) ReindexRAG(c echo.Context) error {
 
 	queued, err := h.usecase.ReindexRAG(c.Request().Context(), req.KBID, req.RecreateDataset)
 	if err != nil {
-		return h.NewResponseWithError(c, err.Error(), err)
+		h.logger.Error("reindex rag failed", log.String("kb_id", req.KBID), log.Error(err))
+		return h.NewResponseWithError(c, "全量重新学习失败，请稍后重试", err)
 	}
 
 	return h.NewResponseWithData(c, kbv1.ReindexRAGResp{Queued: queued})

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -105,6 +106,16 @@ func (r *RagJobRepository) MarkDone(ctx context.Context, jobID string) error {
 
 func (r *RagJobRepository) MarkFailed(ctx context.Context, jobID string, attempts, maxAttempts int, jobErr error) error {
 	return r.markFailed(ctx, jobID, attempts, maxAttempts, jobErr)
+}
+
+func (r *RagJobRepository) PurgeDone(ctx context.Context, before time.Time) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Where("status = ? AND updated_at < ?", domain.RagJobStatusDone, before).
+		Delete(&domain.RagJob{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("purge done rag jobs: %w", result.Error)
+	}
+	return result.RowsAffected, nil
 }
 
 func (r *RagJobRepository) markFailed(ctx context.Context, jobID string, attempts, maxAttempts int, jobErr error) error {

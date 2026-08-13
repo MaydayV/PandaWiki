@@ -26,7 +26,7 @@ image:
 	  --output ${OUTPUT} \
 	  --progress plain \
 	  --file ${DOCKERFILE} \
-	  .
+	  ..
 
 TAG=$(shell git describe --tags 2>/dev/null || echo "latest")
 push-prod-images:

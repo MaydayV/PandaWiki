@@ -211,7 +211,7 @@ func createApp() (*App, error) {
 		return nil, err
 	}
 	ragJobWorker := mq3.NewRAGJobWorker(configConfig, logger, ragJobRepository, ragmqHandler)
-	cronHandler, err := mq3.NewCronHandler(logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
+	cronHandler, err := mq3.NewCronHandler(configConfig, logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
 	if err != nil {
 		return nil, err
 	}

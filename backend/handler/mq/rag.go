@@ -3,6 +3,7 @@ package mq
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/chaitin/panda-wiki/config"
@@ -57,7 +58,10 @@ func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg t
 		h.logger.Error("unmarshal node content vector request failed", log.Error(err))
 		return nil
 	}
-	return h.ProcessVectorRequest(ctx, &request)
+	if err := h.ProcessVectorRequest(ctx, &request); err != nil {
+		h.logger.Error("process vector request failed", log.Error(err))
+	}
+	return nil
 }
 
 func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain.NodeReleaseVectorRequest) error {
@@ -66,12 +70,10 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 		h.logger.Info("update node group request", log.Any("request", request), log.Any("group_id", request.GroupIds))
 		kb, err := h.kbRepo.GetKnowledgeBaseByID(ctx, request.KBID)
 		if err != nil {
-			h.logger.Error("get kb failed", log.Error(err))
-			return nil
+			return fmt.Errorf("get kb failed: %w", err)
 		}
 		if err := h.rag.UpdateDocumentGroupIDs(ctx, kb.DatasetID, request.DocID, request.GroupIds); err != nil {
-			h.logger.Error("update node group failed", log.Error(err))
-			return nil
+			return fmt.Errorf("update node group failed: %w", err)
 		}
 		h.logger.Info("update node group success", log.Any("doc_id", request.DocID), log.Any("group_ids", request.GroupIds))
 
@@ -79,8 +81,7 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 		h.logger.Debug("upsert node content vector request", "request", request)
 		nodeRelease, err := h.nodeRepo.GetNodeReleaseWithDirPathByID(ctx, request.NodeReleaseID)
 		if err != nil {
-			h.logger.Error("get node content by ids failed", log.Error(err))
-			return nil
+			return fmt.Errorf("get node release failed: %w", err)
 		}
 		if nodeRelease.Type == domain.NodeTypeFolder {
 			h.logger.Info("node is folder, skip upsert", log.Any("node_release_id", request.NodeReleaseID))
@@ -88,17 +89,20 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 		}
 		kb, err := h.kbRepo.GetKnowledgeBaseByID(ctx, request.KBID)
 		if err != nil {
-			h.logger.Error("get kb failed", log.Error(err), log.String("kb_id", request.KBID))
-			return nil
+			return fmt.Errorf("get kb failed: %w", err)
 		}
 
 		groupIds, err := h.nodeRepo.GetNodeAuthGroupIdsByNodeId(ctx, nodeRelease.NodeID, consts.NodePermNameAnswerable)
 		if err != nil {
-			h.logger.Error("get groupIds failed", log.Error(err), log.String("kb_id", request.KBID))
-			return nil
+			return fmt.Errorf("get group ids failed: %w", err)
 		}
 
-		// upsert node content chunks
+		if h.config.RAG.Provider == "pg" {
+			if err := h.markNodeRagRunning(ctx, nodeRelease.NodeID); err != nil {
+				h.logger.Error("update node rag running failed", log.Error(err))
+			}
+		}
+
 		docID, err := h.rag.UpsertRecords(ctx, &rag.UpsertRecordsRequest{
 			ID:        nodeRelease.ID,
 			Title:     nodeRelease.Name,
@@ -108,29 +112,30 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 			GroupIDs:  groupIds,
 		})
 		if err != nil {
-			h.logger.Error("upsert node content vector failed", log.Error(err))
 			if h.config.RAG.Provider == "pg" {
 				_ = h.markNodeRagFailed(ctx, nodeRelease.NodeID, err.Error())
 			}
-			return err
+			return fmt.Errorf("upsert node content vector failed: %w", err)
 		}
-		// update node doc_id
 		if err := h.nodeRepo.UpdateNodeReleaseDocID(ctx, request.NodeReleaseID, docID); err != nil {
-			h.logger.Error("update node doc_id failed", log.String("node_id", request.NodeReleaseID), log.Error(err))
-			return nil
+			if h.config.RAG.Provider == "pg" {
+				_ = h.markNodeRagFailed(ctx, nodeRelease.NodeID, err.Error())
+			}
+			return fmt.Errorf("update node release doc_id failed: %w", err)
 		}
-		// delete old RAG records
-		// get old doc_ids by node_id
 		oldDocIDs, err := h.nodeRepo.GetOldNodeDocIDsByNodeID(ctx, nodeRelease.ID, nodeRelease.NodeID)
 		if err != nil {
-			h.logger.Error("get old doc_ids by node_id failed", log.String("node_id", nodeRelease.NodeID), log.Error(err))
-			return nil
+			if h.config.RAG.Provider == "pg" {
+				_ = h.markNodeRagFailed(ctx, nodeRelease.NodeID, err.Error())
+			}
+			return fmt.Errorf("get old doc ids failed: %w", err)
 		}
 		if len(oldDocIDs) > 0 {
-			// delete old RAG records
 			if err := h.rag.DeleteRecords(ctx, kb.DatasetID, oldDocIDs); err != nil {
-				h.logger.Error("delete old RAG records failed", log.String("kb_id", kb.ID), log.Error(err))
-				return nil
+				if h.config.RAG.Provider == "pg" {
+					_ = h.markNodeRagFailed(ctx, nodeRelease.NodeID, err.Error())
+				}
+				return fmt.Errorf("delete old rag records failed: %w", err)
 			}
 		}
 		if h.config.RAG.Provider == "pg" {
@@ -144,20 +149,17 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 		h.logger.Info("delete node content vector request", log.Any("request", request))
 		kb, err := h.kbRepo.GetKnowledgeBaseByID(ctx, request.KBID)
 		if err != nil {
-			h.logger.Error("get kb failed", log.Error(err))
-			return nil
+			return fmt.Errorf("get kb failed: %w", err)
 		}
 		if err := h.rag.DeleteRecords(ctx, kb.DatasetID, []string{request.DocID}); err != nil {
-			h.logger.Error("delete node content vector failed", log.Error(err))
-			return nil
+			return fmt.Errorf("delete node content vector failed: %w", err)
 		}
 		h.logger.Info("delete node content vector success", log.Any("deleted_id", request.NodeReleaseID), log.Any("deleted_doc_id", request.DocID))
 	case "summary":
 		h.logger.Info("summary node content vector request", log.Any("request", request))
 		node, err := h.nodeRepo.GetNodeByID(ctx, request.NodeID)
 		if err != nil {
-			h.logger.Error("get node by id failed", log.Error(err))
-			return nil
+			return fmt.Errorf("get node failed: %w", err)
 		}
 		if node.Type == domain.NodeTypeFolder {
 			h.logger.Info("node is folder, skip summary", log.Any("node_id", request.NodeID))
@@ -166,30 +168,37 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 
 		model, err := h.modelUsecase.GetChatModel(ctx)
 		if err != nil {
-			h.logger.Error("get chat model failed", log.Error(err))
-			return nil
+			return fmt.Errorf("get chat model failed: %w", err)
 		}
 
 		summary, err := h.llmUsecase.SummaryNode(ctx, request.KBID, model, node.Name, node.Content)
 		if err != nil {
-			h.logger.Error("summary node content failed", log.Error(err))
-			return nil
+			return fmt.Errorf("summary node content failed: %w", err)
 		}
 		if err := h.nodeRepo.UpdateNodeSummary(ctx, request.KBID, request.NodeID, summary); err != nil {
-			h.logger.Error("update node summary failed", log.Error(err))
-			return nil
+			return fmt.Errorf("update node summary failed: %w", err)
 		}
 		if node.Status == domain.NodeStatusPublished {
 			if err := h.nodeRepo.UpdateNodeStatus(ctx, request.KBID, request.NodeID, domain.NodeStatusDraft); err != nil {
-				h.logger.Error("update node status failed", log.Error(err))
-				return nil
+				return fmt.Errorf("update node status failed: %w", err)
 			}
 		}
 
 		h.logger.Info("summary node content vector success", log.Any("summary_id", request.NodeReleaseID), log.Any("summary", summary))
+	default:
+		h.logger.Warn("unknown vector request action", log.String("action", request.Action))
 	}
 
 	return nil
+}
+
+func (h *RAGMQHandler) markNodeRagRunning(ctx context.Context, nodeID string) error {
+	return h.nodeRepo.Update(ctx, nodeID, map[string]interface{}{
+		"rag_info": domain.RagInfo{
+			Status:  consts.NodeRagStatusRunning,
+			Message: "indexing in pgvector",
+		},
+	})
 }
 
 func (h *RAGMQHandler) markNodeRagSucceeded(ctx context.Context, nodeID string) error {
