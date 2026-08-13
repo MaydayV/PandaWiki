@@ -59,9 +59,41 @@ PandaWiki 是一款 AI 大模型驱动的**开源知识库搭建系统**，帮�
 
 ## 📦 部署文档
 
-- 乘风版部署指南（手动安装环境 + 方案 B 预构建镜像）：[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+乘风版当前默认分支 **`feat/stack-slim`**：将容器从约 11 个精简到 **6 个**，向量检索改用 **Postgres pgvector**，对象存储默认 **阿里云 OSS**（S3 兼容 API）。
+
+| 方式 | 说明 | 文档 / 脚本 |
+| --- | --- | --- |
+| Docker Compose（推荐） | Caddy + Postgres + Redis + NATS + API + App | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
+| 栈精简说明 | 架构变化、RAG 方案、资源预期 | [`docs/STACK_SLIM.md`](docs/STACK_SLIM.md) |
+| Debian 原生（无 Docker） | 复用系统 Postgres / Nginx，适合已有宝塔或自建网关 | [`docs/deploy/native/deploy.sh`](docs/deploy/native/deploy.sh) |
+
+**Docker 快速开始（Linux 服务器）：**
+
+```bash
+git clone https://github.com/MaydayV/PandaWiki.git
+cd PandaWiki
+git checkout feat/stack-slim
+cd docs/deploy
+./generate-env.sh    # 生成随机密钥到 .env
+./quickstart.sh      # 拉镜像、初始化库、启动 6 容器
+```
+
+启动后：
+
+- **管理后台**：HTTPS `2443`（或 compose 中 Caddy 映射的管理端口）
+- **Wiki 前台**：按创建知识库时配置的域名/端口访问
+- 首次登录使用 `.env` 中的 `ADMIN_PASSWORD`，按向导配置 AI 模型并创建知识库
+
+**原生部署要点：**
+
+- 运行 `docs/deploy/native/deploy.sh`（需 root/sudo，Debian 12 验证过）
+- 网关使用 **Nginx**（含宝塔面板路径），在环境变量中设置 `CADDY_API=disabled`，API 不再尝试连接 Caddy Unix Socket
+- 本地测试可将 MinIO 作为 OSS 替代；生产建议改为真实 OSS 并配置 `S3_*` 变量
+
+**其它文档：**
+
 - 开源版与乘风版功能对比：[`docs/FEATURE_COMPARISON.md`](docs/FEATURE_COMPARISON.md)
-- 版本更新记录笔记：[`docs/VERSION_NOTES.md`](docs/VERSION_NOTES.md)
+- 版本更新记录：[`docs/VERSION_NOTES.md`](docs/VERSION_NOTES.md)
 
 ## 🚀 上手指南
 
