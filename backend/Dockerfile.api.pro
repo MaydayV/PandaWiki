@@ -1,13 +1,14 @@
+# Build context: repository root
 FROM --platform=$BUILDPLATFORM golang:1.26.4-alpine AS builder
 
-WORKDIR /src
+WORKDIR /src/backend
 ENV CGO_ENABLED=0
 
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-COPY . .
+COPY backend/ .
 
 ARG TARGETOS TARGETARCH VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -27,6 +28,7 @@ WORKDIR /app
 
 COPY --from=builder /build/panda-wiki-api /app/panda-wiki-api
 COPY --from=builder /build/panda-wiki-migrate /app/panda-wiki-migrate
-COPY --from=builder /src/store/pg/migration /app/migration
+COPY --from=builder /src/backend/store/pg/migration /app/migration
+COPY web/admin/dist /app/admin/dist
 
 CMD ["sh", "-c", "/app/panda-wiki-migrate && /app/panda-wiki-api"]

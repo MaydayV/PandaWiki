@@ -9,6 +9,7 @@ package main
 import (
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/handler"
+	mq3 "github.com/chaitin/panda-wiki/handler/mq"
 	"github.com/chaitin/panda-wiki/handler/share"
 	"github.com/chaitin/panda-wiki/handler/v1"
 	"github.com/chaitin/panda-wiki/log"
@@ -200,13 +201,29 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	ragmqHandler, err := mq3.NewRAGMQHandler(configConfig, mqConsumer, logger, ragService, nodeRepository, knowledgeBaseRepository, llmUsecase, modelUsecase)
+	if err != nil {
+		return nil, err
+	}
+	ragDocUpdateHandler, err := mq3.NewRagDocUpdateHandler(configConfig, mqConsumer, logger, nodeRepository)
+	if err != nil {
+		return nil, err
+	}
+	cronHandler, err := mq3.NewCronHandler(logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
+	if err != nil {
+		return nil, err
+	}
 	app := &App{
-		HTTPServer:    httpServer,
-		Handlers:      apiHandlers,
-		ShareHandlers: shareHandler,
-		Config:        configConfig,
-		Logger:        logger,
-		Telemetry:     client,
+		HTTPServer:          httpServer,
+		Handlers:            apiHandlers,
+		ShareHandlers:       shareHandler,
+		Config:              configConfig,
+		Logger:              logger,
+		Telemetry:           client,
+		MQConsumer:          mqConsumer,
+		RAGMQHandler:        ragmqHandler,
+		RagDocUpdateHandler: ragDocUpdateHandler,
+		StatCronHandler:     cronHandler,
 	}
 	return app, nil
 }
@@ -214,10 +231,14 @@ func createApp() (*App, error) {
 // wire.go:
 
 type App struct {
-	HTTPServer    *http.HTTPServer
-	Handlers      *v1.APIHandlers
-	ShareHandlers *share.ShareHandler
-	Config        *config.Config
-	Logger        *log.Logger
-	Telemetry     *telemetry.Client
+	HTTPServer          *http.HTTPServer
+	Handlers            *v1.APIHandlers
+	ShareHandlers       *share.ShareHandler
+	Config              *config.Config
+	Logger              *log.Logger
+	Telemetry           *telemetry.Client
+	MQConsumer          mq.MQConsumer
+	RAGMQHandler        *mq3.RAGMQHandler
+	RagDocUpdateHandler *mq3.RagDocUpdateHandler
+	StatCronHandler     *mq3.CronHandler
 }

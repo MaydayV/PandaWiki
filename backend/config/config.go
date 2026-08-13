@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Log           LogConfig    `mapstructure:"log"`
 	HTTP          HTTPConfig   `mapstructure:"http"`
+	Admin         AdminConfig  `mapstructure:"admin"`
 	AdminPassword string       `mapstructure:"admin_password"`
 	PG            PGConfig     `mapstructure:"pg"`
 	MQ            MQConfig     `mapstructure:"mq"`
@@ -21,6 +22,7 @@ type Config struct {
 	Sentry        SentryConfig `mapstructure:"sentry"`
 	CaddyAPI      string       `mapstructure:"caddy_api"`
 	SubnetPrefix  string       `mapstructure:"subnet_prefix"`
+	RunWorker     bool         `mapstructure:"run_worker"`
 }
 
 type LogConfig struct {
@@ -29,6 +31,12 @@ type LogConfig struct {
 
 type HTTPConfig struct {
 	Port int `mapstructure:"port"`
+}
+
+type AdminConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	Port    int    `mapstructure:"port"`
+	DistDir string `mapstructure:"dist_dir"`
 }
 
 type PGConfig struct {
@@ -95,6 +103,11 @@ func NewConfig() (*Config, error) {
 		HTTP: HTTPConfig{
 			Port: 8000,
 		},
+		Admin: AdminConfig{
+			Enabled: true,
+			Port:    2443,
+			DistDir: "/app/admin/dist",
+		},
 		PG: PGConfig{
 			DSN: "host=panda-wiki-postgres user=panda-wiki password=panda-wiki-secret dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		},
@@ -132,6 +145,7 @@ func NewConfig() (*Config, error) {
 		},
 		CaddyAPI:     "/app/run/caddy-admin.sock",
 		SubnetPrefix: "169.254.15",
+		RunWorker:    true,
 	}
 
 	viper.AddConfigPath(".")
@@ -214,6 +228,20 @@ func overrideWithEnv(c *Config) {
 	// caddy api
 	if env := os.Getenv("CADDY_API"); env != "" {
 		c.CaddyAPI = env
+	}
+	if env := os.Getenv("RUN_WORKER"); env != "" {
+		c.RunWorker = env == "1" || env == "true" || env == "TRUE"
+	}
+	if env := os.Getenv("ADMIN_ENABLED"); env != "" {
+		c.Admin.Enabled = env == "1" || env == "true" || env == "TRUE"
+	}
+	if env := os.Getenv("ADMIN_PORT"); env != "" {
+		if i, err := strconv.Atoi(env); err == nil {
+			c.Admin.Port = i
+		}
+	}
+	if env := os.Getenv("ADMIN_DIST_DIR"); env != "" {
+		c.Admin.DistDir = env
 	}
 	// log level
 	if env := os.Getenv("LOG_LEVEL"); env != "" {

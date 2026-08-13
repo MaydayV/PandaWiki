@@ -52,12 +52,23 @@ cd PandaWiki
 
 ### 3.2 准备部署变量
 
+**推荐（Linux 生产 Image 模式）：**
+
+```bash
+cd docs/deploy
+./generate-env.sh          # 自动生成随机密钥写入 .env
+# 按需编辑 PANDAWIKI_IMAGE_TAG 等
+./quickstart.sh            # 拉镜像 → 初始化库 → 启动全部服务
+```
+
+手动方式：
+
 ```bash
 cd docs/deploy
 cp .env.example .env
 ```
 
-修改 `.env` 至少包含以下值：
+修改 `.env` 至少包含以下值（`generate-env.sh` 会自动生成）：
 
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
@@ -66,7 +77,12 @@ cp .env.example .env
 - `QDRANT_API_KEY`
 - `JWT_SECRET`
 - `ADMIN_PASSWORD`
-- `DEV_KB_ID`
+
+可选：
+
+- `DEV_KB_ID` — 生产经 Caddy 注入 `X-KB-ID` 时可留空
+- `RUN_WORKER` — 默认 `1`，API 内嵌 MQ 消费者与定时任务；独立 Consumer 容器时设为 `0` 并启用 profile `split-worker`
+- `ADMIN_ENABLED` — 默认 `1`，API 内嵌 HTTPS 管理端（2443）；回退独立 Admin 时设为 `0` 并启用 profile `legacy-admin`
 
 仅 Image 模式额外需要：
 
@@ -96,7 +112,8 @@ psql -U panda-wiki -d panda-wiki
 ### 3.4 端口职责与流量路径（当前默认）
 
 - `3010`：前台入口，由 `panda-wiki-caddy` 监听并反向代理到 `api/app/minio`。
-- `2443`：后台管理入口（`panda-wiki-admin`）。
+- `2443`：后台管理入口（内嵌于 `panda-wiki-api`，HTTPS）。
+- `2444`：旧版独立 Admin 容器（仅 `legacy-admin` profile）。
 - `8000`：API 直连入口（通常用于健康检查、联调）。
 - `5432/6379/4222/6333/9000`：数据库与中间件内部端口，默认不对公网暴露。
 
@@ -231,9 +248,27 @@ docker login
 
 ### 5.2 启动
 
+一键（推荐）：
+
+```bash
+cd docs/deploy
+./quickstart.sh
+```
+
+或手动：
+
 ```bash
 docker compose -f docker-compose.image.yml pull
 docker compose -f docker-compose.image.yml up -d
+```
+
+默认 **9 个容器**（Consumer、Admin 已合并进 API）。回退独立进程：
+
+```bash
+# Consumer
+docker compose -f docker-compose.image.yml --profile split-worker up -d
+# Admin Nginx（2444 端口）
+docker compose -f docker-compose.image.yml --profile legacy-admin up -d
 ```
 
 ### 5.3 升级发布
@@ -362,4 +397,6 @@ server {
 - Build 模式编排：`docs/deploy/docker-compose.build.yml`
 - Image 模式编排：`docs/deploy/docker-compose.image.yml`
 - 部署变量模板：`docs/deploy/.env.example`
+- 一键生成密钥：`docs/deploy/generate-env.sh`
+- Image 模式一键部署：`docs/deploy/quickstart.sh`
 - 首次完整 SQL：`backend/store/pg/migration/full_fresh_deploy.sql`

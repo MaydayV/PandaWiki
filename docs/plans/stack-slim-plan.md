@@ -2,7 +2,7 @@
 
 > 说明文档：[../STACK_SLIM.md](../STACK_SLIM.md)
 > 分支：`feat/stack-slim`
-> 状态（2026-08-13）：方案已确认，尚未写业务代码。
+> 状态（2026-08-13）：Phase 1–2 已落地；Phase 3（pgvector）未开始。
 > 约束：保留 Redis；保留 Caddy；RAG 换 pgvector + 现有 embedding/rerank；目标 Linux 服务器。
 
 ## 一、原则
@@ -18,30 +18,31 @@
 
 **目标**：现有 11 容器也能「填最少变量就启动」。
 
-- `docs/deploy/.env.example` 补全可生成默认值的说明；文档写清「复制即用」路径。
-- Image 模式作为 Linux 生产默认；Build 模式仅开发机。
-- 健康检查与启动顺序已有则补齐失败提示（Postgres healthy 后再起 API）。
-- **不**在本阶段删除任何中间件。
+- [x] `docs/deploy/generate-env.sh` 自动生成随机密钥
+- [x] `docs/deploy/quickstart.sh` Image 模式一键部署
+- [x] `docs/deploy/.env.example` 注释与 `RUN_WORKER`
+- [x] compose 健康检查（Redis/MinIO/NATS/Qdrant）与启动顺序
+- [x] `docs/DEPLOYMENT.md` 更新
 
 验收：新服务器按文档用镜像 compose 拉起，不必在服务器上跑 `pnpm build`。
 
 ### Phase 2 — 减进程
 
-**2.1 Consumer 并进 API**
+**2.1 Consumer 并进 API** — [x]
 
-- 在 `cmd/api` 启动现有 MQ handler（或 Postgres 任务循环，见 Phase 4）。
-- 保留 `cmd/consumer` 一段时间，用环境变量 `RUN_WORKER=1` 控制 API 是否兼消费，避免突然不能拆进程。
-- compose 默认只起 API（`RUN_WORKER=1`），Consumer 服务改为 profile `split-worker`。
+- [x] `RUN_WORKER` 环境变量（默认 `1`）
+- [x] API wire 注入 MQ handlers + CronHandler
+- [x] `CronHandler.Start()` 延迟启动，避免 API 未开 worker 时跑 cron
+- [x] compose 默认不启 Consumer；`split-worker` profile 保留回退
 
-涉及：`backend/cmd/api`、`backend/handler/mq`、`docs/deploy/docker-compose.*.yml`。
+**2.2 Admin 静态合并** — [x]
 
-**2.2 Admin 静态合并**
+- [x] API 内嵌 HTTPS 管理端（`server/http/admin_server.go`，端口 `2443`）
+- [x] 复用 `/app/etc/nginx/ssl` 自签证书（`setup.CheckInitCert`）
+- [x] `Dockerfile.api` 打包 `web/admin/dist`；compose 默认映射 `2443` 到 API
+- [x] 独立 `panda-wiki-admin` 改为 profile `legacy-admin`（端口 `2444` 避免冲突）
 
-- `pnpm --filter panda-wiki-admin build` 产物由 Caddy 或 API 提供。
-- 去掉 `panda-wiki-admin` 容器和宿主机 `2443`。
-- 管理端反向代理、上传、SSE 规则从现有 `web/admin/server.conf` 迁到 Caddy 片段或 API 静态路由。
-
-验收：浏览器只访问 Caddy 入口即可打开前台和后台；`docker compose ps` 少 Admin、默认可少 Consumer。
+验收：浏览器访问 `https://<server>:2443` 打开后台；`docker compose ps` 默认无 Admin 容器。
 
 ### Phase 3 — pgvector RAG（与 Raglite 并存）
 

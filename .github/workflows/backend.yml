@@ -27,6 +27,21 @@ jobs:
           submodules: false
           token: ${{ github.token }}
 
+      - name: Set up Node.js
+        if: matrix.service == 'api'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm and build admin (api image)
+        if: matrix.service == 'api'
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.1 --activate
+          cd web
+          pnpm install --frozen-lockfile
+          NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
+
       - name: Prepare Dockerfile and optional pro submodule
         id: dockerfile
         env:
@@ -70,7 +85,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: ${{ matrix.service == 'api' && '.' || './backend' }}
           file: ${{ steps.dockerfile.outputs.FILE }}
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           platforms: linux/amd64, linux/arm64

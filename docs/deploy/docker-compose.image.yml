@@ -36,12 +36,19 @@ services:
     image: redis:7-alpine
     container_name: panda-wiki-redis
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
     volumes:
       - pwk_redis_data:/data
     networks:
       default:
         ipv4_address: 172.19.0.4
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   panda-wiki-minio:
     image: minio/minio:latest
@@ -56,17 +63,28 @@ services:
     networks:
       default:
         ipv4_address: 172.19.0.12
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   panda-wiki-nats:
     image: nats:2.10-alpine
     container_name: panda-wiki-nats
     restart: unless-stopped
-    command: ["-js", "--user", "panda-wiki", "--pass", "${NATS_PASSWORD}"]
+    command: ["-js", "-m", "8222", "--user", "panda-wiki", "--pass", "${NATS_PASSWORD}"]
     volumes:
       - pwk_nats_data:/data
     networks:
       default:
         ipv4_address: 172.19.0.13
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8222/healthz | grep -q ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   panda-wiki-qdrant:
     image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/panda-wiki-qdrant:v1.14.1
@@ -79,6 +97,12 @@ services:
     networks:
       default:
         ipv4_address: 172.19.0.5
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --header=\"api-key: ${QDRANT_API_KEY}\" -O- http://127.0.0.1:6333/healthz | grep -q ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   panda-wiki-raglite:
     image: chaitin-registry.cn-hangzhou.cr.aliyuncs.com/chaitin/raglite:v2.14.1
@@ -88,11 +112,11 @@ services:
       panda-wiki-postgres:
         condition: service_healthy
       panda-wiki-minio:
-        condition: service_started
+        condition: service_healthy
       panda-wiki-qdrant:
-        condition: service_started
+        condition: service_healthy
       panda-wiki-nats:
-        condition: service_started
+        condition: service_healthy
     environment:
       GIN_MODE: release
       DATABASE_POSTGRESQL_HOST: panda-wiki-postgres
@@ -132,28 +156,34 @@ services:
       RAG_CT_RAG_BASE_URL: http://panda-wiki-raglite:5050
       CADDY_API: /app/run/caddy-admin.sock
       SUBNET_PREFIX: 172.19.0
+      RUN_WORKER: ${RUN_WORKER:-1}
+      ADMIN_ENABLED: ${ADMIN_ENABLED:-1}
+      ADMIN_PORT: "2443"
     volumes:
       - ./data/caddy/run:/app/run
     depends_on:
       panda-wiki-postgres:
         condition: service_healthy
       panda-wiki-redis:
-        condition: service_started
+        condition: service_healthy
       panda-wiki-minio:
-        condition: service_started
+        condition: service_healthy
       panda-wiki-nats:
-        condition: service_started
+        condition: service_healthy
       panda-wiki-raglite:
         condition: service_started
       panda-wiki-caddy:
         condition: service_started
     ports:
       - "8000:8000"
+      - "2443:2443"
     networks:
       default:
         ipv4_address: 172.19.0.2
 
   panda-wiki-consumer:
+    profiles:
+      - split-worker
     image: ${PANDAWIKI_IMAGE_REPO}/pandawiki-consumer:${PANDAWIKI_IMAGE_TAG}
     container_name: panda-wiki-consumer
     restart: unless-stopped
@@ -204,6 +234,8 @@ services:
         ipv4_address: 172.19.0.112
 
   panda-wiki-admin:
+    profiles:
+      - legacy-admin
     image: ${PANDAWIKI_IMAGE_REPO}/pandawiki-admin:${PANDAWIKI_IMAGE_TAG}
     container_name: panda-wiki-admin
     restart: unless-stopped
@@ -213,7 +245,7 @@ services:
       panda-wiki-minio:
         condition: service_started
     ports:
-      - "2443:8080"
+      - "2444:8080"
     networks:
       default:
         ipv4_address: 172.19.0.11

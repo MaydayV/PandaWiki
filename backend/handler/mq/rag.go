@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
@@ -24,7 +25,7 @@ type RAGMQHandler struct {
 	modelUsecase *usecase.ModelUsecase
 }
 
-func NewRAGMQHandler(consumer mq.MQConsumer, logger *log.Logger, rag rag.RAGService, nodeRepo *pg.NodeRepository, kbRepo *pg.KnowledgeBaseRepository, llmUsecase *usecase.LLMUsecase, modelUsecase *usecase.ModelUsecase) (*RAGMQHandler, error) {
+func NewRAGMQHandler(config *config.Config, consumer mq.MQConsumer, logger *log.Logger, rag rag.RAGService, nodeRepo *pg.NodeRepository, kbRepo *pg.KnowledgeBaseRepository, llmUsecase *usecase.LLMUsecase, modelUsecase *usecase.ModelUsecase) (*RAGMQHandler, error) {
 	h := &RAGMQHandler{
 		consumer:     consumer,
 		logger:       logger.WithModule("mq.rag"),
@@ -33,6 +34,9 @@ func NewRAGMQHandler(consumer mq.MQConsumer, logger *log.Logger, rag rag.RAGServ
 		kbRepo:       kbRepo,
 		llmUsecase:   llmUsecase,
 		modelUsecase: modelUsecase,
+	}
+	if !config.RunWorker {
+		return h, nil
 	}
 	if err := consumer.RegisterHandler(domain.VectorTaskTopic, h.HandleNodeContentVectorRequest); err != nil {
 		return nil, err

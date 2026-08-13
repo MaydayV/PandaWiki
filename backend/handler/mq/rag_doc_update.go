@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
@@ -19,11 +20,14 @@ type RagDocUpdateHandler struct {
 	nodeRepo *pg.NodeRepository
 }
 
-func NewRagDocUpdateHandler(consumer mq.MQConsumer, logger *log.Logger, nodeRepo *pg.NodeRepository) (*RagDocUpdateHandler, error) {
+func NewRagDocUpdateHandler(config *config.Config, consumer mq.MQConsumer, logger *log.Logger, nodeRepo *pg.NodeRepository) (*RagDocUpdateHandler, error) {
 	h := &RagDocUpdateHandler{
 		consumer: consumer,
 		logger:   logger.WithModule("mq.rag_doc_update"),
 		nodeRepo: nodeRepo,
+	}
+	if !config.RunWorker {
+		return h, nil
 	}
 	if err := consumer.RegisterHandler(domain.RagDocUpdateTopic, h.HandleRagDocUpdate); err != nil {
 		return nil, err

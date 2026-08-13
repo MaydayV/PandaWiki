@@ -56,11 +56,11 @@ func createApp() (*App, error) {
 	ragRepository := mq2.NewRAGRepository(mqProducer)
 	systemSettingRepo := pg2.NewSystemSettingRepo(db, logger)
 	modelUsecase := usecase.NewModelUsecase(modelRepository, nodeRepository, ragRepository, ragService, logger, configConfig, knowledgeBaseRepository, systemSettingRepo)
-	ragmqHandler, err := mq3.NewRAGMQHandler(mqConsumer, logger, ragService, nodeRepository, knowledgeBaseRepository, llmUsecase, modelUsecase)
+	ragmqHandler, err := mq3.NewRAGMQHandler(configConfig, mqConsumer, logger, ragService, nodeRepository, knowledgeBaseRepository, llmUsecase, modelUsecase)
 	if err != nil {
 		return nil, err
 	}
-	ragDocUpdateHandler, err := mq3.NewRagDocUpdateHandler(mqConsumer, logger, nodeRepository)
+	ragDocUpdateHandler, err := mq3.NewRagDocUpdateHandler(configConfig, mqConsumer, logger, nodeRepository)
 	if err != nil {
 		return nil, err
 	}

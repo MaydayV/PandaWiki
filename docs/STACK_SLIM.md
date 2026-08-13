@@ -2,7 +2,7 @@
 
 > 目标环境：**Linux 单机服务器**（不是开发机、不是 Mac mini）。
 > 目标：**降低内存/CPU 占用**，并让部署变成「一条 compose 命令」。
-> 状态：方案已确认，实现见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。分支：`feat/stack-slim`。
+> 状态：Phase 1–2 已落地，见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。分支：`feat/stack-slim`。
 
 ## 1. 为什么要改
 
@@ -41,6 +41,8 @@ Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG�
       +（过渡期可保留 MinIO；稳定后改成本地盘）
       ≈ 5 个容器
 ```
+
+Phase 2 完成后默认 **9 容器**（已合并 Consumer + Admin 进 API）。
 
 流量仍走 Caddy → App / API。Admin 静态资源改由 Caddy 或 API 托管，不再单独起 Nginx。
 

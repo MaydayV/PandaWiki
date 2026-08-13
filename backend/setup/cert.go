@@ -13,8 +13,13 @@ import (
 )
 
 const (
-	keyFile  = "/app/etc/nginx/ssl/panda-wiki.key" // Key file path
-	certFile = "/app/etc/nginx/ssl/panda-wiki.crt" // Certificate file path
+	KeyFile  = "/app/etc/nginx/ssl/panda-wiki.key" // Key file path
+	CertFile = "/app/etc/nginx/ssl/panda-wiki.crt" // Certificate file path
+)
+
+const (
+	keyFile  = KeyFile
+	certFile = CertFile
 )
 
 // check init cert
