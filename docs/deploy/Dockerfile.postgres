@@ -2,9 +2,14 @@
 FROM postgres:16-alpine
 
 RUN apk add --no-cache --virtual .build-deps \
-    git build-base clang llvm-dev postgresql16-dev \
+    git build-base postgresql16-dev \
     && git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git /tmp/pgvector \
-    && cd /tmp/pgvector && make clean && make OPTFLAGS="" \
-    && make install-lib install-data \
+    && cd /tmp/pgvector \
+    && make clean \
+    && make OPTFLAGS="" vector.so \
+    && cp sql/vector.sql sql/vector--0.8.0.sql \
+    && install -m 755 vector.so "$(pg_config --pkglibdir)/vector.so" \
+    && install -d "$(pg_config --sharedir)/extension" \
+    && install -m 644 sql/vector--0.8.0.sql vector.control "$(pg_config --sharedir)/extension/" \
     && apk del .build-deps \
     && rm -rf /tmp/pgvector
