@@ -10,14 +10,14 @@
 
 | 层 | 组件 | 问题 |
 |---|---|---|
-| 应用 | API、Consumer、Next 前台、Admin Nginx | 进程重复、端口多 |
+| 应用 | API（内嵌 Consumer/Admin）、Next 前台 | 进程重复、端口多 |
 | 网关 | Caddy（host 网络 + Unix Socket） | 动态路由难配，但不能删 |
 | 数据 | Postgres、Redis | Redis 很轻；附件走 **OSS**（无本地 MinIO） |
 | RAG | NATS、Qdrant、Raglite | **最占内存**，且 Raglite 还依赖上面三套中间件 |
 
 Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG，NATS / Qdrant / MinIO 就去不干净。
 
-部署痛点不只是「容器多」，还包括：服务器上先 `pnpm build`、一堆必填密码、Caddy host 网络、Admin 额外 `2443` 端口。
+部署痛点不只是「容器多」，还包括：Build 模式需要提前准备前端产物、一堆必填密码、Caddy host 网络。Image 模式无需服务器本地编译。
 
 ## 2. 明确不改什么
 
@@ -85,7 +85,7 @@ Phase 1–5 已完成：**6 容器**（Caddy + Postgres + Redis + NATS + API + A
 pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine 消费；Anydoc 导出完成仍走 NATS。去 NATS 需等 Anydoc 也改任务表。
 
 **Admin 不再独立容器**  
-`web/admin` 构建产物挂到 Caddy 或由 API 提供静态文件，去掉 `2443` 和 Admin Nginx。
+`web/admin` 在 API 镜像构建阶段生成并内嵌，由 API 提供 HTTPS 管理端，保留 `2443` 作为管理端口；移除独立 Admin Nginx 容器。
 
 **对象存储（OSS）**  
 默认使用 S3 兼容 API 连接阿里云 OSS。API 反代 `/static-file/*` 到 OSS；Caddy 静态路由指向 API。桶需预先创建并配置公共读或 CDN。

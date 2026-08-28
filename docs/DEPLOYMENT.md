@@ -173,14 +173,13 @@ corepack enable
 corepack prepare pnpm@10.12.1 --activate
 ```
 
-### 4.2 构建前端产物（必须）
+### 4.2 构建前端产物（Build 模式）
 
-> `web/admin` 与 `web/app` 的 Dockerfile 会复制构建产物，因此先构建前端。
+> Build 模式中，API Dockerfile 会在镜像构建阶段自动编译并内嵌 `web/admin`；服务器只需提前构建 `web/app`，供 App 镜像复制。
 
 ```bash
 cd ../../web
 pnpm install --frozen-lockfile
-NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
 pnpm --filter panda-wiki-app build
 cd ../docs/deploy
 ```
@@ -215,7 +214,6 @@ cd ../..
 git pull origin main
 cd web
 pnpm install --frozen-lockfile
-NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
 pnpm --filter panda-wiki-app build
 cd ../docs/deploy
 docker compose -f docker-compose.build.yml up -d --build
@@ -306,14 +304,14 @@ docker compose -f docker-compose.image.yml up -d
 ```bash
 git checkout main
 git pull origin main
-git tag v2.6.2
-git push origin v2.6.2
+git tag <发布标签>
+git push origin <发布标签>
 ```
 
 推送完成后会自动发布：
 
-- `docker.io/caodanv/pandawiki-api:v2.6.2`
-- `docker.io/caodanv/pandawiki-app:v2.6.2`
+- `docker.io/caodanv/pandawiki-api:<发布标签>`
+- `docker.io/caodanv/pandawiki-app:<发布标签>`
 
 ## 6. 方式三：外层 Nginx + 内层 Caddy（推荐公网生产）
 

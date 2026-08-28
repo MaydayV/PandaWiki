@@ -1,14 +1,11 @@
-name: Web Build and Push (Docker Hub)
+name: App Build and Push (Docker Hub)
 
 on:
   push:
     branches:
       - frontend-*
-      - admin-*
       - app-*
     tags:
-      - 'admin-v*'
-      - 'admin-FV*'
       - 'app-v*'
       - 'app-FV*'
       - 'v*'
@@ -31,12 +28,8 @@ jobs:
         id: get_version
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
-            # 支持 admin-v* / app-v* / v* / admin-FV* / app-FV* / FV*
-            if [[ $GITHUB_REF == refs/tags/admin-v* ]]; then
-              echo "VERSION=${GITHUB_REF#refs/tags/admin-v}" >> $GITHUB_OUTPUT
-            elif [[ $GITHUB_REF == refs/tags/admin-FV* ]]; then
-              echo "VERSION=${GITHUB_REF#refs/tags/admin-}" >> $GITHUB_OUTPUT
-            elif [[ $GITHUB_REF == refs/tags/app-v* ]]; then
+            # 支持 app-v* / v* / app-FV* / FV*
+            if [[ $GITHUB_REF == refs/tags/app-v* ]]; then
               echo "VERSION=${GITHUB_REF#refs/tags/app-v}" >> $GITHUB_OUTPUT
             elif [[ $GITHUB_REF == refs/tags/app-FV* ]]; then
               echo "VERSION=${GITHUB_REF#refs/tags/app-}" >> $GITHUB_OUTPUT
@@ -85,28 +78,12 @@ jobs:
           cd web
           pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Setup Env for admin
-        run: |
-          cd web/admin
-          echo "VITE_APP_VERSION=${{ needs.version.outputs.version }}" >> .env.production
-
-      - name: Build admin and app (parallel)
+      - name: Build app
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           cd web
-          pnpm run build
-
-      - name: 'Tar admin files'
-        run: tar -cvf web/admin/dist.tar web/admin/dist
-
-      - name: Upload admin build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: admin-build
-          path: web/admin/dist.tar
-          if-no-files-found: error
-          include-hidden-files: true
+          pnpm --filter panda-wiki-app build
 
       - name: 'Tar app files'
         run: tar -cvf web/app/dist.tar web/app/dist
@@ -124,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        project: [admin, app]
+        project: [app]
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
