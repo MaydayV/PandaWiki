@@ -234,6 +234,10 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
 
+## 追加记录（2026-09-09，发布 FV2.6.17.2111）
+- 版本号：`FV2.6.17.2111`。
+- 默认 5 容器精简栈、去掉 NATS、移除不可用的 Anydoc 导入，并提供 GitHub Release 一键安装包。
+
 ## 追加记录（2026-09-09，GitHub Release 一键安装包）
 - 新增 `docs/deploy/install.sh`：检测 Docker、下载发布包、生成密钥、询问 OSS、调用 `quickstart.sh`。
 - 打 `FV*` / `v*` 标签时，`.github/workflows/release.yml` 把 `install.sh` 与 `pandawiki-deploy.tar.gz` 挂到 GitHub Release。
