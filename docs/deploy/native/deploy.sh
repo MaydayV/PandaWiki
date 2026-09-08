@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Debian 原生部署（无 Docker）：Postgres + Redis + NATS + MinIO + API + App + Nginx
+# Debian 原生部署（无 Docker）：Postgres + Redis + API + App + Nginx；附件走 OSS
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,8 +32,8 @@ set +a
 
 ARCH="$(uname -m)"
 case "$ARCH" in
-  aarch64|arm64) GO_ARCH=arm64; MINIO_ARCH=arm64; NATS_ARCH=arm64 ;;
-  x86_64|amd64) GO_ARCH=amd64; MINIO_ARCH=amd64; NATS_ARCH=amd64 ;;
+  aarch64|arm64) GO_ARCH=arm64 ;;
+  x86_64|amd64) GO_ARCH=amd64 ;;
   *) die "不支持的架构: $ARCH" ;;
 esac
 
@@ -85,19 +85,7 @@ fi
 export PATH="/usr/local/go/bin:$PATH"
 export GOTOOLCHAIN=auto
 
-echo ">>> 安装 NATS / MinIO 二进制（若无）"
 $SUDO mkdir -p "$INSTALL_ROOT/bin"
-if [[ ! -x "$INSTALL_ROOT/bin/nats-server" ]]; then
-  NATS_VER=2.10.29
-  curl -fsSL "https://github.com/nats-io/nats-server/releases/download/v${NATS_VER}/nats-server-v${NATS_VER}-linux-${NATS_ARCH}.tar.gz" \
-    | tar -xz -C /tmp
-  $SUDO cp "/tmp/nats-server-v${NATS_VER}-linux-${NATS_ARCH}/nats-server" "$INSTALL_ROOT/bin/"
-  $SUDO chmod +x "$INSTALL_ROOT/bin/nats-server"
-fi
-if [[ ! -x "$INSTALL_ROOT/bin/minio" ]]; then
-  curl -fsSL "https://dl.min.io/server/minio/release/linux-${MINIO_ARCH}/minio" -o /tmp/minio
-  $SUDO install -m 755 /tmp/minio "$INSTALL_ROOT/bin/minio"
-fi
 
 echo ">>> 初始化 PostgreSQL"
 $SUDO -u postgres psql -v ON_ERROR_STOP=0 -c "CREATE USER \"panda-wiki\" WITH PASSWORD '${POSTGRES_PASSWORD}';" 2>/dev/null || true
@@ -126,58 +114,24 @@ rm -f "$redis_tmp"
 $SUDO systemctl restart redis-server
 
 echo ">>> 写入 systemd 单元"
-$SUDO mkdir -p "$INSTALL_ROOT"/{bin,data/minio,logs,run}
+$SUDO mkdir -p "$INSTALL_ROOT"/{bin,logs,run}
 $SUDO mkdir -p /app/etc/nginx/ssl /data
 $SUDO chown -R "$RUN_USER:$RUN_USER" /app/etc/nginx/ssl "$INSTALL_ROOT" /data
 
-write_as_root /etc/systemd/system/pandawiki-nats.service <<UNIT
-[Unit]
-Description=PandaWiki NATS
-After=network.target
-
-[Service]
-Type=simple
-User=$RUN_USER
-ExecStart=$INSTALL_ROOT/bin/nats-server -js -m 8222 --user panda-wiki --pass ${NATS_PASSWORD}
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-write_as_root /etc/systemd/system/pandawiki-minio.service <<UNIT
-[Unit]
-Description=PandaWiki MinIO (测试用 OSS 模拟)
-After=network.target
-
-[Service]
-Type=simple
-User=$RUN_USER
-Environment=MINIO_ROOT_USER=${S3_ACCESS_KEY}
-Environment=MINIO_ROOT_PASSWORD=${S3_SECRET_KEY}
-ExecStart=$INSTALL_ROOT/bin/minio server $INSTALL_ROOT/data/minio --address :9000 --console-address :9001
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-# 原生环境变量（覆盖 docker 主机名）
+# 原生环境变量（覆盖 docker 主机名）；对象存储走 .env 中的 OSS/S3
 NATIVE_ENV="$INSTALL_ROOT/pandawiki.env"
 write_as_root "$NATIVE_ENV" <<ENV
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 PG_DSN=host=127.0.0.1 user=panda-wiki password=${POSTGRES_PASSWORD} dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai
-MQ_NATS_SERVER=nats://127.0.0.1:4222
-NATS_PASSWORD=${NATS_PASSWORD}
 REDIS_ADDR=127.0.0.1:6379
 REDIS_PASSWORD=${REDIS_PASSWORD}
-S3_ENDPOINT=127.0.0.1:9000
+S3_ENDPOINT=${S3_ENDPOINT}
 S3_ACCESS_KEY=${S3_ACCESS_KEY}
 S3_SECRET_KEY=${S3_SECRET_KEY}
 S3_BUCKET=${S3_BUCKET:-static-file}
 S3_REGION=${S3_REGION:-oss-cn-hangzhou}
-S3_USE_SSL=0
-S3_PUBLIC_BASE_URL=${S3_PUBLIC_BASE_URL:-http://10.211.55.5:9000/static-file}
+S3_USE_SSL=${S3_USE_SSL:-1}
+S3_PUBLIC_BASE_URL=${S3_PUBLIC_BASE_URL}
 JWT_SECRET=${JWT_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 SENTRY_ENABLED=false
@@ -185,7 +139,7 @@ RUN_WORKER=${RUN_WORKER:-1}
 ADMIN_ENABLED=${ADMIN_ENABLED:-1}
 ADMIN_PORT=2443
 ADMIN_DIST_DIR=${REPO_ROOT}/web/admin/dist
-RAG_PROVIDER=${RAG_PROVIDER:-pg}
+RAG_PROVIDER=pg
 RAG_PG_EMBEDDING_DIM=${RAG_PG_EMBEDDING_DIM:-1024}
 CADDY_API=disabled
 ENV
@@ -193,8 +147,8 @@ ENV
 write_as_root /etc/systemd/system/pandawiki-api.service <<UNIT
 [Unit]
 Description=PandaWiki API
-After=network.target postgresql.service redis-server.service pandawiki-nats.service pandawiki-minio.service
-Wants=postgresql.service redis-server.service pandawiki-nats.service pandawiki-minio.service
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
 
 [Service]
 Type=simple
@@ -332,9 +286,10 @@ else
 fi
 
 echo ">>> 启动服务"
-$SUDO systemctl unmask pandawiki-nats pandawiki-minio pandawiki-api pandawiki-app 2>/dev/null || true
+$SUDO systemctl disable --now pandawiki-nats pandawiki-minio 2>/dev/null || true
+$SUDO systemctl unmask pandawiki-api pandawiki-app 2>/dev/null || true
 $SUDO systemctl daemon-reload
-for svc in pandawiki-nats pandawiki-minio pandawiki-api pandawiki-app; do
+for svc in pandawiki-api pandawiki-app; do
   $SUDO systemctl enable "$svc"
   $SUDO systemctl restart "$svc"
 done

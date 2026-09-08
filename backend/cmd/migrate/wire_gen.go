@@ -11,9 +11,8 @@ import (
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/migration"
 	"github.com/chaitin/panda-wiki/migration/fns"
-	"github.com/chaitin/panda-wiki/mq"
 	cache2 "github.com/chaitin/panda-wiki/repo/cache"
-	mq2 "github.com/chaitin/panda-wiki/repo/mq"
+	"github.com/chaitin/panda-wiki/repo/mq"
 	pg2 "github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/store/cache"
 	"github.com/chaitin/panda-wiki/store/pg"
@@ -37,12 +36,8 @@ func createApp() (*App, error) {
 	nodeRepository := pg2.NewNodeRepository(db, logger)
 	navRepository := pg2.NewNavRepository(db, logger)
 	appRepository := pg2.NewAppRepository(db, logger)
-	mqProducer, err := mq.NewMQProducer(configConfig, logger)
-	if err != nil {
-		return nil, err
-	}
 	ragJobRepository := pg2.NewRagJobRepository(db, logger)
-	ragRepository := mq2.NewRAGRepository(mqProducer, configConfig, ragJobRepository)
+	ragRepository := mq.NewRAGRepository(ragJobRepository)
 	userRepository := pg2.NewUserRepository(db, logger)
 	modelRepository := pg2.NewModelRepository(db, logger)
 	ragService, err := rag.NewRAGService(configConfig, logger, db, modelRepository)

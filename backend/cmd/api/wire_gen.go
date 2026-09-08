@@ -9,16 +9,15 @@ package main
 import (
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/handler"
-	mq3 "github.com/chaitin/panda-wiki/handler/mq"
+	mq2 "github.com/chaitin/panda-wiki/handler/mq"
 	"github.com/chaitin/panda-wiki/handler/share"
 	"github.com/chaitin/panda-wiki/handler/v1"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/middleware"
-	"github.com/chaitin/panda-wiki/mq"
 	"github.com/chaitin/panda-wiki/pkg/captcha"
 	cache2 "github.com/chaitin/panda-wiki/repo/cache"
 	ipdb2 "github.com/chaitin/panda-wiki/repo/ipdb"
-	mq2 "github.com/chaitin/panda-wiki/repo/mq"
+	"github.com/chaitin/panda-wiki/repo/mq"
 	pg2 "github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/server/http"
 	"github.com/chaitin/panda-wiki/store/cache"
@@ -68,12 +67,8 @@ func createApp() (*App, error) {
 	}
 	knowledgeBaseRepository := pg2.NewKnowledgeBaseRepository(db, configConfig, logger, ragService)
 	nodeRepository := pg2.NewNodeRepository(db, logger)
-	mqProducer, err := mq.NewMQProducer(configConfig, logger)
-	if err != nil {
-		return nil, err
-	}
 	ragJobRepository := pg2.NewRagJobRepository(db, logger)
-	ragRepository := mq2.NewRAGRepository(mqProducer, configConfig, ragJobRepository)
+	ragRepository := mq.NewRAGRepository(ragJobRepository)
 	userRepository := pg2.NewUserRepository(db, logger)
 	kbRepo := cache2.NewKBRepo(cacheCache)
 	appRepository := pg2.NewAppRepository(db, logger)
@@ -119,18 +114,9 @@ func createApp() (*App, error) {
 	appUsecase := usecase.NewAppUsecase(appRepository, authRepo, nodeRepository, knowledgeBaseRepository, nodeUsecase, logger, configConfig, chatUsecase, pushUsecase, cacheCache)
 	appHandler := v1.NewAppHandler(echo, baseHandler, logger, authMiddleware, appUsecase, modelUsecase, conversationUsecase, configConfig)
 	fileUsecase := usecase.NewFileUsecase(logger, minioClient, configConfig, systemSettingRepo)
-	fileHandler := v1.NewFileHandler(echo, baseHandler, logger, authMiddleware, minioClient, configConfig, fileUsecase)
+	fileHandler := v1.NewFileHandler(echo, baseHandler, logger, authMiddleware, minioClient, fileUsecase)
 	modelHandler := v1.NewModelHandler(echo, baseHandler, logger, authMiddleware, modelUsecase, llmUsecase)
 	conversationHandler := v1.NewConversationHandler(echo, baseHandler, logger, authMiddleware, conversationUsecase)
-	mqConsumer, err := mq.NewMQConsumer(configConfig, logger)
-	if err != nil {
-		return nil, err
-	}
-	crawlerUsecase, err := usecase.NewCrawlerUsecase(logger, mqConsumer, cacheCache, configConfig)
-	if err != nil {
-		return nil, err
-	}
-	crawlerHandler := v1.NewCrawlerHandler(echo, baseHandler, authMiddleware, logger, configConfig, crawlerUsecase, fileUsecase)
 	creationUsecase := usecase.NewCreationUsecase(logger, llmUsecase, modelUsecase)
 	creationHandler := v1.NewCreationHandler(echo, baseHandler, logger, creationUsecase)
 	statRepository := pg2.NewStatRepository(db, cacheCache)
@@ -154,7 +140,6 @@ func createApp() (*App, error) {
 		FileHandler:          fileHandler,
 		ModelHandler:         modelHandler,
 		ConversationHandler:  conversationHandler,
-		CrawlerHandler:       crawlerHandler,
 		CreationHandler:      creationHandler,
 		StatHandler:          statHandler,
 		CommentHandler:       commentHandler,
@@ -202,23 +187,22 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ragmqHandler, err := mq3.NewRAGMQHandler(configConfig, mqConsumer, logger, ragService, nodeRepository, knowledgeBaseRepository, llmUsecase, modelUsecase)
+	ragmqHandler, err := mq2.NewRAGMQHandler(configConfig, logger, ragService, nodeRepository, knowledgeBaseRepository, llmUsecase, modelUsecase)
 	if err != nil {
 		return nil, err
 	}
-	ragJobWorker := mq3.NewRAGJobWorker(configConfig, logger, ragJobRepository, ragmqHandler)
-	cronHandler, err := mq3.NewCronHandler(configConfig, logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
+	ragJobWorker := mq2.NewRAGJobWorker(configConfig, logger, ragJobRepository, ragmqHandler)
+	cronHandler, err := mq2.NewCronHandler(configConfig, logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
 	if err != nil {
 		return nil, err
 	}
 	app := &App{
-		HTTPServer:          httpServer,
-		Handlers:            apiHandlers,
-		ShareHandlers:       shareHandler,
-		Config:              configConfig,
-		Logger:              logger,
-		Telemetry:           client,
-		MQConsumer:          mqConsumer,
+		HTTPServer:      httpServer,
+		Handlers:        apiHandlers,
+		ShareHandlers:   shareHandler,
+		Config:          configConfig,
+		Logger:          logger,
+		Telemetry:       client,
 		RAGMQHandler:    ragmqHandler,
 		RAGJobWorker:    ragJobWorker,
 		StatCronHandler: cronHandler,
@@ -229,14 +213,13 @@ func createApp() (*App, error) {
 // wire.go:
 
 type App struct {
-	HTTPServer          *http.HTTPServer
-	Handlers            *v1.APIHandlers
-	ShareHandlers       *share.ShareHandler
-	Config              *config.Config
-	Logger              *log.Logger
-	Telemetry           *telemetry.Client
-	MQConsumer          mq.MQConsumer
-	RAGMQHandler    *mq3.RAGMQHandler
-	RAGJobWorker    *mq3.RAGJobWorker
-	StatCronHandler *mq3.CronHandler
+	HTTPServer      *http.HTTPServer
+	Handlers        *v1.APIHandlers
+	ShareHandlers   *share.ShareHandler
+	Config          *config.Config
+	Logger          *log.Logger
+	Telemetry       *telemetry.Client
+	RAGMQHandler    *mq2.RAGMQHandler
+	RAGJobWorker    *mq2.RAGJobWorker
+	StatCronHandler *mq2.CronHandler
 }

@@ -6,7 +6,7 @@
 2. 方案 B：预构建镜像部署（Image 模式，推荐生产）
 3. 外层 Nginx + 内层 Caddy（推荐公网生产）
 
-本文描述 Docker 部署的三种方式。**乘风版默认编排**（`feat/stack-slim`）为 **6 容器**：Caddy + Postgres + Redis + NATS + API（含 Consumer/Admin）+ App；向量检索在 Postgres pgvector，附件走 OSS。详见 [STACK_SLIM.md](./STACK_SLIM.md)。
+本文描述 Docker 部署的三种方式。**乘风版默认编排**（`feat/stack-slim`）为 **5 容器**：Caddy + Postgres + Redis + API（含 Worker/Admin）+ App；向量检索在 Postgres pgvector，附件走 OSS。详见 [STACK_SLIM.md](./STACK_SLIM.md)。
 
 ## 1. 方式对比
 
@@ -35,7 +35,6 @@
 | pnpm | `10.x` | 仅 Build 模式需要 |
 | PostgreSQL | `pgvector/pgvector:pg16`（容器） | 主数据库 + 向量检索（默认 RAG） |
 | Redis | `7-alpine`（容器） | 缓存/限流 |
-| NATS | `2.10-alpine`（容器） | Anydoc 导出完成事件；pg 模式向量任务已改 `rag_jobs` 表 |
 | 阿里云 OSS | 外部服务 | 图片/附件对象存储（S3 兼容 API） |
 | Caddy | `2.10-alpine`（容器） | 知识库访问规则与动态路由 |
 
@@ -72,7 +71,6 @@ cp .env.example .env
 - `REDIS_PASSWORD`
 - `S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_ENDPOINT`、`S3_BUCKET`
 - `S3_PUBLIC_BASE_URL`（OSS 桶公网 URL 或 CDN 域名）
-- `NATS_PASSWORD`
 - `JWT_SECRET`
 - `ADMIN_PASSWORD`
 
@@ -114,7 +112,7 @@ psql -U panda-wiki -d panda-wiki
 - `3010`：前台入口，由 `panda-wiki-caddy` 监听并反向代理到 `api/app`；`/static-file/*` 经 API 反代 OSS。
 - `2443`：后台管理入口（内嵌于 `panda-wiki-api`，HTTPS）。
 - `8000`：API 直连入口（通常用于健康检查、联调）。
-- `5432/6379/4222`：数据库与中间件内部端口，默认不对公网暴露。
+- `5432/6379`：数据库与 Redis 内部端口，默认不对公网暴露。
 
 说明：`panda-wiki-app` 当前只在容器网络 `expose 3010`，不会直接映射宿主机 `3010`，避免与 Caddy 冲突。
 
@@ -268,7 +266,7 @@ docker compose -f docker-compose.image.yml up -d
 
 推荐仍用 `./quickstart.sh`，会自动检测空库并导入 SQL。
 
-默认 **6 个容器**（Caddy + Postgres + Redis + NATS + API + App；向量在 pgvector，附件在 OSS）。
+默认 **5 个容器**（Caddy + Postgres + Redis + API + App；向量在 pgvector，附件在 OSS）。
 
 ### 5.3 升级发布
 

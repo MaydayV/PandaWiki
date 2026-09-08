@@ -10,7 +10,6 @@ import (
 	share "github.com/chaitin/panda-wiki/handler/share"
 	v1 "github.com/chaitin/panda-wiki/handler/v1"
 	"github.com/chaitin/panda-wiki/log"
-	"github.com/chaitin/panda-wiki/mq"
 	"github.com/chaitin/panda-wiki/server/http"
 	"github.com/chaitin/panda-wiki/telemetry"
 )
@@ -36,13 +35,12 @@ func createApp() (*App, error) {
 }
 
 type App struct {
-	HTTPServer          *http.HTTPServer
-	Handlers            *v1.APIHandlers
-	ShareHandlers       *share.ShareHandler
-	Config              *config.Config
-	Logger              *log.Logger
-	Telemetry           *telemetry.Client
-	MQConsumer          mq.MQConsumer
+	HTTPServer      *http.HTTPServer
+	Handlers        *v1.APIHandlers
+	ShareHandlers   *share.ShareHandler
+	Config          *config.Config
+	Logger          *log.Logger
+	Telemetry       *telemetry.Client
 	RAGMQHandler    *mqhandler.RAGMQHandler
 	RAGJobWorker    *mqhandler.RAGJobWorker
 	StatCronHandler *mqhandler.CronHandler

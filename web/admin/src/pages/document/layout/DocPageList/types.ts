@@ -4,10 +4,7 @@ import {
   TreeMenuOptions,
 } from '@/components/Drag/DragTree/TreeMenu';
 import type { TreeDragHandlers } from '@/utils/drag';
-import {
-  ConstsCrawlerSource,
-  GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp,
-} from '@/request/types';
+import { GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp } from '@/request/types';
 
 export interface DocPageListContainerProps {
   groups: GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp[];
@@ -23,7 +20,6 @@ export interface DocPageListContainerProps {
 }
 
 export interface DocTreeMenuHandlers {
-  handleUrl: (item: ITreeItem, key: ConstsCrawlerSource) => void;
   handleDelete: (item: ITreeItem) => void;
   handlePublish: (item: ITreeItem) => void;
   handleRestudy: (item: ITreeItem) => void;

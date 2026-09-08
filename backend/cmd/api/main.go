@@ -31,11 +31,6 @@ func main() {
 		workerCtx, workerCancel := context.WithCancel(context.Background())
 		defer workerCancel()
 		go app.RAGJobWorker.Start(workerCtx)
-		go func() {
-			if err := app.MQConsumer.StartConsumerHandlers(workerCtx); err != nil {
-				app.Logger.Error("mq consumer stopped", log.Error(err))
-			}
-		}()
 	} else {
 		app.Logger.Info("embedded worker disabled (RUN_WORKER=0)")
 	}

@@ -26,7 +26,6 @@ var ProviderSet = wire.NewSet(
 	NewModelUsecase,
 	NewKnowledgeBaseUsecase,
 	NewChatUsecase,
-	NewCrawlerUsecase,
 	NewCreationUsecase,
 	NewFileUsecase,
 	NewSitemapUsecase,

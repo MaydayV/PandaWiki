@@ -2,7 +2,7 @@
 
 > 目标环境：**Linux 单机服务器**（不是开发机、不是 Mac mini）。
 > 目标：**降低内存/CPU 占用**，并让部署变成「一条 compose 命令」。
-> 状态：Phase 1–4 已落地；对象存储默认 **阿里云 OSS**（无 MinIO 容器）。全新部署用 `full_fresh_deploy.sql`；默认 pgvector RAG、**6 容器**。见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
+> 状态：Phase 1–5 已落地，并去掉 NATS。对象存储默认 **阿里云 OSS**（无 MinIO 容器）。全新部署用 `full_fresh_deploy.sql`；默认 pgvector RAG、**5 容器**。见 [plans/stack-slim-plan.md](./plans/stack-slim-plan.md)。
 
 ## 1. 为什么要改
 
@@ -37,12 +37,12 @@ Raglite 启动依赖 Postgres、MinIO、Qdrant、NATS。只要保留这套 RAG�
       + API + Consumer + App + Admin
       ≈ 11 容器
 
-目标：Caddy + Postgres + Redis + NATS + API（含 Consumer/Admin）+ App
+目标：Caddy + Postgres + Redis + API（含 Worker/Admin）+ App
       + OSS（外部）
-      = 6 容器
+      = 5 容器
 ```
 
-Phase 1–5 已完成：**6 容器**（Caddy + Postgres + Redis + NATS + API + App）。
+Phase 1–5 已完成，并去掉 NATS：**5 容器**（Caddy + Postgres + Redis + API + App）。
 
 流量仍走 Caddy → App / API。Admin 静态资源改由 Caddy 或 API 托管，不再单独起 Nginx。
 
@@ -82,7 +82,7 @@ Phase 1–5 已完成：**6 容器**（Caddy + Postgres + Redis + NATS + API + A
 ## 5. 其它精简
 
 **Consumer 并进 API**  
-pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine 消费；Anydoc 导出完成仍走 NATS。去 NATS 需等 Anydoc 也改任务表。
+文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine 消费。
 
 **Admin 不再独立容器**  
 `web/admin` 在 API 镜像构建阶段生成并内嵌，由 API 提供 HTTPS 管理端，保留 `2443` 作为管理端口；移除独立 Admin Nginx 容器。
@@ -97,9 +97,9 @@ pg 模式下文档向量任务写入 Postgres `rag_jobs` 表，API 内 goroutine
 
 | 指标 | 现在 | 目标 |
 |---|---|---|
-| 容器数 | ~11 | 6 |
+| 容器数 | ~11 | 5 |
 | 内存（经验） | Qdrant+Raglite 常占 1GB+，整体轻松 3GB+ | 主要剩 Postgres + Next + API |
-| 必填密钥 | Postgres/Redis/S3/NATS/Qdrant/JWT/Admin | Postgres/Redis/S3/OSS/NATS/JWT/Admin |
+| 必填密钥 | Postgres/Redis/S3/NATS/Qdrant/JWT/Admin | Postgres/Redis/S3/OSS/JWT/Admin |
 
 Linux 建议仍按现有文档：**4C8G 起步，8C16G 更从容**。精简后 4C8G 会明显好过现在。
 
@@ -107,7 +107,7 @@ Linux 建议仍按现有文档：**4C8G 起步，8C16G 更从容**。精简后 4
 
 1. 与上游 Raglite 分叉：以后合上游时要保住 `RAGService` 适配层，不要把 pg 实现写进 handler。
 2. 切换窗口：旧向量不可用，需要后台「全量重新学习」。
-3. Anydoc 爬虫目前也走 NATS；去 NATS 时必须一起改成任务表，否则导入文档会断。
+3. 精简栈不包含独立 crawler 服务，已移除 URL/飞书/离线文件等 Anydoc 导入入口；文档改为后台直接创建或从样例导入。
 4. Caddy 动态路由第一期不动，避免网关与 RAG 两场重构叠在一起。
 
 ## 8. 相关文件

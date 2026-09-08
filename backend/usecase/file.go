@@ -191,47 +191,6 @@ func (u *FileUsecase) UploadFileFromReader(
 	return s3Filename, nil
 }
 
-func (u *FileUsecase) AnyDocUploadFile(ctx context.Context, file *multipart.FileHeader, path string) (string, error) {
-	src, err := file.Open()
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer src.Close()
-
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-
-	// Check denied extensions
-	if err := u.checkDeniedExtension(ctx, ext); err != nil {
-		return "", err
-	}
-
-	size := file.Size
-
-	contentType := file.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = mime.TypeByExtension(ext)
-	}
-
-	resp, err := u.s3Client.PutObject(
-		ctx,
-		u.s3Client.Bucket(),
-		path,
-		src,
-		size,
-		minio.PutObjectOptions{
-			ContentType: contentType,
-			UserMetadata: map[string]string{
-				"originalname": file.Filename,
-			},
-		},
-	)
-	if err != nil {
-		return "", fmt.Errorf("upload failed: %w", err)
-	}
-
-	return resp.Key, nil
-}
-
 func (u *FileUsecase) UploadFileByUrl(ctx context.Context, kbID string, fileURL string) (string, error) {
 	// Validate URL to prevent SSRF attacks
 	if err := utils.ValidateURLForSSRF(fileURL); err != nil {

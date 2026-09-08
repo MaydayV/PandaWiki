@@ -2,7 +2,6 @@ package mq
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,8 +9,6 @@ import (
 	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
-	"github.com/chaitin/panda-wiki/mq"
-	"github.com/chaitin/panda-wiki/mq/types"
 	"github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/store/rag"
 	"github.com/chaitin/panda-wiki/usecase"
@@ -19,7 +16,6 @@ import (
 
 type RAGMQHandler struct {
 	config       *config.Config
-	consumer     mq.MQConsumer
 	logger       *log.Logger
 	rag          rag.RAGService
 	nodeRepo     *pg.NodeRepository
@@ -28,34 +24,16 @@ type RAGMQHandler struct {
 	modelUsecase *usecase.ModelUsecase
 }
 
-func NewRAGMQHandler(config *config.Config, consumer mq.MQConsumer, logger *log.Logger, rag rag.RAGService, nodeRepo *pg.NodeRepository, kbRepo *pg.KnowledgeBaseRepository, llmUsecase *usecase.LLMUsecase, modelUsecase *usecase.ModelUsecase) (*RAGMQHandler, error) {
-	h := &RAGMQHandler{
+func NewRAGMQHandler(config *config.Config, logger *log.Logger, rag rag.RAGService, nodeRepo *pg.NodeRepository, kbRepo *pg.KnowledgeBaseRepository, llmUsecase *usecase.LLMUsecase, modelUsecase *usecase.ModelUsecase) (*RAGMQHandler, error) {
+	return &RAGMQHandler{
 		config:       config,
-		consumer:     consumer,
 		logger:       logger.WithModule("mq.rag"),
 		rag:          rag,
 		nodeRepo:     nodeRepo,
 		kbRepo:       kbRepo,
 		llmUsecase:   llmUsecase,
 		modelUsecase: modelUsecase,
-	}
-	if !config.RunWorker {
-		return h, nil
-	}
-	return h, nil
-}
-
-func (h *RAGMQHandler) HandleNodeContentVectorRequest(ctx context.Context, msg types.Message) error {
-	var request domain.NodeReleaseVectorRequest
-	err := json.Unmarshal(msg.GetData(), &request)
-	if err != nil {
-		h.logger.Error("unmarshal node content vector request failed", log.Error(err))
-		return nil
-	}
-	if err := h.ProcessVectorRequest(ctx, &request); err != nil {
-		h.logger.Error("process vector request failed", log.Error(err))
-	}
-	return nil
+	}, nil
 }
 
 func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain.NodeReleaseVectorRequest) error {

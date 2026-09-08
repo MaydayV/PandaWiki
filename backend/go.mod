@@ -38,7 +38,6 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/mileusna/useragent v1.3.5
 	github.com/minio/minio-go/v7 v7.0.91
-	github.com/nats-io/nats.go v1.42.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/pgvector/pgvector-go v0.4.1
 	github.com/pkoukk/tiktoken-go v0.1.7
@@ -165,8 +164,6 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/nats-io/nkeys v0.4.11 // indirect
-	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
 	github.com/ollama/ollama v0.12.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect

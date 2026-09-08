@@ -13,7 +13,7 @@ PandaWiki is an AI-powered open-source knowledge base system. This is the "Fly V
 - `web/admin/` — React 19 + Vite admin console (Redux Toolkit, MUI, TipTap editor)
 - `web/app/` — Next.js 16 user-facing web app (MUI, markdown-it, mermaid)
 - `web/packages/` — Shared packages: `@panda-wiki/icons`, `@panda-wiki/themes`, `@panda-wiki/ui`
-- `sdk/rag/` — Go client library for the RAG service
+- `sdk/` — 旧 Raglite 客户端已移除；检索实现在 `backend/store/rag/`
 - `backend/pro` — Git submodule for private Pro edition (PandaWikiPro)
 - `docs/` — Deployment docs, feature comparison, version notes
 
@@ -23,7 +23,7 @@ Strict layer boundaries — do not put business logic in handlers:
 
 - `handler/` — HTTP handlers (Echo v4). Receives request, calls usecase, returns response.
 - `usecase/` — Business logic. All domain rules belong here.
-- `repo/` — Data access layer: `pg/` (PostgreSQL/GORM), `cache/` (Redis), `mq/` (NATS), `ipdb/`
+- `repo/` — Data access layer: `pg/` (PostgreSQL/GORM), `cache/` (Redis), `mq/` (RAG job enqueue), `ipdb/`
 - `domain/` — Domain models and shared types
 - `api/` — API request/response types
 - `config/` — Configuration (Viper, env-based)
@@ -125,7 +125,7 @@ No dedicated test scripts. Use lint, typecheck (`tsc`), and build as verificatio
 ## Infrastructure
 
 The system requires 9 services (managed via Docker Compose):
-- PostgreSQL 16 (pgvector), Redis 7, NATS 2.10, 阿里云 OSS (S3 API), Caddy 2.10
+- PostgreSQL 16 (pgvector), Redis 7, 阿里云 OSS (S3 API), Caddy 2.10
 - RAG-lite service (Go-based RAG engine)
 - API server (port 8000), Consumer worker, Caddy reverse proxy
 

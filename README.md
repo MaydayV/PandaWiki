@@ -11,7 +11,7 @@
 
 PandaWiki 乘风版（Fly Version）是基于 [PandaWiki 开源项目](https://github.com/chaitin/PandaWiki) 二次开发的 AI 知识库系统，用于搭建产品文档、技术文档、FAQ 等内容站点，并提供 AI 创作、问答与搜索能力。
 
-当前主线分支 **`feat/stack-slim`** 已完成部署栈精简：默认 **6 容器**、向量检索使用 **Postgres pgvector**、附件存储默认 **阿里云 OSS**（S3 兼容 API）。
+当前主线分支 **`feat/stack-slim`** 已完成部署栈精简：默认 **5 容器**、向量检索使用 **Postgres pgvector**、附件存储默认 **阿里云 OSS**（S3 兼容 API）。
 
 ## 版本
 
@@ -19,7 +19,7 @@ PandaWiki 乘风版（Fly Version）是基于 [PandaWiki 开源项目](https://g
 | --- | --- |
 | 版本号 | `FV2.6.16.2111` |
 | 默认分支 | `feat/stack-slim` |
-| 运行时 | Caddy + Postgres + Redis + NATS + API + App |
+| 运行时 | Caddy + Postgres + Redis + API + App |
 | RAG | `RAG_PROVIDER=pg`（pgvector） |
 | 对象存储 | OSS / S3 兼容端点 |
 
@@ -30,7 +30,6 @@ PandaWiki 乘风版（Fly Version）是基于 [PandaWiki 开源项目](https://g
 - AI 辅助创作、问答、搜索
 - 富文本 / Markdown 编辑，支持多种导出格式
 - 网页挂件、钉钉 / 飞书 / 企业微信等机器人集成
-- URL、Sitemap、RSS、离线文件等多种内容导入
 
 ## 部署
 
@@ -47,7 +46,7 @@ cd docs/deploy
 ./quickstart.sh
 ```
 
-`.env` 中至少配置：`POSTGRES_PASSWORD`、`REDIS_PASSWORD`、`S3_*`、`NATS_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD`。
+`.env` 中至少配置：`POSTGRES_PASSWORD`、`REDIS_PASSWORD`、`S3_*`、`JWT_SECRET`、`ADMIN_PASSWORD`。
 
 启动后：
 

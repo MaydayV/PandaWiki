@@ -1,6 +1,5 @@
 import { ITreeItem } from '@/api';
 import { type DragTreeHandle } from '@/components/Drag/DragTree';
-import AddDocByType from '@/pages/document/component/AddDocByType';
 import DocDelete from '@/pages/document/component/DocDelete';
 import DocPropertiesModal from '@/pages/document/component/DocPropertiesModal';
 import DocStatus from '@/pages/document/component/DocStatus';
@@ -14,11 +13,8 @@ interface DocListModalsProps {
   kb_id: string;
   deleteOpen: boolean;
   opraData: DomainNodeListItemResp[];
-  data: ITreeItem[];
   list: DomainNodeListItemResp[];
   dragTreeRef: React.RefObject<DragTreeHandle | null>;
-  importKey: string | null;
-  urlOpen: boolean;
   summaryOpen: boolean;
   moreSummaryOpen: boolean;
   statusOpen: 'delete' | null;
@@ -28,7 +24,6 @@ interface DocListModalsProps {
   refresh: () => void;
   setData: React.Dispatch<React.SetStateAction<ITreeItem[]>>;
   onCloseDelete: () => void;
-  onCancelAddDoc: () => void;
   onCloseSummary: () => void;
   onCloseMoreSummary: () => void;
   onCloseStatus: () => void;
@@ -42,11 +37,8 @@ const DocListModals = ({
   kb_id,
   deleteOpen,
   opraData,
-  data,
   list,
   dragTreeRef,
-  importKey: key,
-  urlOpen,
   summaryOpen,
   moreSummaryOpen,
   statusOpen,
@@ -56,7 +48,6 @@ const DocListModals = ({
   refresh,
   setData,
   onCloseDelete,
-  onCancelAddDoc,
   onCloseSummary,
   onCloseMoreSummary,
   onCloseStatus,
@@ -75,15 +66,6 @@ const DocListModals = ({
         refresh();
       }}
     />
-    {key && (
-      <AddDocByType
-        type={key as import('@/request/types').ConstsCrawlerSource}
-        open={urlOpen}
-        onCancel={onCancelAddDoc}
-        parentId={opraData[0]?.id || null}
-        refresh={refresh}
-      />
-    )}
     <Summary
       data={opraData[0]}
       kb_id={kb_id}

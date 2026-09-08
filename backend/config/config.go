@@ -14,7 +14,6 @@ type Config struct {
 	Admin         AdminConfig  `mapstructure:"admin"`
 	AdminPassword string       `mapstructure:"admin_password"`
 	PG            PGConfig     `mapstructure:"pg"`
-	MQ            MQConfig     `mapstructure:"mq"`
 	RAG           RAGConfig    `mapstructure:"rag"`
 	Redis         RedisConfig  `mapstructure:"redis"`
 	Auth          AuthConfig   `mapstructure:"auth"`
@@ -41,17 +40,6 @@ type AdminConfig struct {
 
 type PGConfig struct {
 	DSN string `mapstructure:"dsn"`
-}
-
-type MQConfig struct {
-	Type string     `mapstructure:"type"`
-	NATS NATSConfig `mapstructure:"nats"`
-}
-
-type NATSConfig struct {
-	Server   string `mapstructure:"server"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
 }
 
 type RAGConfig struct {
@@ -94,11 +82,6 @@ type SentryConfig struct {
 }
 
 func NewConfig() (*Config, error) {
-	// set default config
-	SUBNET_PREFIX := os.Getenv("SUBNET_PREFIX")
-	if SUBNET_PREFIX == "" {
-		SUBNET_PREFIX = "169.254.15"
-	}
 	defaultConfig := &Config{
 		Log: LogConfig{
 			Level: 0,
@@ -114,14 +97,6 @@ func NewConfig() (*Config, error) {
 		},
 		PG: PGConfig{
 			DSN: "host=panda-wiki-postgres user=panda-wiki password=panda-wiki-secret dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai",
-		},
-		MQ: MQConfig{
-			Type: "nats",
-			NATS: NATSConfig{
-				Server:   fmt.Sprintf("nats://%s.13:4222", SUBNET_PREFIX),
-				User:     "panda-wiki",
-				Password: "",
-			},
 		},
 		RAG: RAGConfig{
 			Provider: "pg",
@@ -184,9 +159,6 @@ func overrideWithEnv(c *Config) {
 	if env := os.Getenv("POSTGRES_PASSWORD"); env != "" {
 		c.PG.DSN = fmt.Sprintf("host=panda-wiki-postgres user=panda-wiki password=%s dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai", env)
 	}
-	if env := os.Getenv("NATS_PASSWORD"); env != "" {
-		c.MQ.NATS.Password = env
-	}
 	if env := os.Getenv("REDIS_PASSWORD"); env != "" {
 		c.Redis.Password = env
 	}
@@ -208,10 +180,6 @@ func overrideWithEnv(c *Config) {
 	// pg
 	if env := os.Getenv("PG_DSN"); env != "" {
 		c.PG.DSN = env
-	}
-	// nats
-	if env := os.Getenv("MQ_NATS_SERVER"); env != "" {
-		c.MQ.NATS.Server = env
 	}
 	// rag — pgvector only
 	c.RAG.Provider = "pg"

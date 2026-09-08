@@ -50,22 +50,6 @@ services:
       timeout: 5s
       retries: 10
 
-  panda-wiki-nats:
-    image: nats:2.10-alpine
-    container_name: panda-wiki-nats
-    restart: unless-stopped
-    command: ["-js", "-m", "8222", "--user", "panda-wiki", "--pass", "${NATS_PASSWORD}"]
-    volumes:
-      - pwk_nats_data:/data
-    networks:
-      default:
-        ipv4_address: 172.19.0.13
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8222/healthz | grep -q ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   panda-wiki-api:
     build:
       context: ../..
@@ -77,8 +61,6 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PG_DSN: host=panda-wiki-postgres user=panda-wiki password=${POSTGRES_PASSWORD} dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai
-      MQ_NATS_SERVER: nats://panda-wiki-nats:4222
-      NATS_PASSWORD: ${NATS_PASSWORD}
       REDIS_ADDR: panda-wiki-redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       S3_ENDPOINT: ${S3_ENDPOINT}
@@ -104,8 +86,6 @@ services:
       panda-wiki-postgres:
         condition: service_healthy
       panda-wiki-redis:
-        condition: service_healthy
-      panda-wiki-nats:
         condition: service_healthy
       panda-wiki-caddy:
         condition: service_started
@@ -138,7 +118,6 @@ services:
 volumes:
   pwk_postgres_data:
   pwk_redis_data:
-  pwk_nats_data:
 
 networks:
   default:

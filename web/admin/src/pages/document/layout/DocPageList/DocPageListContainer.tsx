@@ -44,8 +44,6 @@ const DocPageListContainer = ({
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [moreSummaryOpen, setMoreSummaryOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
-  const [urlOpen, setUrlOpen] = useState(false);
-  const [key, setKey] = useState<string | null>(null);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [isBatch, setIsBatch] = useState(false);
 
@@ -57,15 +55,6 @@ const DocPageListContainer = ({
       return fromTree ? [fromTree] : [];
     },
     [list, data],
-  );
-
-  const handleUrl = useCallback(
-    (item: ITreeItem, k: import('@/request/types').ConstsCrawlerSource) => {
-      setKey(k);
-      setUrlOpen(true);
-      setOpraData(getOperationData(item));
-    },
-    [getOperationData],
   );
 
   const handleDelete = useCallback(
@@ -127,7 +116,6 @@ const DocPageListContainer = ({
   );
 
   const menu = useDocTreeMenu({
-    handleUrl,
     handleDelete,
     handlePublish,
     handleRestudy,
@@ -244,11 +232,8 @@ const DocPageListContainer = ({
         kb_id={kb_id}
         deleteOpen={deleteOpen}
         opraData={opraData}
-        data={data}
         list={list}
         dragTreeRef={dragTreeRef}
-        importKey={key}
-        urlOpen={urlOpen}
         summaryOpen={summaryOpen}
         moreSummaryOpen={moreSummaryOpen}
         statusOpen={statusOpen}
@@ -262,10 +247,6 @@ const DocPageListContainer = ({
           setOpraData([]);
           setSelected([]);
           setBatchOpen(false);
-        }}
-        onCancelAddDoc={() => {
-          setUrlOpen(false);
-          setOpraData([]);
         }}
         onCloseSummary={() => {
           setSummaryOpen(false);

@@ -234,6 +234,14 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
 
+## 追加记录（2026-09-09，去掉 NATS 与无用运行时）
+- 默认编排改为 **5 容器**：Caddy + Postgres + Redis + API + App。
+- 删除 NATS 容器、API 启动时的 NATS 连接、JetStream 向量任务通道。
+- 文档学习只走 `rag_jobs` 表。
+- 原生部署去掉 NATS / MinIO，对象存储与 Docker 一样走 `.env` 中的 OSS。
+- 删除已无引用的 Raglite 客户端 `sdk/rag`。
+- 精简栈不含 crawler 服务，已移除 URL/飞书/离线文件等导入入口（后台菜单与 `/api/v1/crawler`），避免留下不可用功能。
+
 ## 追加记录（2026-09-09，上游 v3.86.5–v3.87.1 选择性合并）
 - 已合入：
   - 评论删除按知识库范围鉴权（此前已 cherry-pick）。
