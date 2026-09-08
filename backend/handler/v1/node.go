@@ -45,6 +45,7 @@ func NewNodeHandler(
 
 	group.POST("", h.CreateNode)
 	group.GET("/detail", h.GetNodeDetail)
+	group.GET("/export", h.ExportNode)
 	group.PUT("/detail", h.UpdateNodeDetail)
 	group.POST("/summary", h.SummaryNode)
 	group.POST("/summary/stream", h.SummaryNodeStream)
@@ -666,4 +667,35 @@ func (h *NodeHandler) NodeRestudy(c echo.Context) error {
 	}
 
 	return h.NewResponseWithData(c, nil)
+}
+
+// ExportNode
+//
+//	@Summary		Export Node
+//	@Description	Export node as Markdown or HTML
+//	@Tags			node
+//	@Accept			json
+//	@Produce		json
+//	@Security		bearerAuth
+//	@Param			param	query		v1.NodeExportReq	true	"export params"
+//	@Success		200		{object}	domain.PWResponse{data=v1.NodeExportResp}
+//	@Router			/api/v1/node/export [get]
+func (h *NodeHandler) ExportNode(c echo.Context) error {
+	var req v1.NodeExportReq
+	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "request params is invalid", err)
+	}
+	if err := c.Validate(&req); err != nil {
+		return h.NewResponseWithError(c, "validate request params failed", err)
+	}
+
+	resp, err := h.usecase.ExportNode(c.Request().Context(), &req)
+	if err != nil {
+		if errors.Is(err, usecase.ErrExportFolder) || errors.Is(err, usecase.ErrExportFormat) {
+			return h.NewResponseWithError(c, err.Error(), err)
+		}
+		h.logger.Error("export node failed", log.Error(err))
+		return h.NewResponseWithError(c, "export node failed", err)
+	}
+	return h.NewResponseWithData(c, resp)
 }

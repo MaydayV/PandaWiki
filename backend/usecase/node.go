@@ -46,6 +46,13 @@ type NodeUsecase struct {
 	modelUsecase *ModelUsecase
 }
 
+var htmlToMDConverter = rag.NewHTML2MDConverter()
+
+var (
+	ErrExportFolder = errors.New("folder cannot be exported")
+	ErrExportFormat = errors.New("unsupported export format")
+)
+
 func NewNodeUsecase(
 	nodeRepo *pg.NodeRepository,
 	navRepo *pg.NavRepository,
@@ -215,6 +222,85 @@ func (u *NodeUsecase) GetNodeByKBID(ctx context.Context, id, kbId, format string
 		}
 	}
 	return node, nil
+}
+
+func (u *NodeUsecase) ExportNode(ctx context.Context, req *v1.NodeExportReq) (*v1.NodeExportResp, error) {
+	node, err := u.nodeRepo.GetByID(ctx, req.ID, req.KbId)
+	if err != nil {
+		return nil, err
+	}
+	if node.Type == domain.NodeTypeFolder {
+		return nil, ErrExportFolder
+	}
+
+	content := node.Content
+	filename := sanitizeExportFilename(node.Name)
+
+	switch req.Format {
+	case "md":
+		if node.Meta.ContentType == domain.ContentTypeHTML || (node.Meta.ContentType != domain.ContentTypeMD && utils.IsLikelyHTML(content)) {
+			converted, err := convertHTMLToMarkdown(content)
+			if err != nil {
+				return nil, err
+			}
+			content = converted
+		}
+		filename += ".md"
+	case "html":
+		if node.Meta.ContentType == domain.ContentTypeMD || (node.Meta.ContentType != domain.ContentTypeHTML && !utils.IsLikelyHTML(content)) {
+			content = u.convertMDToHTML(content)
+		}
+		filename += ".html"
+		content = wrapHTMLDocument(node.Name, content)
+	default:
+		return nil, ErrExportFormat
+	}
+
+	return &v1.NodeExportResp{Content: content, Filename: filename}, nil
+}
+
+func convertHTMLToMarkdown(htmlContent string) (string, error) {
+	md, err := htmlToMDConverter.ConvertString(htmlContent)
+	if err != nil {
+		return "", fmt.Errorf("convert html to markdown: %w", err)
+	}
+	return md, nil
+}
+
+func sanitizeExportFilename(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "untitled"
+	}
+	var b strings.Builder
+	for _, r := range name {
+		switch r {
+		case '/', '\\', ':', '*', '?', '"', '<', '>', '|', '\n', '\r', '\t':
+			b.WriteByte('_')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func wrapHTMLDocument(title, body string) string {
+	var escaped strings.Builder
+	for _, r := range title {
+		switch r {
+		case '&':
+			escaped.WriteString("&amp;")
+		case '<':
+			escaped.WriteString("&lt;")
+		case '>':
+			escaped.WriteString("&gt;")
+		case '"':
+			escaped.WriteString("&quot;")
+		default:
+			escaped.WriteRune(r)
+		}
+	}
+	return fmt.Sprintf("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\" />\n<title>%s</title>\n</head>\n<body>\n%s\n</body>\n</html>", escaped.String(), body)
 }
 
 func (u *NodeUsecase) NodeAction(ctx context.Context, req *domain.NodeActionReq) error {

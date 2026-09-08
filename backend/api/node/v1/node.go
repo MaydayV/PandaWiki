@@ -113,3 +113,14 @@ type NodeMoveNavReq struct {
 	NavID   string   `json:"nav_id"`
 	NodeIDs []string `json:"node_ids"`
 }
+
+type NodeExportReq struct {
+	ID     string `query:"id" json:"id" validate:"required"`
+	KbId   string `query:"kb_id" json:"kb_id" validate:"required"`
+	Format string `query:"format" json:"format" validate:"required,oneof=md html"`
+}
+
+type NodeExportResp struct {
+	Content  string `json:"content"`
+	Filename string `json:"filename"`
+}

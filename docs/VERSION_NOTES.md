@@ -234,6 +234,22 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
 
+## 追加记录（2026-09-09，上游 v3.86.5–v3.87.1 选择性合并）
+- 已合入：
+  - 评论删除按知识库范围鉴权（此前已 cherry-pick）。
+  - 机器人更新校验：免费档位比较前把空 Prompt 归一成默认提示词，避免误报权限拒绝；并补齐 `WechatServiceLogo` 变更校验。
+- 刻意保留：
+  - 乘风版在 `AllowAdvancedBot=true` 时仍自动填充默认 Prompt（上游 v3.87.1 删掉了这条）。
+  - 不改 README star-history 图（乘风版 README 已按精简部署重写）。
+- 明确拒绝：
+  - 原项目在线/离线授权（#1828、`LicenseMode`、`backend/pro` 子模块）。乘风版无授权、全量开源，不引入原项目授权体系。
+  - Raglite / Qdrant / MinIO / 独立 Consumer 相关改动。
+- 按乘风版实现上游未合入 PR #1818：
+  - 新增 `GET /api/v1/node/export`，支持 Markdown / HTML。
+  - HTML↔Markdown 复用现有转换器，不用上游的字符串替换。
+  - 目录节点拒绝导出；文件名做非法字符清理；HTML 导出包成完整文档。
+  - 管理端编辑器仍用当前编辑内容导出（含未保存改动）；本接口导出已落库内容。
+
 ## 追加记录（2026-08-13，stack-slim 默认 OSS 对象存储）
 - 部署精简：
   - 默认 compose 6 容器（Caddy + Postgres + Redis + NATS + API + App）；已移除 MinIO/Qdrant/Raglite 及 legacy profile。
