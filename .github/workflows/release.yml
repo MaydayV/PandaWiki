@@ -1,0 +1,87 @@
+name: Release deploy pack
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "FV*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'FV')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        run: |
+          VERSION="${{ steps.ver.outputs.VERSION }}"
+          mkdir -p dist/pandawiki-deploy
+          cp docs/deploy/install.sh dist/pandawiki-deploy/
+          cp docs/deploy/generate-env.sh dist/pandawiki-deploy/
+          cp docs/deploy/quickstart.sh dist/pandawiki-deploy/
+          cp docs/deploy/docker-compose.image.yml dist/pandawiki-deploy/
+          cp docs/deploy/.env.example dist/pandawiki-deploy/
+          cp backend/store/pg/migration/full_fresh_deploy.sql dist/pandawiki-deploy/
+          printf '%s\n' "$VERSION" > dist/pandawiki-deploy/VERSION
+          chmod +x dist/pandawiki-deploy/*.sh
+          tar -C dist -czf "dist/pandawiki-deploy-${VERSION}.tar.gz" pandawiki-deploy
+          cp "dist/pandawiki-deploy-${VERSION}.tar.gz" dist/pandawiki-deploy.tar.gz
+          cp docs/deploy/install.sh dist/install.sh
+          chmod +x dist/install.sh
+          (cd dist && sha256sum install.sh pandawiki-deploy.tar.gz "pandawiki-deploy-${VERSION}.tar.gz" > SHA256SUMS)
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pandawiki-deploy-${{ steps.ver.outputs.VERSION }}
+          path: |
+            dist/install.sh
+            dist/pandawiki-deploy.tar.gz
+            dist/pandawiki-deploy-${{ steps.ver.outputs.VERSION }}.tar.gz
+            dist/SHA256SUMS
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.ver.outputs.VERSION }}
+          generate_release_notes: true
+          files: |
+            dist/install.sh
+            dist/pandawiki-deploy.tar.gz
+            dist/pandawiki-deploy-${{ steps.ver.outputs.VERSION }}.tar.gz
+            dist/SHA256SUMS
+          body: |
+            ## 一键安装（Linux + Docker）
+
+            ```bash
+            curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | bash
+            ```
+
+            指定版本与安装目录：
+
+            ```bash
+            curl -fsSL https://github.com/MaydayV/PandaWiki/releases/download/${{ steps.ver.outputs.VERSION }}/install.sh | \
+              PANDAWIKI_VERSION=${{ steps.ver.outputs.VERSION }} INSTALL_DIR=/opt/pandawiki bash
+            ```
+
+            安装前请准备阿里云 OSS（或其它 S3 兼容存储）的 AccessKey、Bucket 与公网访问地址。
+            默认 5 容器：Caddy + Postgres + Redis + API + App。
+
+            后台：`https://<服务器IP>:2443`  
+            前台：`http://<服务器IP>:3010`

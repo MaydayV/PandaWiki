@@ -38,6 +38,18 @@
 | 阿里云 OSS | 外部服务 | 图片/附件对象存储（S3 兼容 API） |
 | Caddy | `2.10-alpine`（容器） | 知识库访问规则与动态路由 |
 
+## 2.6 一键安装包（GitHub Release）
+
+> 打标签发布后即可用；本地尚未发版时仍可用下方源码 Compose。
+
+打 `FV*` / `v*` 标签后，CI 会把安装包挂到 GitHub Release，并继续把 api/app 镜像推到 Docker Hub。
+
+```bash
+curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | bash
+```
+
+发布包内含：`install.sh`、`docker-compose.image.yml`、`generate-env.sh`、`quickstart.sh`、`full_fresh_deploy.sql`。安装目录默认 `./pandawiki`，可用 `INSTALL_DIR` 覆盖。
+
 ## 3. 通用准备
 
 ### 3.1 拉取代码

@@ -7,7 +7,13 @@ cd "$SCRIPT_DIR"
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.image.yml}"
 ENV_FILE="${ENV_FILE:-${SCRIPT_DIR}/.env}"
-SQL_FILE="${SQL_FILE:-${SCRIPT_DIR}/../../backend/store/pg/migration/full_fresh_deploy.sql}"
+if [[ -z "${SQL_FILE:-}" ]]; then
+  if [[ -f "${SCRIPT_DIR}/full_fresh_deploy.sql" ]]; then
+    SQL_FILE="${SCRIPT_DIR}/full_fresh_deploy.sql"
+  else
+    SQL_FILE="${SCRIPT_DIR}/../../backend/store/pg/migration/full_fresh_deploy.sql"
+  fi
+fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo ">>> 生成 .env"

@@ -33,9 +33,34 @@ PandaWiki 乘风版（Fly Version）是基于 [PandaWiki 开源项目](https://g
 
 ## 部署
 
-### Docker Compose（推荐）
+### 一键安装（推荐）
 
-适用于 Linux 服务器生产或测试环境。
+Linux 服务器，已安装 Docker Compose v2。准备好阿里云 OSS（或其它 S3 兼容存储）。
+
+```bash
+curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | bash
+```
+
+脚本会下载发布包、生成数据库/JWT/管理员密码，并询问 OSS 凭证，然后拉起 5 个容器。
+
+指定版本与目录：
+
+```bash
+curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | \
+  INSTALL_DIR=/opt/pandawiki PANDAWIKI_VERSION=latest bash
+```
+
+非交互安装可预先导出 `S3_ACCESS_KEY`、`S3_SECRET_KEY`、`S3_BUCKET`、`S3_PUBLIC_BASE_URL`。
+
+启动后：
+
+- **管理后台**：`https://<服务器IP>:2443`
+- **Wiki 前台**：`http://<服务器IP>:3010`（经 Caddy）
+- 管理员密码见安装目录 `.env` 中的 `ADMIN_PASSWORD`
+
+完整说明：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+### 从源码使用 Compose
 
 ```bash
 git clone https://github.com/MaydayV/PandaWiki.git
@@ -45,8 +70,6 @@ cd docs/deploy
 ./generate-env.sh
 ./quickstart.sh
 ```
-
-`.env` 中至少配置：`POSTGRES_PASSWORD`、`REDIS_PASSWORD`、`S3_*`、`JWT_SECRET`、`ADMIN_PASSWORD`。
 
 启动后：
 
