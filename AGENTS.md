@@ -50,7 +50,7 @@ Run these from the repository root unless noted otherwise.
 ### Frontend
 
 - Install web dependencies: `cd web && pnpm install`
-- Start both frontend apps: `cd web && pnpm dev`
+- Start both frontend apps only inside Docker/VM: `cd web && pnpm dev`; do not run the project server directly on the macOS host.
 
 ## Build Commands
 
@@ -93,7 +93,7 @@ Run these from the repository root unless noted otherwise.
 - Lint backend: `cd backend && golangci-lint run`
 - Full backend lint target: `cd backend && make lint`
 - Format one file/package: `cd backend && gofmt -w path/to/file.go && goimports -w path/to/file.go`
-- `cd backend && make lint` is required before commit for any backend code change.
+- For backend changes being delivered or committed, run the canonical gate `cd backend && make lint`.
 
 Notes:
 
@@ -177,7 +177,7 @@ Notes:
 ## Verification Checklist
 
 - Backend change: run `go test` on the affected package at minimum.
-- Any backend code change requires `cd backend && make lint` before commit.
+- Backend delivery gate: `cd backend && make lint`.
 - API contract change: search for all callers and update them together.
 - If swagger files were modified, run `cd web && pnpm api` before committing any related frontend changes.
 - Frontend admin change: run targeted `eslint` and, if feasible, `pnpm build` in `web/admin`.
