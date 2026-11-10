@@ -56,7 +56,7 @@ const request = <T>(options: AxiosRequestConfig): Promise<T> => {
     },
   );
 
-  return service(options);
+  return service(options) as unknown as Promise<T>;
 };
 
 export default request;

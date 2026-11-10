@@ -1,5 +1,5 @@
 import data from '@emoji-mart/data';
-import Picker from '@emoji-mart/react';
+import PickerComponent from '@emoji-mart/react';
 import { Box, IconButton, Popover, SxProps } from '@mui/material';
 import React, { useCallback } from 'react';
 import {
@@ -8,6 +8,12 @@ import {
   IconWenjianjiaKai,
 } from '@panda-wiki/icons';
 import zh from '../../assets/emoji-data/zh.json';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Picker: any =
+  (PickerComponent as any)?.default?.default ||
+  (PickerComponent as any)?.default ||
+  PickerComponent;
 
 interface EmojiPickerProps {
   type: 1 | 2;

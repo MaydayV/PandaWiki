@@ -685,6 +685,7 @@ func (u *KnowledgeBaseUsecase) ReindexRAG(ctx context.Context, kbID string, recr
 				KBID:          kbID,
 				NodeReleaseID: release.ID,
 				Action:        "upsert",
+				Force:         true,
 			},
 		}); err != nil {
 			u.logger.Error("queue rag reindex failed",

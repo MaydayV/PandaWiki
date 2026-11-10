@@ -234,6 +234,18 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
 
+## 追加记录（2026-11-10，发布 FV2.6.18.2111）
+- 版本号：`FV2.6.18.2111`。
+- 上游同步与安全加固：
+  - 合入上游 SSRF 防御（严格封禁私有/回环/保留/链路本地 IP 地址）、图片 MIME 与 Magic Bytes 安全校验、Sitemap XML 实体注入转义防御。
+  - 修复 RAG 重建任务并发竞争与防重幂等锁，保障多副本及高并发场景下任务状态一致性。
+- 依赖高危漏洞清零（Google OSV 扫描全面合规）：
+  - 前台应用升级至 Next.js 16.4.1，彻底修复 CVE-2025-29927、CVE-2025-29928、CVE-2025-55182 等所有已知依赖漏洞。
+  - 后端升级 Echo v4.16.1、gRPC 1.83.2、golang.org/x/crypto 等安全补丁版本。
+- 前端管理后台 Bug 修复：
+  - 修复在 React 19 / Vite 打包环境下点击「系统配置」时由于 CommonJS 模块导出嵌套导致的 `Minified React error #130` 报错。
+  - 为 `LottieIcon`、`EmojiPicker`、`ReactDiffViewer` 等组件增加 ESM/CJS interop 兼容与运行时防御降级。
+
 ## 追加记录（2026-09-09，发布 FV2.6.17.2111）
 - 版本号：`FV2.6.17.2111`。
 - 默认 5 容器精简栈、去掉 NATS、移除不可用的 Anydoc 导入，并提供 GitHub Release 一键安装包。

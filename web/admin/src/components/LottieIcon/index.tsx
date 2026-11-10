@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import Lottie from 'lottie-react';
+import LottieComponent from 'lottie-react';
 import { CSSProperties } from 'react';
+
+const Lottie: any =
+  (LottieComponent as any)?.default?.default ||
+  (LottieComponent as any)?.default ||
+  LottieComponent;
 
 const LottieIcon = ({
   id,
@@ -15,6 +20,9 @@ const LottieIcon = ({
   autoplay?: boolean;
   style?: CSSProperties;
 }) => {
+  if (!Lottie || typeof Lottie !== 'function') {
+    return null;
+  }
   return (
     <Lottie
       id={id}

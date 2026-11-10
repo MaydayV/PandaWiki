@@ -3,16 +3,17 @@ package usecase
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -35,6 +36,12 @@ type FileUsecase struct {
 	httpClient        *http.Client
 }
 
+const approvedIPDialTimeout = 10 * time.Second
+
+const approvedIPDialAttemptTimeout = 3 * time.Second
+
+const remoteDownloadTimeout = 2 * time.Minute
+
 func NewFileUsecase(logger *log.Logger, s3Client *s3.MinioClient, config *config.Config, systemSettingRepo *pg.SystemSettingRepo) *FileUsecase {
 	return &FileUsecase{
 		s3Client:          s3Client,
@@ -42,11 +49,7 @@ func NewFileUsecase(logger *log.Logger, s3Client *s3.MinioClient, config *config
 		config:            config,
 		systemSettingRepo: systemSettingRepo,
 		httpClient: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-			},
+			Transport: &http.Transport{},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Prevent redirects to bypass SSRF checks
 				return http.ErrUseLastResponse
@@ -192,23 +195,29 @@ func (u *FileUsecase) UploadFileFromReader(
 }
 
 func (u *FileUsecase) UploadFileByUrl(ctx context.Context, kbID string, fileURL string) (string, error) {
+	downloadCtx, cancel := context.WithTimeout(ctx, remoteDownloadTimeout)
+	defer cancel()
+
 	// Validate URL to prevent SSRF attacks
-	if err := utils.ValidateURLForSSRF(fileURL); err != nil {
+	validatedIPs, err := utils.ResolveURLForSSRFWithContext(downloadCtx, fileURL)
+	if err != nil {
 		return "", err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	req, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, fileURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := u.httpClient.Do(req)
+	client := u.httpClientForIPs(validatedIPs)
+	defer client.CloseIdleConnections()
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to download file: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Handle redirects manually to re-validate each redirect target
+	// Reject redirects so every target must pass SSRF validation explicitly.
 	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
 		return "", fmt.Errorf("redirects are not allowed for security reasons")
 	}
@@ -227,27 +236,19 @@ func (u *FileUsecase) UploadFileByUrl(ctx context.Context, kbID string, fileURL 
 		return "", fmt.Errorf("failed to read response body: file size exceeds limit of %d bytes", maxRemoteFileSize)
 	}
 
-	urlPath := fileURL
-	if idx := strings.Index(urlPath, "?"); idx != -1 {
-		urlPath = urlPath[:idx]
+	// Derive the stored type from the downloaded bytes. A remote URL path and
+	// Content-Type can both be chosen by the attacker and must not determine
+	// the extension that later controls browser handling.
+	contentType, ext, err := safeRemoteContentType(data)
+	if err != nil {
+		return "", err
 	}
-	ext := strings.ToLower(filepath.Ext(urlPath))
 
 	if err := u.checkDeniedExtension(ctx, ext); err != nil {
 		return "", err
 	}
 
 	s3Filename := fmt.Sprintf("%s/%s%s", kbID, uuid.New().String(), ext)
-
-	// Derive content type from the actual data instead of trusting the remote header
-	contentType := http.DetectContentType(data)
-	if contentType == "" || contentType == "application/octet-stream" {
-		if extType := mime.TypeByExtension(ext); extType != "" {
-			contentType = extType
-		} else {
-			contentType = "application/octet-stream"
-		}
-	}
 
 	putResp, err := u.s3Client.PutObject(
 		ctx,
@@ -264,6 +265,75 @@ func (u *FileUsecase) UploadFileByUrl(ctx context.Context, kbID string, fileURL 
 	}
 
 	return putResp.Key, nil
+}
+
+func safeRemoteContentType(data []byte) (string, string, error) {
+	detected := http.DetectContentType(data)
+	mediaType, _, err := mime.ParseMediaType(detected)
+	if err != nil {
+		return "", "", fmt.Errorf("unsupported remote file type")
+	}
+
+	switch mediaType {
+	case "image/jpeg":
+		return mediaType, ".jpg", nil
+	case "image/png":
+		return mediaType, ".png", nil
+	case "image/gif":
+		return mediaType, ".gif", nil
+	case "image/webp":
+		return mediaType, ".webp", nil
+	default:
+		return "", "", fmt.Errorf("unsupported remote file type: %s", mediaType)
+	}
+}
+
+func (u *FileUsecase) httpClientForIPs(ips []net.IP) *http.Client {
+	baseTransport := u.httpClient.Transport.(*http.Transport)
+	transport := baseTransport.Clone()
+	transport.DisableKeepAlives = true
+	transport.DialContext = dialApprovedIPs(ips)
+
+	return &http.Client{
+		Transport:     transport,
+		CheckRedirect: u.httpClient.CheckRedirect,
+	}
+}
+
+func dialApprovedIPs(ips []net.IP) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, _, address string) (net.Conn, error) {
+		_, port, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid target address: %w", err)
+		}
+
+		dialDeadline := time.Now().Add(approvedIPDialTimeout)
+		if deadline, ok := ctx.Deadline(); ok && deadline.Before(dialDeadline) {
+			dialDeadline = deadline
+		}
+
+		dialer := net.Dialer{}
+		var lastErr error
+		for _, ip := range ips {
+			remaining := time.Until(dialDeadline)
+			if remaining <= 0 {
+				break
+			}
+			attemptTimeout := min(remaining, approvedIPDialAttemptTimeout)
+			attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
+			conn, err := dialer.DialContext(attemptCtx, "tcp", net.JoinHostPort(ip.String(), port))
+			cancel()
+			if err == nil {
+				return conn, nil
+			}
+			lastErr = err
+		}
+
+		if lastErr == nil {
+			return nil, fmt.Errorf("no approved IP addresses available")
+		}
+		return nil, fmt.Errorf("failed to connect to approved IP addresses: %w", lastErr)
+	}
 }
 
 // checkDeniedExtension checks if the file extension is in the denied list

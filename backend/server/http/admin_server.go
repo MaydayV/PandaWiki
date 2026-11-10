@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -18,8 +17,6 @@ import (
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/setup"
 )
-
-var nonPDFStaticFile = regexp.MustCompile(`(?i)\.pdf($|\?)`)
 
 // StartAdminServer serves the admin SPA on HTTPS when static assets are present.
 func StartAdminServer(cfg *config.Config, logger *log.Logger) error {
@@ -52,7 +49,14 @@ func StartAdminServer(cfg *config.Config, logger *log.Logger) error {
 		return c.NoContent(http.StatusServiceUnavailable)
 	})
 
-	streamPaths := []string{"/share/v1/chat/message", "/api/v1/creation/text"}
+	streamPaths := []string{
+		"/share/v1/chat/message",
+		"/share/v1/chat/widget",
+		"/share/v1/chat/completions",
+		"/share/v1/app/wechat/service/answer",
+		"/api/v1/creation/text",
+		"/api/v1/node/summary/stream",
+	}
 	for _, p := range streamPaths {
 		path := p
 		e.Any(path, echo.WrapHandler(streamProxy))

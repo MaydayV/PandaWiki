@@ -43,10 +43,16 @@ import AutoModelConfig, {
   DEFAULT_AUTO_MODE_API_BASE_URL,
 } from './AutoModelConfig';
 
-const ModelModal = lazy(() =>
-  import('@ctzhian/modelkit').then(
-    (mod: typeof import('@ctzhian/modelkit')) => ({ default: mod.ModelModal }),
-  ),
+const ModelModal = lazy<(typeof import('@ctzhian/modelkit'))['ModelModal']>(
+  () =>
+    import('@ctzhian/modelkit').then(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mod: any) => ({
+        default: (mod.ModelModal ||
+          mod.default?.ModelModal ||
+          mod.default) as (typeof import('@ctzhian/modelkit'))['ModelModal'],
+      }),
+    ),
 );
 
 export interface ModelConfigRef {
@@ -346,32 +352,24 @@ const ModelConfig = forwardRef<ModelConfigRef, ModelConfigProps>(
       }
     };
 
-    const IconModel = modelData.chat
-      ? ModelProvider[modelData.chat.provider as keyof typeof ModelProvider]
-          .icon
-      : null;
+    const getProviderIcon = (providerKey?: string) => {
+      if (!providerKey) return null;
+      const provider = ModelProvider[providerKey as keyof typeof ModelProvider];
+      if (!provider || !provider.icon) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Icon = (provider.icon as any)?.default || provider.icon;
+      return typeof Icon === 'function' || typeof Icon === 'object'
+        ? Icon
+        : null;
+    };
 
-    const IconEmbeddingModel = modelData.embedding
-      ? ModelProvider[
-          modelData.embedding.provider as keyof typeof ModelProvider
-        ].icon
-      : null;
-
-    const IconRerankModel = modelData.rerank
-      ? ModelProvider[modelData.rerank.provider as keyof typeof ModelProvider]
-          .icon
-      : null;
-
-    const IconAnalysisModel = modelData.analysis
-      ? ModelProvider[modelData.analysis.provider as keyof typeof ModelProvider]
-          .icon
-      : null;
-
-    const IconAnalysisVLModel = modelData['analysis-vl']
-      ? ModelProvider[
-          modelData['analysis-vl'].provider as keyof typeof ModelProvider
-        ].icon
-      : null;
+    const IconModel = getProviderIcon(modelData.chat?.provider);
+    const IconEmbeddingModel = getProviderIcon(modelData.embedding?.provider);
+    const IconRerankModel = getProviderIcon(modelData.rerank?.provider);
+    const IconAnalysisModel = getProviderIcon(modelData.analysis?.provider);
+    const IconAnalysisVLModel = getProviderIcon(
+      modelData['analysis-vl']?.provider,
+    );
 
     const modelModalChatData = useMemo(() => {
       return convertLocalModelToUIModel(modelData.chat);

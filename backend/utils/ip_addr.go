@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +17,18 @@ var documentationPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("198.51.100.0/24"), // TEST-NET-2
 	netip.MustParsePrefix("203.0.113.0/24"),  // TEST-NET-3
 	netip.MustParsePrefix("2001:db8::/32"),   // IPv6 Documentation
+}
+
+var reservedIPv6Prefixes = []netip.Prefix{
+	netip.MustParsePrefix("::/128"),
+	netip.MustParsePrefix("::ffff:0:0/96"),
+	netip.MustParsePrefix("64:ff9b::/96"),
+	netip.MustParsePrefix("64:ff9b:1::/48"),
+	netip.MustParsePrefix("100::/64"),
+	netip.MustParsePrefix("2001::/23"),
+	netip.MustParsePrefix("2001:2::/48"),
+	netip.MustParsePrefix("2002::/16"),
+	netip.MustParsePrefix("ff00::/8"),
 }
 
 func GetClientIPFromRemoteAddr(c echo.Context) string {
@@ -116,25 +129,18 @@ func isOtherReservedIP(ip net.IP) bool {
 			(ip4[0]&0xf0) == 240
 	}
 
-	// Other reserved IPv6 ranges:
-	//   ::/128 - Unspecified address
-	//   ::1/128 - Loopback address (already covered by IsLoopback())
-	//   ::ffff:0:0/96 - IPv4-mapped IPv6 address
-	//   64:ff9b::/96 - IPv4-IPv6 translation (RFC 6052)
-	//   100::/64 - Discard prefix (RFC 6666)
-	//   2001::/23 - IETF Protocol Assignments
-	//   2001:2::/48 - Benchmarking (RFC 5180)
-	//   2002::/16 - 6to4 (RFC 3056)
-	//   fe80::/10 - Link-local (already covered by IsLinkLocalUnicast())
-	//   ff00::/8 - Multicast
-	return ip.Equal(net.IPv6unspecified) ||
-		ip.Equal(net.ParseIP("::ffff:0:0")) ||
-		ip.Equal(net.ParseIP("64:ff9b::")) ||
-		ip.Equal(net.ParseIP("100::")) ||
-		(len(ip) == net.IPv6len && ip[0] == 0x20 && ip[1] == 0x01 && (ip[2]&0xfe) == 0) ||
-		(len(ip) == net.IPv6len && ip[0] == 0x20 && ip[1] == 0x01 && ip[2] == 0x00 && ip[3] == 0x02) ||
-		(len(ip) == net.IPv6len && ip[0] == 0x20 && ip[1] == 0x02) ||
-		(len(ip) == net.IPv6len && ip[0] == 0xff)
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok || addr.Is4() {
+		return false
+	}
+
+	for _, prefix := range reservedIPv6Prefixes {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func IsIPv6(ipStr string) bool {
@@ -142,47 +148,60 @@ func IsIPv6(ipStr string) bool {
 	return ip != nil && ip.To4() == nil
 }
 
-// ValidateURLForSSRF validates a URL to prevent SSRF attacks
+// ResolveURLForSSRF validates a URL and returns the resolved public IPs that
+// are safe for the caller to connect to.
 // It checks:
 // - URL format is valid
 // - Scheme is http or https only
 // - No credentials in URL
 // - Hostname resolves to public IP addresses only (blocks private/reserved IPs)
-func ValidateURLForSSRF(urlStr string) error {
+func ResolveURLForSSRF(urlStr string) ([]net.IP, error) {
+	return ResolveURLForSSRFWithContext(context.Background(), urlStr)
+}
+
+// ResolveURLForSSRFWithContext validates a URL using the provided context and
+// returns the resolved public IPs that are safe for the caller to connect to.
+func ResolveURLForSSRFWithContext(ctx context.Context, urlStr string) ([]net.IP, error) {
 	// Parse and validate URL
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return fmt.Errorf("invalid URL format: %w", err)
+		return nil, fmt.Errorf("invalid URL format: %w", err)
 	}
 
 	// Validate URL scheme (only http/https allowed)
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return fmt.Errorf("invalid URL scheme: only http and https are allowed")
+		return nil, fmt.Errorf("invalid URL scheme: only http and https are allowed")
 	}
 
 	// Block URLs with userinfo (credentials)
 	if parsedURL.User != nil {
-		return fmt.Errorf("URLs with credentials are not allowed")
+		return nil, fmt.Errorf("URLs with credentials are not allowed")
 	}
 
 	// Resolve hostname to IP and check if it's private/reserved
 	hostname := parsedURL.Hostname()
 	if hostname == "" {
-		return fmt.Errorf("invalid URL: missing hostname")
+		return nil, fmt.Errorf("invalid URL: missing hostname")
 	}
 
 	// Resolve the hostname to IP addresses
-	ips, err := net.LookupIP(hostname)
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", hostname)
 	if err != nil {
-		return fmt.Errorf("failed to resolve hostname: %w", err)
+		return nil, fmt.Errorf("failed to resolve hostname: %w", err)
 	}
 
 	// Check if any resolved IP is private or reserved
 	for _, ip := range ips {
 		if IsPrivateOrReservedIP(ip.String()) {
-			return fmt.Errorf("access to private/reserved IP addresses is not allowed")
+			return nil, fmt.Errorf("access to private/reserved IP addresses is not allowed")
 		}
 	}
 
-	return nil
+	return ips, nil
+}
+
+// ValidateURLForSSRF validates a URL to prevent SSRF attacks.
+func ValidateURLForSSRF(urlStr string) error {
+	_, err := ResolveURLForSSRF(urlStr)
+	return err
 }

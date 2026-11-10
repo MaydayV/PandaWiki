@@ -11,7 +11,13 @@ import { Box, Button, Stack } from '@mui/material';
 import { IconWenjian } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
-import ReactDiffViewer from 'react-diff-viewer';
+import DiffViewerComponent from 'react-diff-viewer';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ReactDiffViewer: any =
+  (DiffViewerComponent as any)?.default?.default ||
+  (DiffViewerComponent as any)?.default ||
+  DiffViewerComponent;
 
 type MarkdownPreviewModalProps = {
   open: boolean;

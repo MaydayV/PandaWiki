@@ -38,8 +38,9 @@ func RegisterStaticFileRoutes(e *echo.Echo, cfg *config.Config) {
 		}
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		if resp.Request != nil && !nonPDFStaticFile.MatchString(resp.Request.URL.Path) {
+		if resp.Request != nil {
 			resp.Header.Set("Content-Disposition", "attachment")
+			resp.Header.Set("X-Content-Type-Options", "nosniff")
 		}
 		return nil
 	}

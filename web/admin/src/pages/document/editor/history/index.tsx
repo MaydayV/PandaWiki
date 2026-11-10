@@ -33,10 +33,16 @@ import {
 } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
 import { Fragment, useEffect, useRef, useState } from 'react';
-import ReactDiffViewer from 'react-diff-viewer';
+import DiffViewerComponent from 'react-diff-viewer';
 import { useNavigate, useOutletContext, useParams } from 'react-router';
 import { WrapContext } from '..';
 import VersionRollback from '../../component/VersionRollback';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ReactDiffViewer: any =
+  (DiffViewerComponent as any)?.default?.default ||
+  (DiffViewerComponent as any)?.default ||
+  DiffViewerComponent;
 
 /** 目录栏宽度，与右侧版本列表宽度一致 */
 const CATALOG_WIDTH = 292;
