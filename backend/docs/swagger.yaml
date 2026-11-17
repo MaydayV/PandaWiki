@@ -1,51 +1,5 @@
 basePath: /
 definitions:
-  anydoc.Child:
-    properties:
-      children:
-        items:
-          $ref: '#/definitions/anydoc.Child'
-        type: array
-      value:
-        $ref: '#/definitions/anydoc.Value'
-    type: object
-  anydoc.DingtalkSetting:
-    properties:
-      app_id:
-        type: string
-      app_secret:
-        type: string
-      phone:
-        type: string
-      space_id:
-        type: string
-      unionid:
-        type: string
-    type: object
-  anydoc.FeishuSetting:
-    properties:
-      app_id:
-        type: string
-      app_secret:
-        type: string
-      space_id:
-        type: string
-      user_access_token:
-        type: string
-    type: object
-  anydoc.Value:
-    properties:
-      file:
-        type: boolean
-      file_type:
-        type: string
-      id:
-        type: string
-      summary:
-        type: string
-      title:
-        type: string
-    type: object
   consts.AuthType:
     enum:
     - ""
@@ -82,48 +36,6 @@ definitions:
     - CopySettingNone
     - CopySettingAppend
     - CopySettingDisabled
-  consts.CrawlerSource:
-    enum:
-    - url
-    - rss
-    - sitemap
-    - notion
-    - feishu
-    - dingtalk
-    - file
-    - epub
-    - yuque
-    - siyuan
-    - mindoc
-    - wikijs
-    - confluence
-    type: string
-    x-enum-varnames:
-    - CrawlerSourceUrl
-    - CrawlerSourceRSS
-    - CrawlerSourceSitemap
-    - CrawlerSourceNotion
-    - CrawlerSourceFeishu
-    - CrawlerSourceDingtalk
-    - CrawlerSourceFile
-    - CrawlerSourceEpub
-    - CrawlerSourceYuque
-    - CrawlerSourceSiyuan
-    - CrawlerSourceMindoc
-    - CrawlerSourceWikijs
-    - CrawlerSourceConfluence
-  consts.CrawlerStatus:
-    enum:
-    - pending
-    - in_process
-    - completed
-    - failed
-    type: string
-    x-enum-varnames:
-    - CrawlerStatusPending
-    - CrawlerStatusInProcess
-    - CrawlerStatusCompleted
-    - CrawlerStatusFailed
   consts.HomePageSetting:
     enum:
     - doc
@@ -423,15 +335,6 @@ definitions:
       provider:
         type: string
       tracking_id:
-        type: string
-    type: object
-  domain.AnydocUploadResp:
-    properties:
-      code:
-        type: integer
-      data:
-        type: string
-      err:
         type: string
     type: object
   domain.AppDetailResp:
@@ -1944,7 +1847,7 @@ definitions:
   domain.ModelModeSetting:
     properties:
       auto_mode_api_base_url:
-        description: 自动配置 API 地址
+        description: 自动配置 API 地址（乘风版：可自定义）
         type: string
       auto_mode_api_key:
         description: 百智云 API Key
@@ -2712,7 +2615,7 @@ definitions:
   domain.SwitchModeReq:
     properties:
       auto_mode_api_base_url:
-        description: 自动配置 API 地址
+        description: 自动配置 API 地址（乘风版：可自定义）
         type: string
       auto_mode_api_key:
         description: 百智云 API Key
@@ -3371,96 +3274,6 @@ definitions:
       total:
         type: integer
     type: object
-  v1.CrawlerExportReq:
-    properties:
-      doc_id:
-        type: string
-      file_type:
-        type: string
-      id:
-        type: string
-      kb_id:
-        type: string
-      space_id:
-        type: string
-    required:
-    - doc_id
-    - id
-    - kb_id
-    type: object
-  v1.CrawlerExportResp:
-    properties:
-      task_id:
-        type: string
-    type: object
-  v1.CrawlerParseReq:
-    properties:
-      crawler_source:
-        $ref: '#/definitions/consts.CrawlerSource'
-      dingtalk_setting:
-        $ref: '#/definitions/anydoc.DingtalkSetting'
-      feishu_setting:
-        $ref: '#/definitions/anydoc.FeishuSetting'
-      filename:
-        type: string
-      kb_id:
-        type: string
-      key:
-        type: string
-    required:
-    - crawler_source
-    - kb_id
-    type: object
-  v1.CrawlerParseResp:
-    properties:
-      docs:
-        $ref: '#/definitions/anydoc.Child'
-      id:
-        type: string
-    type: object
-  v1.CrawlerResultItem:
-    properties:
-      content:
-        type: string
-      status:
-        $ref: '#/definitions/consts.CrawlerStatus'
-      task_id:
-        type: string
-    type: object
-  v1.CrawlerResultReq:
-    properties:
-      task_id:
-        type: string
-    required:
-    - task_id
-    type: object
-  v1.CrawlerResultResp:
-    properties:
-      content:
-        type: string
-      status:
-        $ref: '#/definitions/consts.CrawlerStatus'
-    required:
-    - status
-    type: object
-  v1.CrawlerResultsReq:
-    properties:
-      task_ids:
-        items:
-          type: string
-        type: array
-    required:
-    - task_ids
-    type: object
-  v1.CrawlerResultsResp:
-    properties:
-      list:
-        items:
-          $ref: '#/definitions/v1.CrawlerResultItem'
-        type: array
-      status:
-        $ref: '#/definitions/consts.CrawlerStatus'
-    type: object
   v1.CreateUserReq:
     properties:
       account:
@@ -3642,6 +3455,13 @@ definitions:
       updated_at:
         type: string
     type: object
+  v1.NodeExportResp:
+    properties:
+      content:
+        type: string
+      filename:
+        type: string
+    type: object
   v1.NodeMoveNavReq:
     properties:
       kb_id:
@@ -3730,6 +3550,20 @@ definitions:
       unreleased_nav_count:
         type: integer
       unstudied_count:
+        type: integer
+    type: object
+  v1.ReindexRAGReq:
+    properties:
+      kb_id:
+        type: string
+      recreate_dataset:
+        type: boolean
+    required:
+    - kb_id
+    type: object
+  v1.ReindexRAGResp:
+    properties:
+      queued:
         type: integer
     type: object
   v1.ResetPasswordReq:
@@ -4665,114 +4499,6 @@ paths:
       summary: GetMessageFeedBackList
       tags:
       - Message
-  /api/v1/crawler/export:
-    post:
-      consumes:
-      - application/json
-      description: CrawlerExport
-      parameters:
-      - description: Scrape
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.CrawlerExportReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/domain.PWResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.CrawlerExportResp'
-              type: object
-      summary: CrawlerExport
-      tags:
-      - crawler
-  /api/v1/crawler/parse:
-    post:
-      consumes:
-      - application/json
-      description: 解析文档树
-      parameters:
-      - description: Scrape
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.CrawlerParseReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/domain.PWResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.CrawlerParseResp'
-              type: object
-      summary: 解析文档树
-      tags:
-      - crawler
-  /api/v1/crawler/result:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve the result of a previously started scraping task
-      parameters:
-      - description: Crawler Result Request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.CrawlerResultReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/domain.PWResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.CrawlerResultResp'
-              type: object
-      summary: Get Crawler Result
-      tags:
-      - crawler
-  /api/v1/crawler/results:
-    post:
-      consumes:
-      - application/json
-      description: Retrieve the results of a previously started scraping task
-      parameters:
-      - description: Crawler Results Request
-        in: body
-        name: param
-        required: true
-        schema:
-          $ref: '#/definitions/v1.CrawlerResultsReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/domain.PWResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.CrawlerResultsResp'
-              type: object
-      summary: Get Crawler Results
-      tags:
-      - crawler
   /api/v1/creation/tab-complete:
     post:
       consumes:
@@ -4839,30 +4565,6 @@ paths:
           schema:
             $ref: '#/definitions/domain.ObjectUploadResp'
       summary: Upload File
-      tags:
-      - file
-  /api/v1/file/upload/anydoc:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Upload Anydoc File
-      parameters:
-      - description: File
-        in: formData
-        name: file
-        required: true
-        type: file
-      - description: File Path
-        in: formData
-        name: path
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/domain.AnydocUploadResp'
-      summary: Upload Anydoc File
       tags:
       - file
   /api/v1/file/upload/url:
@@ -5003,6 +4705,33 @@ paths:
                   type: array
               type: object
       summary: GetKnowledgeBaseList
+      tags:
+      - knowledge_base
+  /api/v1/knowledge_base/rag/reindex:
+    post:
+      consumes:
+      - application/json
+      description: Reindex all published documents in the knowledge base
+      parameters:
+      - description: Reindex RAG Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.ReindexRAGReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.ReindexRAGResp'
+              type: object
+      summary: ReindexRAG
       tags:
       - knowledge_base
   /api/v1/knowledge_base/release:
@@ -5647,6 +5376,44 @@ paths:
       security:
       - bearerAuth: []
       summary: Update Node Detail
+      tags:
+      - node
+  /api/v1/node/export:
+    get:
+      consumes:
+      - application/json
+      description: Export node as Markdown or HTML
+      parameters:
+      - enum:
+        - md
+        - html
+        in: query
+        name: format
+        required: true
+        type: string
+      - in: query
+        name: id
+        required: true
+        type: string
+      - in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.NodeExportResp'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: Export Node
       tags:
       - node
   /api/v1/node/list:
