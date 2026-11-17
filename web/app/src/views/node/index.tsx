@@ -105,7 +105,9 @@ const Doc = ({
         );
       });
     }
-  }, [node]);
+    // editorRef 是 useTiptap 每次渲染返回的新对象而非稳定的 ref，加入依赖会让 setContent 在每次渲染后重复执行，并通过 onTocUpdate→setHeadings 造成无限循环；数据依赖 node/isMarkdown 已列出
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node, isMarkdown]);
 
   useEffect(() => {
     document.querySelector('#scroll-container')?.scrollTo({ top: 0 });

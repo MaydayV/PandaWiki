@@ -45,12 +45,6 @@ const NavBar = ({
     [selectedNavId, setSelectedNavId, navDataMap, basePath, router],
   );
 
-  if (!navList.length || navList.length <= 1) {
-    return null;
-  }
-
-  const tabValue = selectedNavId || navList[0]?.id || '';
-
   const contentWidthStyle = useMemo(() => {
     if (docWidth === 'full') return { width: '100%' };
     const docContentWidth =
@@ -68,6 +62,12 @@ const NavBar = ({
       maxWidth: '100%',
     };
   }, [docWidth, catalogWidth]);
+
+  if (!navList.length || navList.length <= 1) {
+    return null;
+  }
+
+  const tabValue = selectedNavId || navList[0]?.id || '';
 
   return (
     <Box

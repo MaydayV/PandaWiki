@@ -27,9 +27,9 @@ interface CardAIProps {
   kb: DomainKnowledgeBaseDetail;
 }
 
-const StyledRadioLabel = styled(Box)(({ theme }) => ({
+const StyledRadioLabel = styled(Box)({
   width: 100,
-}));
+});
 
 const CardAI = ({ kb }: CardAIProps) => {
   const [isEdit, setIsEdit] = useState(false);
@@ -133,7 +133,7 @@ const CardAI = ({ kb }: CardAIProps) => {
       );
       setWebApp(appRes);
     });
-  }, [kb, canEditPrompt]);
+  }, [kb, license.edition, canEditPrompt, setValue]);
 
   const onResetPrompt = (type: 'content' | 'summary_content' = 'content') => {
     Modal.confirm({

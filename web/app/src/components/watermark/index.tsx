@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { styled, Box, useTheme } from '@mui/material';
 
 export type WatermarkProps = {
@@ -211,42 +211,39 @@ export default function Watermark(props: WatermarkProps) {
     () => (Array.isArray(content) ? content : content ? [content] : []),
     [content],
   );
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (contentLines.length === 0) {
-      setDataUrl(null);
-      return;
-    }
-    const url = generateWatermarkDataUrl({
+  // dataUrl 是纯派生值（离屏 canvas 生成，无外部副作用），直接用 useMemo 计算，
+  // 避免 effect 内同步 setState 触发级联渲染
+  const dataUrl = useMemo(
+    () =>
+      generateWatermarkDataUrl({
+        contentLines,
+        fontSize,
+        fontFamily,
+        fontWeight,
+        color: resolvedColor,
+        opacity: opacity ?? 0.1,
+        rotate,
+        gapX,
+        gapY,
+        lineHeight,
+        tileWidth,
+        tileHeight,
+      }),
+    [
       contentLines,
       fontSize,
       fontFamily,
       fontWeight,
-      color: resolvedColor,
-      opacity: opacity ?? 0.1,
+      resolvedColor,
+      opacity,
       rotate,
       gapX,
       gapY,
       lineHeight,
       tileWidth,
       tileHeight,
-    });
-    setDataUrl(url);
-  }, [
-    contentLines,
-    fontSize,
-    fontFamily,
-    fontWeight,
-    resolvedColor,
-    opacity,
-    rotate,
-    gapX,
-    gapY,
-    lineHeight,
-    tileWidth,
-    tileHeight,
-  ]);
+    ],
+  );
 
   const backgroundStyles = useMemo(
     () => ({

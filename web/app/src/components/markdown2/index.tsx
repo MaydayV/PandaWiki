@@ -413,7 +413,7 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
       // 渲染markdown（thinking标签在renderer rules中直接处理）
       const newHtml = mdRef.current.render(processedContent);
 
-      incrementalRender(containerRef.current, newHtml, lastContentRef.current);
+      incrementalRender(containerRef.current, newHtml);
       lastContentRef.current = processedContent;
       scrollToBottom();
     } catch (error) {
@@ -428,6 +428,7 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const imageBlobCache = imageBlobCacheRef.current;
 
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -477,7 +478,7 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
     container.addEventListener('click', handleClick);
 
     return () => {
-      clearImageBlobCache(imageBlobCacheRef.current);
+      clearImageBlobCache(imageBlobCache);
       container.removeEventListener('click', handleClick);
     };
   }, []);

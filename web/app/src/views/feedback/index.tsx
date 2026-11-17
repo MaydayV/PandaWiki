@@ -42,9 +42,19 @@ const Feedback = () => {
 
   useEffect(() => {
     if (score === 1) {
-      handleSubmit();
+      // 好评链接进入时自动提交；请求触发放 effect，setState 放异步回调，避免同步级联渲染
+      postShareV1ChatFeedback({
+        conversation_id,
+        message_id,
+        score,
+        type,
+        feedback_content: content,
+      }).then(() => {
+        setSuccess(true);
+        message.success(t('feedback.success'));
+      });
     }
-  }, [score]);
+  }, [score, conversation_id, message_id, type, content, t]);
 
   return (
     <>

@@ -149,7 +149,7 @@ const QaModal: React.FC<QaModalProps> = () => {
     if (cid || ask) {
       setQaModalOpen?.(true);
     }
-  }, []);
+  }, [searchParams, setQaModalOpen]);
 
   return (
     <Modal

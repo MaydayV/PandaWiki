@@ -19,23 +19,23 @@ func RegisterStaticFileRoutes(e *echo.Echo, cfg *config.Config) {
 		return
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	if target.Scheme == "https" {
-		transport := http.DefaultTransport.(*http.Transport).Clone()
-		proxy.Transport = transport
-	}
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		req.Host = target.Host
-		if strings.HasPrefix(req.URL.Path, staticFilePrefix) {
-			req.URL.Path = strings.TrimPrefix(req.URL.Path, staticFilePrefix)
-			if req.URL.Path == "" {
-				req.URL.Path = "/"
-			} else if req.URL.Path[0] != '/' {
-				req.URL.Path = "/" + req.URL.Path
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(target)
+			r.Out.Host = target.Host
+			if strings.HasPrefix(r.Out.URL.Path, staticFilePrefix) {
+				r.Out.URL.Path = strings.TrimPrefix(r.Out.URL.Path, staticFilePrefix)
+				if r.Out.URL.Path == "" {
+					r.Out.URL.Path = "/"
+				} else if r.Out.URL.Path[0] != '/' {
+					r.Out.URL.Path = "/" + r.Out.URL.Path
+				}
 			}
-		}
+			r.SetXForwarded()
+		},
+	}
+	if target.Scheme == "https" {
+		proxy.Transport = http.DefaultTransport.(*http.Transport).Clone()
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.Request != nil {

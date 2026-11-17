@@ -34,7 +34,6 @@ import {
   IconButton,
   Stack,
   Typography,
-  Tooltip,
   alpha,
 } from '@mui/material';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -140,7 +139,7 @@ const AiQaContent: React.FC<{
   const { palette } = useTheme();
   const messageIdRef = useRef('');
   const lastResultExpendRef = useRef(false);
-  const [fullAnswer, setFullAnswer] = useState<string>('');
+  const [, setFullAnswer] = useState<string>('');
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState<ThinkingStatus>(4);
@@ -543,7 +542,7 @@ const AiQaContent: React.FC<{
     // @ts-ignore
     window.CAP_CUSTOM_WASM_URL =
       window.location.origin + `${basePath}/cap@0.0.6/cap_wasm.min.js`;
-  }, []);
+  }, [basePath]);
 
   const onSearch = (q: string, reset: boolean = false) => {
     if (loading || (!q.trim() && uploadedImages.length === 0)) return;
@@ -666,6 +665,7 @@ const AiQaContent: React.FC<{
         onReset();
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时初始化 SSEClient 并读取 URL 参数；依赖均为每次渲染新建的函数，加入会导致客户端反复重建且 cleanup 中 onReset 清空会话形成循环
   }, []);
 
   useEffect(() => {
@@ -738,6 +738,7 @@ const AiQaContent: React.FC<{
         setShouldAutoScroll(false);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时按 URL cid 加载历史会话；聊天中 conversationId 会写入 URL 导致 searchParams 变化，加入依赖会在会话进行中重复拉取并覆盖当前对话
   }, []);
 
   useEffect(() => {

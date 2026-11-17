@@ -656,7 +656,7 @@ func (u *LLMUsecase) formatMessageWithImages(message string, imagePaths []string
 	builder.WriteString(message)
 	for _, path := range imagePaths {
 		builder.WriteString("\n")
-		builder.WriteString(fmt.Sprintf("![](%s)", path))
+		fmt.Fprintf(&builder, "![](%s)", path)
 	}
 	return builder.String()
 }
@@ -795,8 +795,5 @@ func (f *thinkingStreamFilter) Append(chunk string) string {
 	// Thinking block complete, return content after it
 	f.done = true
 	afterThink := text[endIdx+len("</think>"):]
-	if strings.HasPrefix(afterThink, "\n") {
-		afterThink = afterThink[1:]
-	}
-	return afterThink
+	return strings.TrimPrefix(afterThink, "\n")
 }

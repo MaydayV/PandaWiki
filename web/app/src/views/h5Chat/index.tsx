@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, Paper, Fade, Stack, Fab, Zoom } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
@@ -312,24 +312,7 @@ const H5Chat = () => {
     return () => messagesContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    // 从URL获取q参数
-    const id = searchParams.get('id');
-
-    if (id) {
-      // 设置消息
-      setTimeout(() => {
-        chatAnswer();
-      });
-    }
-  }, [searchParams]);
-
-  const handleSearchAbort = () => {
-    sseClientRef.current?.unsubscribe();
-    setLoading(false);
-  };
-
-  const chatAnswer = async () => {
+  const chatAnswer = useCallback(async () => {
     setLoading(true);
     if (sseClientRef.current) {
       sseClientRef.current.subscribe('', ({ type, content }) => {
@@ -363,6 +346,23 @@ const H5Chat = () => {
         }
       });
     }
+  }, [t]);
+
+  useEffect(() => {
+    // 从URL获取q参数
+    const id = searchParams.get('id');
+
+    if (id) {
+      // 设置消息
+      setTimeout(() => {
+        chatAnswer();
+      });
+    }
+  }, [searchParams, chatAnswer]);
+
+  const handleSearchAbort = () => {
+    sseClientRef.current?.unsubscribe();
+    setLoading(false);
   };
 
   useEffect(() => {

@@ -386,7 +386,7 @@ const SearchDocContent: React.FC<SearchDocContentProps> = ({
 
           {/* 搜索结果列表 */}
           <Stack sx={{ overflow: 'auto', maxHeight: 'calc(100vh - 334px)' }}>
-            {searchResults.map((result, index) => (
+            {searchResults.map(result => (
               <StyledSearchResultItem
                 direction='row'
                 justifyContent='space-between'

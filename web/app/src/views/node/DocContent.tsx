@@ -38,7 +38,13 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import FolderList from './folderList';
 import { useI18n } from '@/i18n/useI18n';
@@ -65,7 +71,7 @@ const DocContent = ({
   const [commentLoading, setCommentLoading] = useState(false);
   const docId = params.id as string;
   const [commentList, setCommentList] = useState<any[]>(propsCommentList ?? []);
-  const [appDetail, setAppDetail] = useState<any>(kbDetail?.settings);
+  const [appDetail] = useState<any>(kbDetail?.settings);
   const {
     control,
     handleSubmit,
@@ -90,10 +96,10 @@ const DocContent = ({
     return findAdjacentDocuments(tree, docId);
   }, [tree, docId, info?.type]);
 
-  const getComment = async () => {
+  const getComment = useCallback(async () => {
     const res = await getShareV1CommentList({ id: docId });
     setCommentList(res.data ?? []);
-  };
+  }, [docId]);
 
   useEffect(() => {
     if (
@@ -103,7 +109,12 @@ const DocContent = ({
     ) {
       getComment();
     }
-  }, [docId, info?.kb_id, appDetail?.web_app_comment_settings?.is_enable]);
+  }, [
+    docId,
+    info?.kb_id,
+    appDetail?.web_app_comment_settings?.is_enable,
+    getComment,
+  ]);
 
   const onSubmit = handleSubmit(
     async (data: { content: string; name: string }) => {
@@ -159,7 +170,7 @@ const DocContent = ({
   useEffect(() => {
     window.CAP_CUSTOM_WASM_URL =
       window.location.origin + `${basePath}/cap@0.0.6/cap_wasm.min.js`;
-  }, []);
+  }, [basePath]);
 
   if (!editorRef || !info) return null;
 
@@ -524,6 +535,7 @@ const DocContent = ({
                     <Image.PreviewGroup>
                       {(item.pic_urls || []).map((url: string) => (
                         <Image
+                          key={url}
                           alt={url}
                           src={getImagePath(url, basePath)}
                           width={80}

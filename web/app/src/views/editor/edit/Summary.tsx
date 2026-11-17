@@ -1,7 +1,7 @@
 import { V1NodeDetailResp } from '@/request';
 import { Button, CircularProgress, Stack, TextField } from '@mui/material';
 import { Modal } from '@ctzhian/ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useWrapContext } from '..';
 import { IconDJzhinengzhaiyao } from '@panda-wiki/icons';
 import { useI18n } from '@/i18n/useI18n';
@@ -39,11 +39,15 @@ const Summary = ({ open, onClose, updateDetail }: SummaryProps) => {
     //   });
   };
 
-  useEffect(() => {
+  // open 变为 true 时重置编辑内容：用 render 期间的受保护状态调整替代 effect 内 setState，
+  // 避免 effect 同步 setState 触发级联渲染（react-hooks/set-state-in-effect）
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setSummary(nodeDetail?.meta?.summary || '');
     }
-  }, [open, nodeDetail]);
+  }
 
   return (
     <Modal

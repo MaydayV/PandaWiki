@@ -142,7 +142,7 @@ const AiQaContent: React.FC<{
   }> | null>(null);
   const { palette } = useTheme();
   const messageIdRef = useRef('');
-  const [fullAnswer, setFullAnswer] = useState<string>('');
+  const [, setFullAnswer] = useState<string>('');
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState<ThinkingStatus>(4);
@@ -626,11 +626,6 @@ const AiQaContent: React.FC<{
     }
   };
 
-  useEffect(() => {
-    window.CAP_CUSTOM_WASM_URL =
-      window.location.origin + `${basePath}/cap@0.0.6/cap_wasm.min.js`;
-  }, []);
-
   const onSearch = (q: string, reset: boolean = false) => {
     if (loading || (!q.trim() && uploadedImages.length === 0)) return;
     setShouldAutoScroll(true); // 开始新搜索时，重置为自动滚动
@@ -673,6 +668,11 @@ const AiQaContent: React.FC<{
   const isFeedbackEnabled =
     // @ts-ignore
     kbDetail?.settings?.ai_feedback_settings?.is_enabled ?? true;
+
+  useEffect(() => {
+    window.CAP_CUSTOM_WASM_URL =
+      window.location.origin + `${basePath}/cap@0.0.6/cap_wasm.min.js`;
+  }, [basePath]);
 
   const handleScore = async (
     message_id: string,
@@ -738,6 +738,7 @@ const AiQaContent: React.FC<{
         onReset();
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时初始化 SSEClient 并读取 sessionStorage/URL 参数；onSearch/onReset/basePath/searchParams 均为每渲染新建，加入会导致客户端反复重建且 cleanup 中清空会话形成循环
   }, []);
 
   useEffect(() => {
@@ -748,6 +749,8 @@ const AiQaContent: React.FC<{
     }
   }, [conversationId]);
 
+  // 仅挂载时按 URL cid 拉取历史会话；会话进行中 conversationId 会被写入 URL 使 searchParams
+  // 变化，加入依赖会在对话进行中重复拉取并覆盖当前对话
   useEffect(() => {
     const cid = searchParams.get('cid');
     if (cid) {
@@ -809,6 +812,7 @@ const AiQaContent: React.FC<{
         setShouldAutoScroll(false);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时按 URL cid 拉取历史会话；会话进行中 conversationId 会被写入 URL 使 searchParams 变化，加入依赖会在对话进行中重复拉取并覆盖当前对话
   }, []);
 
   return (

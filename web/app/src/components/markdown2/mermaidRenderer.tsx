@@ -54,7 +54,7 @@ export const createMermaidRenderer = (
         if (mermaidContainer) {
           mermaidContainer.innerHTML = safeSvg;
         }
-      } catch (renderError) {}
+      } catch {}
     });
 
     return `<pre><div class="mermaid-container ${className}">${svg}</div></pre>`;

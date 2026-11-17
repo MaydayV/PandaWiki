@@ -32,7 +32,7 @@ const CatalogH5 = () => {
       catalogFolderExpand,
     );
     return filterTreeBySearch(originalTree, debouncedSearchTerm);
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, initialTree, id, catalogFolderExpand]);
 
   useEffect(() => {
     if (open) {
@@ -45,11 +45,12 @@ const CatalogH5 = () => {
     };
   }, [open]);
 
-  useEffect(() => {
-    if (id) {
-      setOpen(false);
-    }
-  }, [id]);
+  const [prevId, setPrevId] = useState(id);
+  if (id !== prevId) {
+    setPrevId(id);
+    // 路由切换到新文档时收起 H5 目录抽屉
+    setOpen(false);
+  }
 
   return (
     <Box

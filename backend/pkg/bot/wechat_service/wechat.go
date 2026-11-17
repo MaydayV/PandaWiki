@@ -18,8 +18,8 @@ import (
 	"github.com/samber/lo"
 	"github.com/sbzhu/weworkapi_golang/wxbizmsgcrypt"
 
-	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/config"
+	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/pkg/bot"
 )

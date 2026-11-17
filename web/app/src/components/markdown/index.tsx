@@ -195,6 +195,7 @@ const MarkDown = ({ loading = false, content }: MarkDownProps) => {
               setPreviewOpen(true);
             };
             return (
+              // eslint-disable-next-line @next/next/no-img-element -- markdown 渲染任意外部图片，无法预先配置 next/image 域名
               <img
                 alt={alt || 'markdown-img'}
                 src={src || ''}
@@ -216,7 +217,6 @@ const MarkDown = ({ loading = false, content }: MarkDownProps) => {
           code({
             children,
             className,
-            style,
             ...rest
           }: React.HTMLAttributes<HTMLElement>) {
             const match = /language-(\w+)/.exec(className || '');
@@ -263,6 +263,7 @@ const MarkDown = ({ loading = false, content }: MarkDownProps) => {
           setPreviewOpen(false);
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element -- markdown 渲染任意外部图片，无法预先配置 next/image 域名 */}
         <img
           onClick={() => {
             setPreviewOpen(false);

@@ -60,7 +60,6 @@ function findHtmlDiffs(
 export function incrementalRender(
   container: HTMLElement,
   newHtml: string,
-  oldContent: string,
 ): void {
   if (!container) return;
 

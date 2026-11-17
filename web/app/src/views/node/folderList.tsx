@@ -14,7 +14,7 @@ import {
   alpha,
   styled,
 } from '@mui/material';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -219,23 +219,23 @@ const FolderList: React.FC<FolderListProps> = ({ list = [] }) => {
     });
   };
 
-  // 递归排序函数
-  const sortTree = (
-    items: DomainShareNodeDetailItem[],
-  ): DomainShareNodeDetailItem[] => {
-    // 先对当前层级排序
-    const sorted = [...items].sort(
-      (a, b) => (a.position || 0) - (b.position || 0),
-    );
-
-    // 递归排序子节点
-    return sorted.map(item => ({
-      ...item,
-      children: item.children ? sortTree(item.children) : undefined,
-    }));
-  };
-
   const treeList = useMemo(() => {
+    // 递归排序函数
+    const sortTree = (
+      items: DomainShareNodeDetailItem[],
+    ): DomainShareNodeDetailItem[] => {
+      // 先对当前层级排序
+      const sorted = [...items].sort(
+        (a, b) => (a.position || 0) - (b.position || 0),
+      );
+
+      // 递归排序子节点
+      return sorted.map(item => ({
+        ...item,
+        children: item.children ? sortTree(item.children) : undefined,
+      }));
+    };
+
     if (!list || list.length === 0) return [];
     return sortTree(list);
   }, [list]);

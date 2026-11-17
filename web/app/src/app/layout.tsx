@@ -224,7 +224,7 @@ const Layout = async ({
     | 'light'
     | 'dark';
 
-  let error: any = null;
+  const error: any = null;
 
   const [kbDetailResolve] = await Promise.allSettled([getShareV1AppWebInfo()]);
   const kbDetail: any =

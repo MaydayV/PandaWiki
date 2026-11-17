@@ -104,7 +104,7 @@ export default function StoreProvider({
     if (kbDetail) {
       setCatalogShow(catalogSettings?.catalog_visible !== 2);
     }
-  }, [kbDetail]);
+  }, [kbDetail, catalogSettings?.catalog_visible]);
 
   useEffect(() => {
     dayjs.locale(toDayjsLocale(locale));

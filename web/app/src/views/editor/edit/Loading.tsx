@@ -3,20 +3,11 @@ import { V1NodeDetailResp } from '@/request/types';
 import { useTiptap } from '@ctzhian/tiptap';
 import { useBasePath } from '@/hooks/useBasePath';
 import { Box, Skeleton, Stack } from '@mui/material';
-import { useState } from 'react';
 import Header from './Header';
 import Toolbar from './Toolbar';
 import { IconAShijian2, IconZiti } from '@panda-wiki/icons';
 
 const LoadingEditorWrap = () => {
-  const [isSyncing] = useState(false);
-  const [collaborativeUsers] = useState<
-    Array<{
-      id: string;
-      name: string;
-      color: string;
-    }>
-  >([]);
   const baseUrl = useBasePath();
   const editorRef = useTiptap({
     editable: false,

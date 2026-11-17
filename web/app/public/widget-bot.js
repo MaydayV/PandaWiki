@@ -326,7 +326,7 @@
     }
 
     // 使用 MutationObserver 监听 DOM 变化
-    const observer = new MutationObserver(function (mutations) {
+    const observer = new MutationObserver(function () {
       if (tryAttachTrigger()) {
         observer.disconnect();
       }
@@ -493,9 +493,6 @@
       const buttonGap = 16; // 弹框和按钮之间的最小距离
 
       // 先设置一个临时位置来获取弹框尺寸
-      const originalPosition = modalContent.style.position;
-      const originalTop = modalContent.style.top;
-      const originalLeft = modalContent.style.left;
       const originalVisibility = modalContent.style.visibility;
       const originalDisplay = modalContent.style.display;
 
@@ -514,11 +511,9 @@
 
       // 计算按钮中心点
       const buttonCenterX = buttonRect.left + buttonRect.width / 2;
-      const buttonCenterY = buttonRect.top + buttonRect.height / 2;
 
       // 判断按钮在屏幕的哪一侧
       const isLeftSide = buttonCenterX < windowWidth / 2;
-      const isTopSide = buttonCenterY < windowHeight / 2;
 
       // 智能选择弹框位置，确保完整显示
       let finalTop, finalBottom, finalLeft, finalRight;

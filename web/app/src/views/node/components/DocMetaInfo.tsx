@@ -4,8 +4,6 @@ import { ConstsCopySetting, V1ShareNodeDetailResp } from '@/request/types';
 import { Box, IconButton, Stack, Tooltip } from '@mui/material';
 import { IconFuzhi, IconWenjian, IconWenjianjia } from '@panda-wiki/icons';
 import dayjs from 'dayjs';
-import type { UseTiptapReturn } from '@ctzhian/tiptap';
-import { copyText } from '@/utils';
 
 interface DocMetaInfoProps {
   info: V1ShareNodeDetailResp;

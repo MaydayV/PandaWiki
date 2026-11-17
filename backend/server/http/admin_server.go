@@ -92,19 +92,20 @@ func StartAdminServer(cfg *config.Config, logger *log.Logger) error {
 }
 
 func newReverseProxy(target *url.URL, streaming bool) *httputil.ReverseProxy {
-	proxy := httputil.NewSingleHostReverseProxy(target)
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if streaming {
 		transport.ResponseHeaderTimeout = 0
 	}
-	proxy.Transport = transport
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(target)
+			r.Out.Host = target.Host
+			r.SetXForwarded()
+		},
+		Transport: transport,
+	}
 	if streaming {
 		proxy.FlushInterval = -1
-	}
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		req.Host = target.Host
 	}
 	return proxy
 }

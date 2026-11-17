@@ -15,21 +15,20 @@ const ScrollToTopFab = ({
 }: ScrollToTopFabProps) => {
   const [show, setShow] = useState(false);
 
-  const handleScroll = () => {
-    const container = document.getElementById(scrollContainerId);
-    setShow(container ? container.scrollTop > threshold : false);
-  };
-
   const scrollToTop = () => {
     const container = document.getElementById(scrollContainerId);
     container?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
+    const handleScroll = () => {
+      const container = document.getElementById(scrollContainerId);
+      setShow(container ? container.scrollTop > threshold : false);
+    };
     const container = document.getElementById(scrollContainerId);
     container?.addEventListener('scroll', handleScroll);
     return () => container?.removeEventListener('scroll', handleScroll);
-  }, [scrollContainerId]);
+  }, [scrollContainerId, threshold]);
 
   return (
     <Zoom in={show}>

@@ -313,16 +313,16 @@ func renderDocSearchResult(query string, docs []*pg.MCPDocSearchResult) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Found %d released docs for query: %s\n\n", len(docs), query))
+	fmt.Fprintf(&b, "Found %d released docs for query: %s\n\n", len(docs), query)
 	for i, doc := range docs {
-		b.WriteString(fmt.Sprintf("%d. %s\n", i+1, strings.TrimSpace(doc.Name)))
-		b.WriteString(fmt.Sprintf("node_id: %s\n", strings.TrimSpace(doc.NodeID)))
-		b.WriteString(fmt.Sprintf("url: /node/%s\n", strings.TrimSpace(doc.NodeID)))
+		fmt.Fprintf(&b, "%d. %s\n", i+1, strings.TrimSpace(doc.Name))
+		fmt.Fprintf(&b, "node_id: %s\n", strings.TrimSpace(doc.NodeID))
+		fmt.Fprintf(&b, "url: /node/%s\n", strings.TrimSpace(doc.NodeID))
 		if summary := compactAndTruncate(doc.Summary, 160); summary != "" {
-			b.WriteString(fmt.Sprintf("summary: %s\n", summary))
+			fmt.Fprintf(&b, "summary: %s\n", summary)
 		}
 		if snippet := compactAndTruncate(doc.Content, 220); snippet != "" {
-			b.WriteString(fmt.Sprintf("snippet: %s\n", snippet))
+			fmt.Fprintf(&b, "snippet: %s\n", snippet)
 		}
 		if i != len(docs)-1 {
 			b.WriteString("\n")

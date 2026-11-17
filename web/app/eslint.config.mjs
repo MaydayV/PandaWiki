@@ -1,16 +1,23 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import prettierConfig from 'eslint-config-prettier';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
 const eslintConfig = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript', 'prettier'),
+  // 构建产物与生成文件不参与 lint（否则 12 万+ 误报）
+  {
+    ignores: [
+      'dist/**',
+      '.next/**',
+      'out/**',
+      'build/**',
+      'next-env.d.ts',
+      // 第三方压缩产物（cap wasm loader）
+      'public/cap@0.0.6/**',
+    ],
+  },
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  prettierConfig,
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

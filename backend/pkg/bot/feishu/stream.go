@@ -313,12 +313,10 @@ func (c *FeishuClient) Start() error {
 		larkws.WithEventHandler(eventHandler),
 		larkws.WithLogger(&FeishuBotLogger{logger: c.logger}),
 	)
-	// FIXME: goroutine leak in larkws.Start
-	err := cli.Start(c.ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start feishu client: %w", err)
-	}
-	return nil
+	// FIXME: goroutine leak in larkws.Start.
+	// larkws.Client.Start 仅在失败时返回（成功路径永久阻塞），返回值恒为非 nil，
+	// 因此这里无条件包装返回，与原有 err != nil 判断行为一致。
+	return fmt.Errorf("failed to start feishu client: %w", cli.Start(c.ctx))
 }
 
 // 下面功能都是需要开启飞书对应的权限才可以获取到用户信息 -- 应用权限(否则获取不到对话用户的信息)

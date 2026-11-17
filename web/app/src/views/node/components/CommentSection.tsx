@@ -66,7 +66,6 @@ const CommentSection = ({
   onSubmit,
   commentLoading,
   commentInputRef,
-  commentImages,
   onContentFocus,
   onContentBlur,
   onImagesChange,

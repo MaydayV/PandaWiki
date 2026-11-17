@@ -1,7 +1,6 @@
 'use client';
 import { useStore } from '@/provider';
 import { redirect } from 'next/navigation';
-import React from 'react';
 
 import { deepSearchFirstNode } from '@/utils';
 import { useBasePath } from '@/hooks';

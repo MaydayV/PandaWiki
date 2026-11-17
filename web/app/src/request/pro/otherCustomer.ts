@@ -63,7 +63,7 @@ export const postShareProV1FileUploadWithProgress = (
           } else {
             reject(new Error(response.message || messages['upload.failed']));
           }
-        } catch (error) {
+        } catch {
           reject(new Error(messages['upload.parseFailed']));
         }
       } else {

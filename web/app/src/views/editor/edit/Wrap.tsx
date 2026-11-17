@@ -44,7 +44,6 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
   const [fixedToc, setFixedToc] = useState(false);
   const [selectionText, setSelectionText] = useState('');
   const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   const isMarkdown = useMemo(() => {
@@ -52,16 +51,19 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
       return true;
     }
     return defaultDetail.meta?.content_type === 'md';
-  }, [defaultDetail.meta?.content_type, contentType]);
+  }, [defaultDetail.meta?.content_type, contentType, id]);
 
-  const updateDetail = (value: V1NodeDetailResp) => {
-    setNodeDetail({
-      ...nodeDetail,
-      updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-      status: 1,
-      ...value,
-    });
-  };
+  const updateDetail = useCallback(
+    (value: V1NodeDetailResp) => {
+      setNodeDetail({
+        ...nodeDetail,
+        updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        status: 1,
+        ...value,
+      });
+    },
+    [nodeDetail, setNodeDetail],
+  );
 
   const handleUpload = async (
     file: File,
@@ -116,7 +118,6 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
   };
 
   const handleUpdate = ({ editor }: { editor: UseTiptapReturn['editor'] }) => {
-    setIsEditing(true);
     setCharacterCount((editor.storage as any).characterCount.characters());
   };
 
@@ -197,6 +198,8 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
     return () => {
       if (editorRef) editorRef.editor?.destroy();
     };
+    // editorRef 是 useTiptap 每次渲染返回的新对象而非稳定的 ref，加入依赖会让清理函数在每次渲染后执行并销毁编辑器；此 effect 仅需在卸载时清理一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

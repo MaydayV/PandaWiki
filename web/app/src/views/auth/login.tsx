@@ -132,7 +132,7 @@ export default function Login() {
           window.open(redirectUrl, '_self');
         });
       });
-    } catch (error) {
+    } catch {
       message.error(t('login.authFail'));
     } finally {
       setLoading(false);
@@ -230,7 +230,7 @@ export default function Login() {
           window.open(redirectUrl, '_self');
         });
       });
-    } catch (error) {
+    } catch {
       message.error(t('login.authFail'));
     } finally {
       setLoading(false);
@@ -246,7 +246,7 @@ export default function Login() {
         window.open(redirectUrl, '_self');
       }
     });
-  }, []);
+  }, [redirectUrl]);
 
   return (
     <>
@@ -277,6 +277,7 @@ export default function Login() {
           <Stack alignItems='center'>
             <Stack alignItems='center' gap={1} sx={{ mb: 5 }}>
               {kbDetail?.settings?.icon ? (
+                // eslint-disable-next-line @next/next/no-img-element -- 静态 logo 图片，next/image 无收益
                 <img
                   src={getImagePath(kbDetail?.settings?.icon, basePath)}
                   alt='logo'

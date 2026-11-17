@@ -11,7 +11,6 @@ import { useI18n } from '@/i18n/useI18n';
 export default function Error({
   sx,
   error,
-  reset,
 }: {
   error: Partial<Error> & { digest?: string } & { code?: number | string };
   reset?: () => void;

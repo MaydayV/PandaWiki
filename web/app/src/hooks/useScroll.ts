@@ -7,18 +7,6 @@ const useScroll = (headings: TocList, domId: string, defaultOffset = 80) => {
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isManualScroll = useRef(false);
 
-  const debounce = <T extends (...args: any[]) => any>(
-    func: T,
-    delay: number,
-  ) => {
-    return (...args: Parameters<T>) => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      scrollTimeoutRef.current = setTimeout(() => func(...args), delay);
-    };
-  };
-
   const scrollToElement = useCallback(
     (elementId: string, offset = defaultOffset) => {
       const element = document.getElementById(elementId);
@@ -82,18 +70,20 @@ const useScroll = (headings: TocList, domId: string, defaultOffset = 80) => {
     }
 
     return activeHeader;
-  }, [headings]);
+  }, [headings, domId]);
 
-  const debouncedScrollHandler = useCallback(
-    debounce(() => {
+  const debouncedScrollHandler = useCallback(() => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
       if (isManualScroll.current) return;
       const activeHeader = findActiveHeading();
       if (activeHeader && activeHeader.id !== activeHeading?.id) {
         setActiveHeading(activeHeader);
       }
-    }, 100),
-    [findActiveHeading, activeHeading],
-  );
+    }, 100);
+  }, [findActiveHeading, activeHeading]);
 
   useEffect(() => {
     if (isFirstLoad.current && headings.length > 0) {
@@ -103,6 +93,7 @@ const useScroll = (headings: TocList, domId: string, defaultOffset = 80) => {
           header => header.textContent === hash,
         );
         if (targetHeading) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- 首载时需在异步 headings 就绪后按 URL hash 立即高亮对应标题；延迟到 setTimeout 设置会改变高亮时序，渲染期读取 location.hash 派生又违反纯度规则
           setActiveHeading(targetHeading);
           setTimeout(() => {
             isManualScroll.current = true;

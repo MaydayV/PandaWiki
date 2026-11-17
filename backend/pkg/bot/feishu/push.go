@@ -10,9 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/chaitin/panda-wiki/pkg/bot"
@@ -106,21 +104,4 @@ func SignFeishuWebhook(timestamp int64, secret string) string {
 	h := hmac.New(sha256.New, []byte(stringToSign))
 	h.Write(nil)
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
-}
-
-// maskFeishuWebhookURL masks the hook key in a webhook URL for safe logging.
-func maskFeishuWebhookURL(rawURL string) string {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "***"
-	}
-	parts := strings.Split(u.Path, "/")
-	if len(parts) > 0 {
-		key := parts[len(parts)-1]
-		if len(key) > 6 {
-			parts[len(parts)-1] = key[:3] + "***" + key[len(key)-3:]
-			u.Path = strings.Join(parts, "/")
-		}
-	}
-	return u.String()
 }

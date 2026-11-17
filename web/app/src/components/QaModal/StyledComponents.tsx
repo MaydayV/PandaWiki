@@ -94,12 +94,12 @@ export const StyledQuestionText = styled(Box)(() => ({
 }));
 
 // 搜索结果相关组件
-export const StyledChunkAccordion = styled(Accordion)(({ theme }) => ({
+export const StyledChunkAccordion = styled(Accordion)({
   backgroundImage: 'none',
   background: 'transparent',
   border: 'none',
   padding: 0,
-}));
+});
 
 export const StyledChunkAccordionSummary = styled(AccordionSummary)(
   ({ theme }) => ({

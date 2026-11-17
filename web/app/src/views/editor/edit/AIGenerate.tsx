@@ -54,7 +54,7 @@ const AIGenerate = ({
         },
       );
     }
-  }, [selectText, sseClientRef.current, readEditor.editor]);
+  }, [selectText, readEditor.editor]);
 
   const onCancel = () => {
     sseClientRef.current?.unsubscribe();
@@ -86,7 +86,7 @@ const AIGenerate = ({
         onGenerate();
       }, 60);
     }
-  }, [selectText, open]);
+  }, [selectText, open, onGenerate, defaultEditor.editor]);
 
   useEffect(() => {
     if (!defaultEditor.editor || !readEditor.editor) return;

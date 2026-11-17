@@ -2,7 +2,7 @@
 import { getShareV1NodeDetail } from '@/request/ShareNode';
 import { V1NodeDetailResp } from '@/request/types';
 import { Box } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useWrapContext } from '..';
 import LoadingEditorWrap from './Loading';
@@ -11,11 +11,11 @@ import EditorWrap from './Wrap';
 const Edit = () => {
   const { id = '' } = useParams();
   const { setNodeDetail, nodeDetail } = useWrapContext();
-  const [loading, setLoading] = useState(true);
+  // 有 id 时初始即为加载中，无 id 时直接进入编辑态，避免在 effect 内同步 setState
+  const [loading, setLoading] = useState(() => Boolean(id));
   const [detail, setDetail] = useState<V1NodeDetailResp | null>(nodeDetail);
 
-  const getDetail = () => {
-    setLoading(true);
+  const getDetail = useCallback(() => {
     // @ts-expect-error 类型错误
     getShareV1NodeDetail({
       id: id[0] as string,
@@ -30,15 +30,13 @@ const Edit = () => {
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [id, setNodeDetail]);
 
   useEffect(() => {
     if (id) {
       getDetail();
-    } else {
-      setLoading(false);
     }
-  }, [id]);
+  }, [getDetail, id]);
 
   return (
     <Box
