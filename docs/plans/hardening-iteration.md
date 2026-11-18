@@ -49,17 +49,33 @@
 - config 无启动校验（空 JWT/空 S3 密钥照常启动）。
 - generate-env.sh FORCE=1 会覆盖已初始化 DB 的密码。
 
-## 轮次安排
+## 轮次安排（已全部完成，2026-11-19）
 
-| 轮次 | 主题 | 提交信息前缀 |
-|---|---|---|
-| 轮 0 | 计划文档 | docs(hardening) |
-| 轮 1 | P0 歼灭：rag_jobs UUID、微信死锁、Recover+panic、JWT 启动校验 | fix(stability) |
-| 轮 2 | 后端稳定性：SSE ctx 保护、HTTP 超时批量、body 泄漏、优雅退出、连接池、server 超时、panic 边界 | fix(stability) |
-| 轮 3 | 安全加固：凭据日志、BodyLimit+KB 权限、fail-open、CAS TLS、常量时间比较、session SETNX、SSRF 覆盖 | fix(security) |
-| 轮 4 | 数据库：补索引、rag_jobs reaper+退避+清理调度、schema 检查增强、pgvector 检索 | fix(db) |
-| 轮 5 | 部署便利性：quickstart 原子导入、compose healthcheck、.dockerignore、config 快速失败、native 修复 | fix(deploy) |
-| 轮 6 | 前端性能：markdown2 增量渲染、admin chunk 拆分、死代码清理、SSE 超时 | perf(frontend) |
-| 轮 7 | 收尾：全量回归、文档更新、总结 | docs(hardening) |
+| 轮次 | 主题 | 提交 | 状态 |
+|---|---|---|---|
+| 轮 0 | 计划文档 | 1d562991 docs(hardening) | ✅ |
+| 轮 1 | P0 歼灭：rag_jobs UUID、微信死锁、Recover+panic、JWT 启动校验 | 1366dbc8 fix(stability) | ✅ |
+| 轮 2 | 后端稳定性：SSE 排干×10、HTTP 超时、body 泄漏、优雅退出、连接池、server 超时 | 22433107 fix(stability) | ✅ |
+| 轮 3 | 安全加固：凭据日志、BodyLimit+KB 权限、fail-open、CAS TLS、常量时间比较、session SETNX、SSRF 覆盖 | 2d078412 fix(security) | ✅ |
+| 轮 4 | 数据库：9 索引、rag_jobs reaper+退避+清理调度、schema 检查增强、pgvector 召回 | 9fcf572a fix(db) | ✅ |
+| 轮 5 | 部署便利性：quickstart 原子导入、compose healthcheck、.dockerignore（2.4GB→67MB）、Dockerfile 缓存、native 修复 | 8cb9c740 fix(deploy) | ✅ |
+| 轮 6 | 前端性能：markdown2 块级增量渲染、admin 首屏 4.1MB→1.65MB、死代码、飞书卡片 JSON 注入 | 78615324 perf(frontend) | ✅ |
+| 轮 6.5 | P2 清尾：SSE 错误泄露、SQL 参数化、admin 存量告警、死依赖 | c8039d08 fix(hardening) | ✅ |
+| 轮 7 | 收尾：全量回归（后端 test/lint、app/admin build 全绿）、文档更新 | 本提交 | ✅ |
 
-每轮完成后运行对应验证（go build/test/golangci-lint；admin/app pnpm build/lint），全部通过才提交。
+## 遗留事项（评估后暂不处理，含理由）
+
+1. **larkws.Start goroutine 泄漏**（pkg/bot/feishu/stream.go）：上游 SDK 限制（成功路径永久阻塞 select{}），已有注释说明；钉钉/Discord 流有 ctx 退出机制。等上游修复。
+2. **widget LLM 端点无 captcha**：需要前端 widget 配合改造（传 captcha token），涉及产品交互决策；现状有可选的提问间隔限频兜底。
+3. **Echo RealIP 信任 XFF**：需要"可信代理"跨组件设计（caddy 配置由 API 动态下发），简单开关（TRUST_PROXY env）可后续加。
+4. **API token / SimpleAuth 口令明文存储**：加密存储需要迁移方案与密钥管理设计，比较处已改常量时间。
+5. **用户消息原文进 Info 日志**（handler/share 多处）：涉及产品排障需求取舍，建议引入日志脱敏中间件统一处理。
+6. **jwt GetKbID 对写请求全量读 body**：性能优化收益中等，改动触及所有写请求路径，单独任务处理。
+7. **nodes name/content LIKE 无 trigram 索引**：管理端低频操作，数据量大后再加。
+8. **Dockerfile.postgres 零引用**：手动兜底镜像保留，注释已说明离线环境需预下载 pgvector 源码。
+
+## 最终状态
+
+- 后端：golangci-lint 0 issues、go test ./... 全绿
+- 前端：app pnpm lint 0 问题、app/admin pnpm build 成功
+- 全部改动分 9 个提交在本地 main，未推送（可用 git revert 逐轮回退）
