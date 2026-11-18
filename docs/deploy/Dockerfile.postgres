@@ -1,4 +1,6 @@
-# 基于本地已有 postgres:16-alpine，离线/弱网环境编译 pgvector
+# 手动兜底镜像：固定 pgvector 版本（compose 默认直接用 pgvector/pgvector:pg16）。
+# 注意：构建期需要联网 git clone pgvector v0.8.0 源码；纯离线环境请先在有网机器
+# 构建并导出镜像（docker save/load），或预先下载 pgvector 源码包放入构建上下文
 FROM postgres:16-alpine
 
 RUN apk add --no-cache --virtual .build-deps \

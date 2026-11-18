@@ -396,7 +396,9 @@ server {
 1. `.env` 中全部密码改为高强度随机值，禁止使用示例密码。
 2. 外层 Nginx 模式下，建议只对公网开放 `80/443`，限制 `8000/2443/3010` 仅本机或内网访问。
 3. 为对外域名配置真实 TLS 证书，不使用自签证书直接暴露公网。
-4. 定期备份：PostgreSQL 数据卷、OSS 桶数据、`docs/deploy/.env`。
+4. 定期备份：PostgreSQL 数据卷、OSS 桶数据、`docs/deploy/.env`。PostgreSQL 可用
+   `docs/deploy/backup.sh` 定时备份（脚本头部含 cron 配置与恢复命令）；注意 API 的
+   8000 端口直连暴露时必须设置 `TRUST_PROXY=0`，否则限频/限速可被伪造请求头绕过。
 5. 按 AGPL-3.0 要求提供当前运行版本对应源码链接。
 
 ## 9. 相关文件
