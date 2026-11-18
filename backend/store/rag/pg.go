@@ -361,7 +361,24 @@ func (s *PGRAG) rewriteQuery(ctx context.Context, history []*schema.Message, que
 }
 
 func (s *PGRAG) searchVector(ctx context.Context, datasetID string, queryVec pgvector.Vector, groupIDs []int, limit int) ([]chunkCandidate, error) {
-	rows, err := s.db.WithContext(ctx).Raw(`
+	var candidates []chunkCandidate
+	// 必须在事务内执行：SET LOCAL 只作用于当前事务，连接池回收后不影响其他查询
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// dataset/group 过滤条件无法下推 HNSW 索引（pgvector 后过滤），
+		// 默认 ef_search=40 在多知识库混存时会"欠返回"甚至返回 0 条。
+		// iterative_scan=relaxed_order 允许索引扫描补足 LIMIT；参数在
+		// pgvector <0.8 不存在，失败时维持默认行为。
+		for _, stmt := range []string{
+			`SET LOCAL hnsw.iterative_scan = 'relaxed_order'`,
+			`SET LOCAL hnsw.ef_search = 100`,
+		} {
+			if err := tx.Exec(stmt).Error; err != nil {
+				s.logger.Warn("pgvector hnsw tuning unavailable, using defaults", log.Error(err))
+				break
+			}
+		}
+
+		rows, err := tx.Raw(`
 SELECT id, doc_id, content, 1 - (embedding <=> ?) AS similarity
 FROM rag_chunks
 WHERE dataset_id = ?
@@ -373,20 +390,25 @@ WHERE dataset_id = ?
 ORDER BY embedding <=> ?
 LIMIT ?
 `, queryVec, datasetID, pq.Array(groupIDs), pq.Array(groupIDs), queryVec, limit).Rows()
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		candidates = make([]chunkCandidate, 0, limit)
+		for rows.Next() {
+			var item chunkCandidate
+			if err := rows.Scan(&item.ID, &item.DocID, &item.Content, &item.Similarity); err != nil {
+				return err
+			}
+			candidates = append(candidates, item)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	candidates := make([]chunkCandidate, 0, limit)
-	for rows.Next() {
-		var item chunkCandidate
-		if err := rows.Scan(&item.ID, &item.DocID, &item.Content, &item.Similarity); err != nil {
-			return nil, err
-		}
-		candidates = append(candidates, item)
-	}
-	return candidates, rows.Err()
+	return candidates, nil
 }
 
 func (s *PGRAG) rerankChunks(ctx context.Context, query string, candidates []chunkCandidate) ([]chunkCandidate, error) {

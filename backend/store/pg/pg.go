@@ -79,6 +79,21 @@ SELECT EXISTS (
 	if !exists {
 		return fmt.Errorf("database not initialized: import backend/store/pg/migration/full_fresh_deploy.sql (or run docs/deploy/quickstart.sh)")
 	}
+	// 老库可能只有旧表而缺 pgvector 相关表（rag_chunks/rag_jobs），
+	// 只检查 knowledge_bases 会让缺失延迟到问答时才暴露
+	for _, table := range []string{"rag_chunks", "rag_jobs"} {
+		var ok bool
+		if err := db.Raw(`
+SELECT EXISTS (
+	SELECT 1 FROM information_schema.tables
+	WHERE table_schema = 'public' AND table_name = ?
+)`, table).Scan(&ok).Error; err != nil {
+			return fmt.Errorf("check database schema failed: %w", err)
+		}
+		if !ok {
+			return fmt.Errorf("database schema is outdated: table %q is missing — the stack-slim schema requires a fresh deploy (import backend/store/pg/migration/full_fresh_deploy.sql)", table)
+		}
+	}
 	return nil
 }
 

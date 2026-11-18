@@ -59,11 +59,18 @@ type claimedRagJob struct {
 
 func (r *RagJobRepository) Claim(ctx context.Context, workerID string) (*claimedRagJob, *domain.NodeReleaseVectorRequest, error) {
 	var row claimedRagJob
+	// 失败重试按 attempts 指数退避（10s/40s/90s/...，上限 5 分钟），避免上游
+	// embedding 故障时 5 次重试在数秒内烧完转 failed；新任务（attempts=0）立即领取
 	err := r.db.WithContext(ctx).Raw(`
 WITH picked AS (
     SELECT id
     FROM rag_jobs
     WHERE status = 'pending'
+      AND (
+        attempts <= 1
+        OR locked_at IS NULL
+        OR locked_at <= NOW() - (LEAST(attempts * attempts * 10, 300) || ' seconds')::interval
+      )
     ORDER BY created_at
     FOR UPDATE SKIP LOCKED
     LIMIT 1
@@ -118,18 +125,54 @@ func (r *RagJobRepository) PurgeDone(ctx context.Context, before time.Time) (int
 	return result.RowsAffected, nil
 }
 
+// RequeueStale 将 processing 超过 timeout 的僵尸任务重回 pending：
+// worker 在 Claim 后、MarkDone/MarkFailed 前崩溃/重启时会留下此类任务，
+// locked_at/locked_by 只有靠这里才能恢复
+func (r *RagJobRepository) RequeueStale(ctx context.Context, timeout time.Duration) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+UPDATE rag_jobs
+SET status = 'pending',
+    locked_at = NULL,
+    locked_by = '',
+    updated_at = NOW()
+WHERE status = 'processing'
+  AND locked_at <= NOW() - ?::interval
+`, fmt.Sprintf("%d seconds", int(timeout.Seconds())))
+	if result.Error != nil {
+		return 0, fmt.Errorf("requeue stale rag jobs: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
+// PurgeFailed 清理最终失败且超过保留期的任务记录，避免表无限增长
+func (r *RagJobRepository) PurgeFailed(ctx context.Context, before time.Time) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Where("status = ? AND updated_at < ?", domain.RagJobStatusFailed, before).
+		Delete(&domain.RagJob{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("purge failed rag jobs: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
 func (r *RagJobRepository) markFailed(ctx context.Context, jobID string, attempts, maxAttempts int, jobErr error) error {
 	status := domain.RagJobStatusPending
 	if attempts >= maxAttempts {
 		status = domain.RagJobStatusFailed
 	}
+	updates := map[string]interface{}{
+		"status":     status,
+		"last_error": jobErr.Error(),
+		"locked_by":  "",
+		"updated_at": gorm.Expr("NOW()"),
+	}
+	if status == domain.RagJobStatusPending {
+		// 保留 locked_at 作为重试退避的起点（Claim 按它计算等待窗口）
+		updates["locked_at"] = gorm.Expr("NOW()")
+	} else {
+		updates["locked_at"] = nil
+	}
 	return r.db.WithContext(ctx).Model(&domain.RagJob{}).
 		Where("id = ?", jobID).
-		Updates(map[string]interface{}{
-			"status":     status,
-			"last_error": jobErr.Error(),
-			"locked_at":  nil,
-			"locked_by":  "",
-			"updated_at": gorm.Expr("NOW()"),
-		}).Error
+		Updates(updates).Error
 }

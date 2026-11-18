@@ -15,6 +15,10 @@ import (
 const (
 	ragJobPollInterval = time.Second
 	ragJobBatchSize    = 8
+	// processing 超过该时长的任务视为 worker 崩溃残留，重回队列
+	ragJobStaleTimeout = 10 * time.Minute
+	// 僵尸任务回收的检查间隔
+	ragJobRequeueInterval = time.Minute
 )
 
 type RAGJobWorker struct {
@@ -47,6 +51,8 @@ func (w *RAGJobWorker) Start(ctx context.Context) {
 
 	ticker := time.NewTicker(ragJobPollInterval)
 	defer ticker.Stop()
+	requeueTicker := time.NewTicker(ragJobRequeueInterval)
+	defer requeueTicker.Stop()
 
 	for {
 		select {
@@ -55,6 +61,12 @@ func (w *RAGJobWorker) Start(ctx context.Context) {
 			return
 		case <-ticker.C:
 			w.processBatch(ctx, workerID)
+		case <-requeueTicker.C:
+			if n, err := w.repo.RequeueStale(ctx, ragJobStaleTimeout); err != nil {
+				w.logger.Error("requeue stale rag jobs failed", log.Error(err))
+			} else if n > 0 {
+				w.logger.Warn("requeued stale rag jobs", log.Int64("count", n))
+			}
 		}
 	}
 }

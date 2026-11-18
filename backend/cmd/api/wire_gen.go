@@ -192,7 +192,7 @@ func createApp() (*App, error) {
 		return nil, err
 	}
 	ragJobWorker := mq2.NewRAGJobWorker(configConfig, logger, ragJobRepository, ragmqHandler)
-	cronHandler, err := mq2.NewCronHandler(configConfig, logger, statRepository, nodeRepository, statUseCase, nodeUsecase)
+	cronHandler, err := mq2.NewCronHandler(configConfig, logger, statRepository, nodeRepository, ragJobRepository, statUseCase, nodeUsecase)
 	if err != nil {
 		return nil, err
 	}

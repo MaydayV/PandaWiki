@@ -17,17 +17,19 @@ type CronHandler struct {
 	logger      *log.Logger
 	statRepo    *pg.StatRepository
 	nodeRepo    *pg.NodeRepository
+	ragJobRepo  *pg.RagJobRepository
 	statUseCase *usecase.StatUseCase
 	nodeUseCase *usecase.NodeUsecase
 	cron        *cron.Cron
 	started     bool
 }
 
-func NewCronHandler(config *config.Config, logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *pg.NodeRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
+func NewCronHandler(config *config.Config, logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *pg.NodeRepository, ragJobRepo *pg.RagJobRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
 	h := &CronHandler{
 		config:      config,
 		statRepo:    statRepo,
 		nodeRepo:    nodeRepo,
+		ragJobRepo:  ragJobRepo,
 		statUseCase: statUseCase,
 		nodeUseCase: nodeUseCase,
 		logger:      logger.WithModule("handler.mq.cron"),
@@ -69,6 +71,13 @@ func NewCronHandler(config *config.Config, logger *log.Logger, statRepo *pg.Stat
 		return nil, err
 	}
 	h.logger.Info("add cron job", log.String("cron_id", "cleanup_old_node_release_backups"))
+
+	// 每天4点清理 7 天前的 rag_jobs done/failed 记录，避免任务表只增不减
+	if _, err := h.cron.AddFunc("0 4 * * *", h.PurgeRagJobs); err != nil {
+		h.logger.Error("failed to add cron job for purging rag jobs", log.Error(err))
+		return nil, err
+	}
+	h.logger.Info("add cron job", log.String("cron_id", "purge_rag_jobs"))
 	return h, nil
 }
 
@@ -115,6 +124,21 @@ func (h *CronHandler) AggregateHourlyStats() {
 		return
 	}
 	h.logger.Info("aggregate hourly stats successful")
+}
+
+func (h *CronHandler) PurgeRagJobs() {
+	ctx := context.Background()
+	cutoff := time.Now().AddDate(0, 0, -7)
+	if n, err := h.ragJobRepo.PurgeDone(ctx, cutoff); err != nil {
+		h.logger.Error("purge done rag jobs failed", log.Error(err))
+	} else if n > 0 {
+		h.logger.Info("purged done rag jobs", log.Int64("count", n))
+	}
+	if n, err := h.ragJobRepo.PurgeFailed(ctx, cutoff); err != nil {
+		h.logger.Error("purge failed rag jobs failed", log.Error(err))
+	} else if n > 0 {
+		h.logger.Info("purged failed rag jobs", log.Int64("count", n))
+	}
 }
 
 func (h *CronHandler) CleanupOldHourlyStats() {

@@ -260,6 +260,9 @@ ALTER TABLE node_releases ADD COLUMN updated_at timestamptz NULL;
 -- update existing node_releases
 UPDATE node_releases SET updated_at = created_at;
 
+-- 索引：GetLatestNodeReleaseByNodeIDs / ListLatestPublishedNodeReleasesByKB 按 DISTINCT ON (node_id) ... ORDER BY node_id, updated_at DESC 取每个节点的最新 release
+CREATE INDEX IF NOT EXISTS idx_node_releases_node_id_updated_at ON node_releases(node_id, updated_at DESC);
+
 -- <<< END 000007_node_release_updated_at.up.sql
 
 -- >>> BEGIN 000008_add_conversation_info.up.sql
@@ -286,6 +289,9 @@ CREATE TABLE IF NOT EXISTS stat_pages (
 
 CREATE INDEX IF NOT EXISTS idx_stat_pages_kb_id_node_id ON stat_pages(kb_id, node_id);
 
+-- 索引：GetInstantCount / GetInstantPages / GetStatPageCount 按 kb_id 过滤并按 created_at 范围聚合或排序（24 小时统计）
+CREATE INDEX IF NOT EXISTS idx_stat_pages_kb_id_created_at ON stat_pages(kb_id, created_at);
+
 -- <<< END 000009_create_stat_pages.up.sql
 
 -- >>> BEGIN 000010_add_conversation_message_feedback.up.sql
@@ -309,6 +315,9 @@ CREATE TABLE "public"."comments" (
 CREATE INDEX "idx_comments_node_id" ON "public"."comments" ("node_id");
 CREATE INDEX "idx_comments_kb_id" ON "public"."comments"("kb_id");
 
+-- 索引：GetCommentListByKbID 按 kb_id 过滤并按 created_at DESC 分页查询评论列表
+CREATE INDEX IF NOT EXISTS idx_comments_kb_id_created_at ON comments(kb_id, created_at);
+
 
 -- <<< END 000011_create_user_comment.up.sql
 
@@ -319,6 +328,9 @@ UPDATE conversation_messages as cm
     SET kb_id = (SELECT kb_id from conversations WHERE cm.conversation_id = conversations.id);
 
 ALTER Table conversation_messages ADD COLUMN parent_id TEXT DEFAULT '';
+
+-- 索引：GetLatestUserMessageCreatedAt 按 kb_id 过滤并按 created_at DESC 取最新用户消息（限流用）
+CREATE INDEX IF NOT EXISTS idx_conversation_messages_kb_id_created_at ON conversation_messages(kb_id, created_at);
 -- <<< END 000012_add_conversation_message_kb_id_parent_id.up.sql
 
 -- >>> BEGIN 000013_create_license.up.sql
@@ -352,6 +364,10 @@ CREATE TABLE IF NOT EXISTS auths (
     created_at timestamptz NOT NULL DEFAULT NOW(),
     updated_at timestamptz NOT NULL DEFAULT NOW()
 );
+
+-- 索引：GetOrCreateAuth / GetAuthByKBIDAndSourceType / GetAuths 等高频登录与查询路径按 kb_id + source_type (+union_id) 定位认证记录
+CREATE INDEX IF NOT EXISTS idx_auths_kb_id_source_type_union_id ON auths(kb_id, source_type, union_id);
+
 -- create table auth_configs
 CREATE TABLE IF NOT EXISTS auth_configs (
     id SERIAL PRIMARY KEY,
@@ -561,6 +577,9 @@ CREATE TABLE IF NOT EXISTS contributes (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- 索引：contribute 列表查询（buildContributeBaseQuery）按 kb_id 过滤、可按 status 筛选
+CREATE INDEX IF NOT EXISTS idx_contributes_kb_id_status ON contributes(kb_id, status);
+
 -- <<< END 000027_create_contributes_table.up.sql
 
 -- >>> BEGIN 000028_add_contributes_ip.up.sql
@@ -574,6 +593,9 @@ ALTER TABLE comments ADD COLUMN IF NOT EXISTS pic_urls text[] not null default A
 
 -- >>> BEGIN 000030_add_node_status_msg.up.sql
 ALTER TABLE nodes ADD COLUMN IF NOT EXISTS rag_info jsonb default '{}';
+
+-- 索引：GetNodeIdsWithoutStatusByKbId / GetNodeStats / GetNodeListByStatus 按 kb_id + rag_info->>'status' 过滤/统计文档 RAG 学习状态
+CREATE INDEX IF NOT EXISTS idx_nodes_kb_id_rag_status ON nodes(kb_id, (rag_info->>'status'));
 
 -- <<< END 000030_add_node_status_msg.up.sql
 
@@ -762,7 +784,13 @@ CREATE TABLE IF NOT EXISTS navs (
     updated_at timestamptz NOT NULL DEFAULT NOW()
 );
 
+-- 索引：GetList / GetListByIds / getMaxPosByKbId 按 kb_id 查询导航列表与最大 position
+CREATE INDEX IF NOT EXISTS idx_navs_kb_id ON navs(kb_id);
+
 ALTER TABLE nodes ADD COLUMN IF NOT EXISTS nav_id text default '';
+
+-- 索引：CountNodeByNavId / GetNodeIDsByNavId / GetList（按 nav_id 过滤）按 kb_id + nav_id 查询节点
+CREATE INDEX IF NOT EXISTS idx_nodes_kb_id_nav_id ON nodes(kb_id, nav_id);
 
 CREATE TABLE IF NOT EXISTS nav_releases (
     id TEXT PRIMARY KEY,
