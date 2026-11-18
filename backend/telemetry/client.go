@@ -92,6 +92,19 @@ func (c *Client) GetMachineID() string {
 }
 
 func (c *Client) getOrCreateMachineID() (string, error) {
+	return c.getOrCreateMachineIDWithRetry(0)
+}
+
+// getOrCreateMachineIDWithRetry 带重试上限：进程崩溃残留的 .lock 文件会导致
+// 锁文件永远拿不到，无上限递归会耗尽栈并把启动卡死
+func (c *Client) getOrCreateMachineIDWithRetry(attempt int) (string, error) {
+	if attempt > 50 {
+		// 锁文件残留超过 5 秒仍未释放，直接删除陈旧锁重试一次（锁内操作全部是毫秒级）
+		c.logger.Info("stale machine id lock file detected, removing it")
+		if err := os.Remove(machineIDFile + ".lock"); err != nil {
+			return "", fmt.Errorf("failed to remove stale lock file: %w", err)
+		}
+	}
 	// get machine id from file
 	if id, err := os.ReadFile(machineIDFile); err == nil {
 		c.firstReport = false
@@ -114,7 +127,7 @@ func (c *Client) getOrCreateMachineID() (string, error) {
 			// if lock file already exists, wait and try again
 			c.logger.Info("lock file already exists, waiting and trying again")
 			time.Sleep(100 * time.Millisecond)
-			return c.getOrCreateMachineID()
+			return c.getOrCreateMachineIDWithRetry(attempt + 1)
 		}
 		return "", fmt.Errorf("failed to create lock file: %w", err)
 	}

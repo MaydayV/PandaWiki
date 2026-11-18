@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"golang.org/x/oauth2"
 
@@ -47,13 +48,14 @@ func NewGithubClient(ctx context.Context, logger *log.Logger, clientID, clientSe
 		}
 
 		httpClient = &http.Client{
+			Timeout: 10 * time.Second,
 			Transport: &http.Transport{
 				Proxy: http.ProxyURL(proxyURLParsed),
 			},
 		}
 		logger.Info("GitHub OAuth client configured with proxy", log.String("proxy", proxyURL))
 	} else {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{Timeout: 10 * time.Second}
 	}
 
 	config := Config{

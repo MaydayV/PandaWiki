@@ -38,6 +38,18 @@ func NewDB(config *config.Config) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// 连接池必须显式配置：database/sql 默认 MaxOpenConns 无上限、连接永不过期，
+	// API 与内嵌 worker 共用本池，SSE 并发突发时会打满 PG max_connections
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("get sql db failed: %w", err)
+	}
+	sqlDB.SetMaxOpenConns(config.PG.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(config.PG.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(config.PG.ConnMaxLifetime) * time.Second)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+
 	if err := doMigrate(dsn); err != nil {
 		return nil, err
 	}
@@ -84,6 +96,7 @@ func doMigrate(dsn string) error {
 	if err != nil {
 		return fmt.Errorf("open db failed: %w", err)
 	}
+	defer db.Close()
 	driver, err := migratePG.WithInstance(db, &migratePG.Config{})
 	if err != nil {
 		return fmt.Errorf("with instance failed: %w", err)

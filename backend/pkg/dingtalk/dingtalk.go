@@ -108,7 +108,7 @@ func NewDingTalkClient(ctx context.Context, logger *log.Logger, clientId, client
 	return &Client{
 		ctx:             ctx,
 		logger:          logger.WithModule("pkg.dingtalk"),
-		httpClient:      &http.Client{},
+		httpClient:      &http.Client{Timeout: 30 * time.Second},
 		clientID:        clientId,
 		clientSecret:    clientSecret,
 		oauthClient:     oauthClient,
@@ -204,7 +204,7 @@ func (c *Client) GetUserInfoByCode(code string) (*UserInfo, error) {
 	// Set request headers
 	req.Header.Set("x-acs-dingtalk-access-token", accessToken)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request: %w", err)

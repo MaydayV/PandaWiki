@@ -39,7 +39,10 @@ type AdminConfig struct {
 }
 
 type PGConfig struct {
-	DSN string `mapstructure:"dsn"`
+	DSN             string `mapstructure:"dsn"`
+	MaxOpenConns    int    `mapstructure:"max_open_conns"`
+	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
+	ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"` // 秒
 }
 
 type RAGConfig struct {
@@ -96,7 +99,10 @@ func NewConfig() (*Config, error) {
 			DistDir: "/app/admin/dist",
 		},
 		PG: PGConfig{
-			DSN: "host=panda-wiki-postgres user=panda-wiki password=panda-wiki-secret dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai",
+			DSN:             "host=panda-wiki-postgres user=panda-wiki password=panda-wiki-secret dbname=panda-wiki port=5432 sslmode=disable TimeZone=Asia/Shanghai",
+			MaxOpenConns:    50,
+			MaxIdleConns:    10,
+			ConnMaxLifetime: 3600,
 		},
 		RAG: RAGConfig{
 			Provider: "pg",
@@ -196,6 +202,21 @@ func overrideWithEnv(c *Config) {
 	// pg
 	if env := os.Getenv("PG_DSN"); env != "" {
 		c.PG.DSN = env
+	}
+	if env := os.Getenv("PG_MAX_OPEN_CONNS"); env != "" {
+		if i, err := strconv.Atoi(env); err == nil && i > 0 {
+			c.PG.MaxOpenConns = i
+		}
+	}
+	if env := os.Getenv("PG_MAX_IDLE_CONNS"); env != "" {
+		if i, err := strconv.Atoi(env); err == nil && i > 0 {
+			c.PG.MaxIdleConns = i
+		}
+	}
+	if env := os.Getenv("PG_CONN_MAX_LIFETIME"); env != "" {
+		if i, err := strconv.Atoi(env); err == nil && i > 0 {
+			c.PG.ConnMaxLifetime = i
+		}
 	}
 	// rag — pgvector only
 	c.RAG.Provider = "pg"

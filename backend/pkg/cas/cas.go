@@ -2,13 +2,13 @@ package cas
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/chaitin/panda-wiki/log"
 )
@@ -113,11 +113,9 @@ func NewClient(ctx context.Context, logger *log.Logger, config Config) (*Client,
 		ctx:    ctx,
 		logger: logger.WithModule("pkg.cas"),
 		config: &config,
-		httpClient: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		},
+		// 移除 InsecureSkipVerify：CAS ticket 走 TLS 必须校验证书，否则凭据可被中间人截获。
+		// 自签 CAS 服务请将 CA 加入系统信任库。
+		httpClient: &http.Client{Timeout: 15 * time.Second},
 	}, nil
 }
 

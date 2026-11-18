@@ -144,9 +144,16 @@ func (h *ShareChatHandler) ChatMessage(c echo.Context) error {
 
 	for event := range eventCh {
 		if err := h.writeSSEEvent(c, event); err != nil {
+			// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+			// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+			for range eventCh {
+			}
 			return err
 		}
 		if event.Type == "done" || event.Type == "error" {
+			// 生产者 close 前可能还有缓冲事件，排干后再退出
+			for range eventCh {
+			}
 			break
 		}
 	}
@@ -217,9 +224,16 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 
 	for event := range eventCh {
 		if err := h.writeSSEEvent(c, event); err != nil {
+			// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+			// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+			for range eventCh {
+			}
 			return err
 		}
 		if event.Type == "done" || event.Type == "error" {
+			// 生产者 close 前可能还有缓冲事件，排干后再退出
+			for range eventCh {
+			}
 			break
 		}
 	}
@@ -493,6 +507,10 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(
 	for event := range eventCh {
 		switch event.Type {
 		case "error":
+			// 客户端可能已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+			// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+			for range eventCh {
+			}
 			return h.sendOpenAIErrorWithAudit(c, auditMeta, event.Content, "internal_error", startedAt)
 		case "data":
 			// send stream response
@@ -514,6 +532,10 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(
 
 			if err := h.writeOpenAIStreamEvent(c, streamResp); err != nil {
 				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+				// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+				for range eventCh {
+				}
 				return err
 			}
 		case "usage":
@@ -541,6 +563,10 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(
 			}
 			if err := h.writeOpenAIStreamEvent(c, streamResp); err != nil {
 				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+				// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+				for range eventCh {
+				}
 				return err
 			}
 			if streamOptions != nil && streamOptions.IncludeUsage && usage != nil {
@@ -554,14 +580,25 @@ func (h *ShareChatHandler) handleOpenAIStreamResponse(
 				}
 				if err := h.writeOpenAIStreamEvent(c, usageResp); err != nil {
 					h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+					// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+					// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+					for range eventCh {
+					}
 					return err
 				}
 			}
 			if err := h.writeOpenAIDoneEvent(c); err != nil {
 				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+				// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+				for range eventCh {
+				}
 				return err
 			}
 			h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusOK, usage, "", "", startedAt)
+			// 生产者 close 前可能还有缓冲事件，排干后再退出
+			for range eventCh {
+			}
 			return nil
 		}
 	}
@@ -583,6 +620,10 @@ func (h *ShareChatHandler) handleOpenAINonStreamResponse(
 	for event := range eventCh {
 		switch event.Type {
 		case "error":
+			// 客户端可能已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+			// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+			for range eventCh {
+			}
 			return h.sendOpenAIErrorWithAudit(c, auditMeta, event.Content, "internal_error", startedAt)
 		case "data":
 			content += event.Content
@@ -615,9 +656,16 @@ func (h *ShareChatHandler) handleOpenAINonStreamResponse(
 			}
 			if err := c.JSON(http.StatusOK, resp); err != nil {
 				h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusInternalServerError, usage, "internal_error", err.Error(), startedAt)
+				// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+				// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+				for range eventCh {
+				}
 				return err
 			}
 			h.recordOpenAIAudit(c.Request().Context(), auditMeta, http.StatusOK, usage, "", "", startedAt)
+			// 生产者 close 前可能还有缓冲事件，排干后再退出
+			for range eventCh {
+			}
 			return nil
 		}
 	}

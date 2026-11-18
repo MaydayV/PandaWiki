@@ -329,6 +329,7 @@ func (r *KnowledgeBaseRepository) SyncKBAccessSettingsToCaddy(ctx context.Contex
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		r.logger.Error("failed to update caddy config", "error", string(body))

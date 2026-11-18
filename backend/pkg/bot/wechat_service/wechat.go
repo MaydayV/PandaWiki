@@ -270,7 +270,7 @@ func (cfg *WechatServiceConfig) SendResponseToKfTxt(userId string, openkfId stri
 func (cfg *WechatServiceConfig) SendMessage(jsonData []byte, token string) error {
 	// 发送消息给客服
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token=%s", token)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := wechatHTTPClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("post to wechatservice failed: %w", err)
 	}
@@ -332,7 +332,7 @@ func (cfg *WechatServiceConfig) GetAccessToken() (string, error) {
 	// get AccessToken--请求微信客服token
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=%s&corpsecret=%s", cfg.CorpID, cfg.Secret)
 
-	resp, err := http.Get(url)
+	resp, err := wechatHTTPClient.Get(url)
 	if err != nil {
 		return "", errors.New("get wechatservice accesstoken failed")
 	}
@@ -366,7 +366,7 @@ func (cfg *WechatServiceConfig) UnmarshalMsg(decryptMsg []byte) (*WeixinUserAskM
 
 func (cfg *WechatServiceConfig) GetKfHumanList(token string, KfId string) (*HumanList, error) {
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/kf/servicer/list?access_token=%s&open_kfid=%s", token, KfId)
-	resp, err := http.Get(url)
+	resp, err := wechatHTTPClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -387,6 +387,8 @@ func (cfg *WechatServiceConfig) GetKfHumanList(token string, KfId string) (*Huma
 }
 
 // answer set into redis queue and set useful time
+var wechatHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 func (cfg *WechatServiceConfig) SendQuestionToAI(conversationID string, wccontent chan string) {
 	// 该函数运行在裸 goroutine 中，任何 panic 都会击穿整个进程
 	defer func() {

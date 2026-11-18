@@ -135,7 +135,7 @@ func NewClient(ctx context.Context, logger *log.Logger, corpID, corpSecret, agen
 
 	return &Client{
 		context:     ctx,
-		httpClient:  &http.Client{},
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
 		cache:       cache,
 		logger:      logger.WithModule("wecom.client"),
 		oauthConfig: oauthConfig,

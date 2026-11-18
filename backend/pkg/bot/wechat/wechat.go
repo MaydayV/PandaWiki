@@ -149,6 +149,10 @@ func (cfg *WechatConfig) ProcessTextMessage(msg ReceivedMessage, GetQA bot.GetQA
 		fullResponse += content
 		if len([]byte(fullResponse)) > wechatMessageMaxBytes { // wechat limit 2048 byte
 			if _, _, err := cfg.SendResponseToUser(fullResponse, msg.FromUserName, token); err != nil {
+				// 同步排干剩余内容直到上游泵退出（生产者受 ctx 取消保护），
+				// 否则泵永久阻塞在裸发送上，进而卡死 LLM 生产者并泄漏并发槽
+				for range contentChan {
+				}
 				return err
 			}
 			fullResponse = ""
@@ -196,7 +200,7 @@ func (cfg *WechatConfig) SendURLToUser(touser, question, token, conversationID, 
 	}
 
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s", token)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := wechatHTTPClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 
 	if err != nil {
 		return 0, "", err
@@ -232,7 +236,7 @@ func (cfg *WechatConfig) SendResponseToUser(response string, touser string, toke
 	}
 
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s", token)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := wechatHTTPClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 
 	if err != nil {
 		return 0, "", err
@@ -313,7 +317,7 @@ func (cfg *WechatConfig) GetAccessToken() (string, error) {
 	// get AccessToken--请求微信客服token
 	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=%s&corpsecret=%s", cfg.CorpID, cfg.Secret)
 
-	resp, err := http.Get(url)
+	resp, err := wechatHTTPClient.Get(url)
 	if err != nil {
 		return "", errors.New("get wechatapp accesstoken failed")
 	}
@@ -345,7 +349,7 @@ func (cfg *WechatConfig) GetUserInfo(username string) (*UserInfo, error) {
 		return nil, err
 	}
 	// 请求获取用户的内容
-	resp, err := http.Get(fmt.Sprintf(
+	resp, err := wechatHTTPClient.Get(fmt.Sprintf(
 		"https://qyapi.weixin.qq.com/cgi-bin/user/get?access_token=%s&userid=%s",
 		accessToken, username))
 	if err != nil {
@@ -379,6 +383,8 @@ func (cfg *WechatConfig) UnmarshalMsg(decryptMsg []byte) (*ReceivedMessage, erro
 }
 
 // answer set into conversation state buffer
+var wechatHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 func (cfg *WechatConfig) SendQuestionToAI(conversationID string, wccontent chan string) {
 	// 该函数运行在裸 goroutine 中，任何 panic 都会击穿整个进程
 	defer func() {

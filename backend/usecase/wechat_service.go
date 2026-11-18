@@ -94,6 +94,10 @@ func (u *WechatServiceUsecase) getQAFunc(kbID string, appType domain.AppType) bo
 			defer close(contentCh)
 			for event := range eventCh {
 				if event.Type == "done" || event.Type == "error" {
+					// 生产者 close 前可能还有缓冲事件，排干后再退出，
+					// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+					for range eventCh {
+					}
 					break
 				}
 				if event.Type == "data" {

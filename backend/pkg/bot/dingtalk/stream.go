@@ -485,7 +485,7 @@ func (c *DingTalkClient) GetUserInfo(userID string) (*UserDetailResponse, error)
 	query.Add("access_token", accessToken)
 	req.URL.RawQuery = query.Encode()
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		c.logger.Error("Failed to get user info from dingtalk: %v", log.Error(err))
