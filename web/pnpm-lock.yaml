@@ -378,9 +378,6 @@ importers:
       markdown-it:
         specifier: 14.3.3
         version: 14.3.3
-      markdown-it-highlightjs:
-        specifier: ^4.2.0
-        version: 4.2.0
       mermaid:
         specifier: '>=11.16.1'
         version: 12.3.0
@@ -4904,9 +4901,6 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
-
-  markdown-it-highlightjs@4.2.0:
-    resolution: {integrity: sha512-NC7pXE8KkOl6xWJVRNt8p6wgJVznXKsE0HgYGdk6DD2tn1l4L9f0ALf3VIoGVkotNU1uGQatSxfBF1zZPUMmuQ==}
 
   markdown-it@14.3.3:
     resolution: {integrity: sha512-L//tDAkjTjJCU6pBUSBTgs3Kg4InVaZuUZog/b6V12UKhcDQ7S78877ibbCanRExwPuYP1CZD7Gd2dxSy1GXRg==}
@@ -11438,10 +11432,6 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
-
-  markdown-it-highlightjs@4.2.0:
-    dependencies:
-      highlight.js: 11.11.1
 
   markdown-it@14.3.3:
     dependencies:

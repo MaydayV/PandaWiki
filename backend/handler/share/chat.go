@@ -255,8 +255,13 @@ func (h *ShareChatHandler) enforceConversationAskInterval(ctx context.Context, r
 	}
 
 	lastAskedAt, err := h.conversationUsecase.GetLatestUserMessageCreatedAt(ctx, req.KBID, appID, req.RemoteIP)
-	if err != nil || lastAskedAt == nil {
-		return err
+	if err != nil {
+		// 限频查询失败不阻断对话，且不能把底层 DB 错误透传给终端用户（信息泄露）
+		h.logger.Error("get latest user message created_at failed", log.Error(err))
+		return nil
+	}
+	if lastAskedAt == nil {
+		return nil
 	}
 	remaining := calculateAskIntervalRemainingSeconds(*lastAskedAt, time.Now(), intervalSeconds)
 	if remaining <= 0 {

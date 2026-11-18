@@ -1409,16 +1409,19 @@ func (r *NodeRepository) reorderPositions(tx *gorm.DB, nodes []*domain.Node) err
 		}
 		batch := updates[i:end]
 
-		values := make([]string, 0, len(batch))
-		for _, update := range batch {
-			id := update["id"]
-			pos := update["position"]
-			values = append(values, fmt.Sprintf("('%v', %v)", id, pos))
+		// 参数化 VALUES（300 行 × 2 参数远低于 PG 65535 上限），
+		// 替代 fmt.Sprintf 拼接
+		placeholders := make([]string, 0, len(batch))
+		args := make([]interface{}, 0, len(batch)*2)
+		for j, update := range batch {
+			base := j * 2
+			placeholders = append(placeholders, fmt.Sprintf("($%d::uuid, $%d::float8)", base+1, base+2))
+			args = append(args, update["id"], update["position"])
 		}
 
-		sql := fmt.Sprintf("UPDATE nodes SET position = new_values.new_value FROM (VALUES %s) AS new_values(id, new_value) WHERE nodes.id = new_values.id", strings.Join(values, ", "))
+		sql := "UPDATE nodes SET position = new_values.new_value FROM (VALUES " + strings.Join(placeholders, ", ") + ") AS new_values(id, new_value) WHERE nodes.id = new_values.id"
 
-		if err := tx.Exec(sql).Error; err != nil {
+		if err := tx.Exec(sql, args...).Error; err != nil {
 			return err
 		}
 	}

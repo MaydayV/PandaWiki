@@ -121,7 +121,7 @@ const BarTrend = ({ chartData, height, text }: PropsData) => {
     return () => {
       window.removeEventListener('resize', resize);
     };
-  }, [data]);
+  }, [data, text]);
 
   if (data.length === 0 && !loading)
     return <div style={{ width: '100%', height }} />;
