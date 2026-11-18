@@ -12,6 +12,14 @@ services:
       - ./data/caddy/caddy_data:/data
       - ./data/caddy/run:/var/run/caddy
     network_mode: host
+    # caddy 的 admin API 在 unix socket 上（CADDY_ADMIN），HTTP 监听端口由 KB 动态下发、
+    # 无固定探测端口；admin socket 文件由 caddy run 启动完成时创建，正是 API 下发配置要用的端点
+    healthcheck:
+      test: ["CMD-SHELL", "test -S /var/run/caddy/caddy-admin.sock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   panda-wiki-postgres:
     image: pgvector/pgvector:pg16
@@ -78,13 +86,20 @@ services:
       RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
     volumes:
       - ./data/caddy/run:/app/run
+    # 最终镜像为 alpine:3.21（无 curl，busybox 自带 wget），探测内置 /health 端点
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     depends_on:
       panda-wiki-postgres:
         condition: service_healthy
       panda-wiki-redis:
         condition: service_healthy
       panda-wiki-caddy:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8000:8000"
       - "2443:2443"
@@ -100,9 +115,17 @@ services:
       TARGET: http://panda-wiki-api:8000
       STATIC_FILE_TARGET: http://panda-wiki-api:8000
       DEV_KB_ID: ${DEV_KB_ID}
+    # 镜像基于 node:22-alpine（无 curl）；用 node fetch 探测 public 静态资源 /favicon.png，
+    # 该路径不经过 proxy.ts 中间件、不依赖 API/知识库状态，仅验证 Next 服务本身可用
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3010/favicon.png').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     depends_on:
       panda-wiki-api:
-        condition: service_started
+        condition: service_healthy
     expose:
       - "3010"
     networks:

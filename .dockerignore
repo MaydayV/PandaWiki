@@ -1,0 +1,31 @@
+# 根 .dockerignore — backend/Dockerfile.api 与 Dockerfile.api.pro 的构建上下文是仓库根
+# （docker-compose.build.yml 中 context: ../..）。
+#
+# 构建必需、禁止排除的路径（见 Dockerfile.api 的 COPY 指令）：
+#   backend/**            Go 源码、backend/docs/docs.go（swag 生成的 Go 代码）、store/pg/migration
+#   web/package.json      web/pnpm-lock.yaml  web/pnpm-workspace.yaml
+#   web/patches/**        pnpm patchedDependencies 补丁，缺失会导致 install 失败
+#   web/admin/**          含 web/admin/dist（Dockerfile.api.pro 直接 COPY 预构建产物）
+#   web/app/**  web/packages/**   workspace 成员源码与配置（pnpm install 需要）
+#
+# 以下为明确不需要的内容，排除以缩小构建上下文：
+
+# 版本库与 CI
+.git
+.github
+
+# 文档与仓库资料（无 Dockerfile COPY）
+docs
+images
+sdk
+
+# 依赖目录（容器内重新 pnpm install，宿主 node_modules 不进上下文）
+**/node_modules
+
+# App 构建产物（仅 web/app/Dockerfile 使用，其上下文是 web/app，不受本文件影响）
+web/app/dist
+web/app/.next
+
+# 杂项
+.DS_Store
+**/.DS_Store

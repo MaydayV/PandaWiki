@@ -58,8 +58,13 @@ if [[ "$TABLE_COUNT" == "0" ]]; then
     exit 1
   fi
   echo ">>> 首次部署：导入 full_fresh_deploy.sql"
-  cat "$SQL_FILE" | docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T panda-wiki-postgres \
-    psql -U panda-wiki -d panda-wiki
+  if ! cat "$SQL_FILE" | docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T panda-wiki-postgres \
+    psql -v ON_ERROR_STOP=1 -U panda-wiki -d panda-wiki; then
+    echo "错误: 初始化 SQL 导入失败（-v ON_ERROR_STOP=1 已在第一条出错语句处终止）。"
+    echo "  注意: 库中可能已残留半套 schema，直接重跑本脚本会因 knowledge_bases 已存在而误判为已初始化并跳过导入。"
+    echo "  如需重来，请先重置数据卷（会清空数据库）: docker compose -f $COMPOSE_FILE down -v"
+    exit 1
+  fi
 else
   echo ">>> 数据库已初始化，跳过 SQL 导入"
 fi

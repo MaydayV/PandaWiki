@@ -46,9 +46,20 @@ fi
 echo ">>> 安装系统依赖"
 export DEBIAN_FRONTEND=noninteractive
 $SUDO apt-get update -qq
+# PostgreSQL 开发包版本优先取 16，与 compose 部署的 pgvector/pgvector:pg16 对齐；
+# apt 源中没有 16 包时（如 Debian 12 只有 15、Debian 13 只有 17）回退到源里可用的版本，
+# 与 compose 版存在主版本差异时需注意数据卷不通用
+PG_MAJOR=""
+for v in 16 15 17; do
+  if apt-cache show "postgresql-server-dev-$v" >/dev/null 2>&1; then
+    PG_MAJOR="$v"
+    break
+  fi
+done
+[[ -n "$PG_MAJOR" ]] || die "apt 源中找不到 postgresql-server-dev 包（尝试过 16/15/17），请手动安装 PostgreSQL 服务端与开发包后重试"
 $SUDO apt-get install -y -qq \
   redis-server curl ca-certificates build-essential git \
-  postgresql-server-dev-15 postgresql-contrib
+  "postgresql-server-dev-$PG_MAJOR" postgresql-contrib
 
 install_pgvector() {
   if $SUDO -u postgres psql -d postgres -tAc "SELECT 1 FROM pg_available_extensions WHERE name='vector';" 2>/dev/null | grep -q 1; then
@@ -56,7 +67,9 @@ install_pgvector() {
     return 0
   fi
   echo ">>> 编译安装 pgvector（Debian 默认源无 pgvector 包）"
-  PG_CONFIG="$(command -v pg_config || echo /usr/lib/postgresql/15/bin/pg_config)"
+  # pg_config 跟随实际安装的 PostgreSQL 主版本（安装包版本见上文 PG_MAJOR 检测）
+  PG_CONFIG="$(command -v pg_config || ls -1 /usr/lib/postgresql/*/bin/pg_config 2>/dev/null | sort -V | tail -n1)"
+  [[ -n "$PG_CONFIG" ]] || die "未找到 pg_config，无法编译 pgvector"
   workdir="$(mktemp -d)"
   git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git "$workdir/pgvector"
   make -C "$workdir/pgvector" clean
@@ -88,9 +101,18 @@ export GOTOOLCHAIN=auto
 $SUDO mkdir -p "$INSTALL_ROOT/bin"
 
 echo ">>> 初始化 PostgreSQL"
-$SUDO -u postgres psql -v ON_ERROR_STOP=0 -c "CREATE USER \"panda-wiki\" WITH PASSWORD '${POSTGRES_PASSWORD}';" 2>/dev/null || true
-$SUDO -u postgres psql -v ON_ERROR_STOP=0 -c "ALTER USER \"panda-wiki\" WITH PASSWORD '${POSTGRES_PASSWORD}';" 2>/dev/null || true
-$SUDO -u postgres psql -v ON_ERROR_STOP=0 -c "CREATE DATABASE \"panda-wiki\" OWNER \"panda-wiki\";" 2>/dev/null || true
+# 用户/建库 SQL 通过临时文件 + psql -f 传入，避免密码出现在命令行参数中被 ps 看到；
+# 不走 stdin heredoc：SUDO 可能是带 -S 的包装函数（SUDO_PASSWORD），其管道会吞掉 stdin
+sql_tmp="$(mktemp)"
+cat > "$sql_tmp" <<SQL
+CREATE USER "panda-wiki" WITH PASSWORD '${POSTGRES_PASSWORD}';
+ALTER USER "panda-wiki" WITH PASSWORD '${POSTGRES_PASSWORD}';
+CREATE DATABASE "panda-wiki" OWNER "panda-wiki";
+SQL
+$SUDO chown postgres:postgres "$sql_tmp"
+$SUDO chmod 600 "$sql_tmp"
+$SUDO -u postgres psql -v ON_ERROR_STOP=0 -f "$sql_tmp" >/dev/null 2>&1 || true
+rm -f "$sql_tmp"
 $SUDO -u postgres psql -d panda-wiki -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 SQL_FILE="$REPO_ROOT/backend/store/pg/migration/full_fresh_deploy.sql"
@@ -272,6 +294,8 @@ server {
     location / {
         proxy_pass http://127.0.0.1:3010;
         proxy_http_version 1.1;
+        # App→API 的 SSE 流式响应（聊天问答）不能被 nginx 缓冲；与 compose 版 caddy 的 flush_interval -1 对齐
+        proxy_buffering off;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

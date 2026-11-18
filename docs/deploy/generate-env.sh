@@ -19,6 +19,16 @@ if [[ -f "$ENV_FILE" && "${FORCE:-}" != "1" ]]; then
   exit 0
 fi
 
+if [[ -f "$ENV_FILE" && "${FORCE:-}" == "1" ]]; then
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!! 警告: FORCE=1 正在覆盖已存在的 $ENV_FILE"
+  echo "!! 将重新生成 POSTGRES_PASSWORD / REDIS_PASSWORD 等全部密钥："
+  echo "!!   1) 旧密码创建的 PostgreSQL / Redis 数据将无法用新密钥连接；"
+  echo "!!   2) 已在运行的容器仍持有旧密钥，需同步更新容器环境，"
+  echo "!!      否则请重置数据卷后重新初始化（如: docker compose down -v）。"
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+fi
+
 mkdir -p "$(dirname "$ENV_FILE")"
 
 cat >"$ENV_FILE" <<EOF

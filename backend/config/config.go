@@ -173,6 +173,13 @@ func (c *Config) validate() error {
 	if c.Auth.JWT.Secret == "" {
 		return fmt.Errorf("JWT_SECRET is required: refusing to start with an empty JWT secret (it would allow forging admin tokens)")
 	}
+	// 非致命缺失给出醒目警告，帮助部署排障（不阻塞启动）
+	if c.S3.AccessKey == "" || c.S3.SecretKey == "" {
+		fmt.Fprintln(os.Stderr, "warning: S3_ACCESS_KEY/S3_SECRET_KEY is empty — file upload will fail until configured")
+	}
+	if c.AdminPassword == "" {
+		fmt.Fprintln(os.Stderr, "warning: ADMIN_PASSWORD is empty — the admin console has no password set")
+	}
 	return nil
 }
 
@@ -252,7 +259,7 @@ func overrideWithEnv(c *Config) {
 	}
 	// sentry
 	if env := os.Getenv("SENTRY_ENABLED"); env != "" {
-		c.Sentry.Enabled = env == "true"
+		c.Sentry.Enabled = env == "1" || env == "true" || env == "TRUE"
 	}
 	if env := os.Getenv("SENTRY_DSN"); env != "" {
 		c.Sentry.DSN = env

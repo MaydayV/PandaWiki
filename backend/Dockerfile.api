@@ -4,10 +4,20 @@ FROM node:22-alpine AS admin-builder
 WORKDIR /src/web
 RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 
+# 先只拷依赖清单与补丁，让 pnpm install 层不被业务源码改动击穿缓存
+COPY web/package.json web/pnpm-workspace.yaml ./
+COPY web/patches ./patches
+COPY web/admin/package.json ./admin/package.json
+COPY web/app/package.json ./app/package.json
+COPY web/packages/icons/package.json ./packages/icons/package.json
+COPY web/packages/themes/package.json ./packages/themes/package.json
+COPY web/packages/ui/package.json ./packages/ui/package.json
+
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm install --frozen-lockfile
+
 COPY web/ ./
 
-RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm install --frozen-lockfile \
-    && NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
 
 FROM --platform=$BUILDPLATFORM golang:1.26.4-alpine AS builder
 
@@ -28,11 +38,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM alpine:3.21 AS api
 
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache ca-certificates tzdata \
-    && update-ca-certificates 2>/dev/null || true \
-    && rm -rf /var/cache/apk/*
+# 不做 apk upgrade：基础包随镜像固定，保证构建产物可复现
+RUN apk add --no-cache ca-certificates tzdata \
+    && update-ca-certificates 2>/dev/null || true
 
 WORKDIR /app
 
