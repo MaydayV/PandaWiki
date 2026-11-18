@@ -151,7 +151,23 @@ func NewConfig() (*Config, error) {
 	// finally, override sensitive info with env variables
 	overrideWithEnv(defaultConfig)
 
+	if err := defaultConfig.validate(); err != nil {
+		return nil, err
+	}
+
 	return defaultConfig, nil
+}
+
+// validate 启动即校验关键配置，避免带缺失凭据的服务"健康"启动后在运行时才暴露
+func (c *Config) validate() error {
+	if c.Auth.Type == "" {
+		c.Auth.Type = "jwt"
+	}
+	// 空 JWT secret 会用于 HS256 签发/校验，等同于允许任何人伪造管理员 token
+	if c.Auth.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET is required: refusing to start with an empty JWT secret (it would allow forging admin tokens)")
+	}
+	return nil
 }
 
 // overrideWithEnv override sensitive info with env variables

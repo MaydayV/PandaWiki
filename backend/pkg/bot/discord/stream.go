@@ -86,6 +86,12 @@ func (d *DiscordClient) handleMessage(s *discordgo.Session, m *discordgo.Message
 		return
 	}
 	go func() {
+		// 裸 goroutine 内 panic 会击穿整个进程
+		defer func() {
+			if r := recover(); r != nil {
+				d.logger.Error("discord edit message panicked", log.Any("panic", r))
+			}
+		}()
 		buf := strings.Builder{}
 		for qa := range qaChan {
 			buf.WriteString(qa)

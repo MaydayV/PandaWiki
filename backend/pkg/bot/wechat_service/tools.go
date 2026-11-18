@@ -143,6 +143,10 @@ func GetUserInfo(userid string, accessToken string) (*Customer, error) {
 		return nil, fmt.Errorf("获取用户信息失败: %d, %s", userInfo.ErrCode, userInfo.ErrMsg)
 	}
 
+	if len(userInfo.CustomerList) == 0 {
+		return nil, fmt.Errorf("获取用户信息失败: 客服列表为空")
+	}
+
 	return &userInfo.CustomerList[0], nil
 }
 

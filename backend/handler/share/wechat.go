@@ -109,17 +109,22 @@ func (h *ShareWechatHandler) GetWechatAnswer(c echo.Context) error {
 			return h.sendErrMsg(c, err.Error())
 		}
 		// send answer and question
-		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "question", Content: conversation.Messages[0].Content}); err != nil {
+		// 对话刚创建时可能只有用户消息，索引访问前必须检查长度（公开端点，防 panic）
+		msgs := conversation.Messages
+		if len(msgs) < 2 {
+			return h.sendErrMsg(c, "conversation not ready")
+		}
+		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "question", Content: msgs[0].Content}); err != nil {
 			return err
 		}
 		//2.answer
-		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "feedback_score", Content: strconv.Itoa(int(conversation.Messages[1].Info.Score))}); err != nil {
+		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "feedback_score", Content: strconv.Itoa(int(msgs[1].Info.Score))}); err != nil {
 			return err
 		}
-		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "message_id", Content: conversation.Messages[1].ID}); err != nil {
+		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "message_id", Content: msgs[1].ID}); err != nil {
 			return err
 		}
-		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "answer", Content: conversation.Messages[1].Content}); err != nil {
+		if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "answer", Content: msgs[1].Content}); err != nil {
 			return err
 		}
 		//3.
@@ -130,18 +135,23 @@ func (h *ShareWechatHandler) GetWechatAnswer(c echo.Context) error {
 	}
 
 	// exit --> get message
-	state := val.(*domain.ConversationState)
+	state, ok := val.(*domain.ConversationState)
+	if !ok || state == nil {
+		return h.sendErrMsg(c, "conversation state unavailable")
+	}
 	// 1. send question
 	if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "question", Content: state.Question}); err != nil {
 		return err
 	}
 	//2. send answer
+	// 网络写放锁外：持锁写 SSE 会拖住生产者抢锁
 	state.Mutex.Lock()
-	if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "answer", Content: state.Buffer.String()}); err != nil {
-		return err
-	}
+	bufferSnapshot := state.Buffer.String()
 	state.IsVisited = true
 	state.Mutex.Unlock()
+	if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "answer", Content: bufferSnapshot}); err != nil {
+		return err
+	}
 
 	defer func() {
 		state.Mutex.Lock()

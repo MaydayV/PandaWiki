@@ -12,7 +12,9 @@ const (
 )
 
 type RagJob struct {
-	ID          string     `gorm:"column:id;primaryKey"`
+	// default 让 GORM 在零值时跳过该列，由数据库 gen_random_uuid() 生成，
+	// 否则零值 string 主键会被显式插入为 ''，撞 UUID 类型报错
+	ID          string     `gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	Payload     []byte     `gorm:"column:payload;type:jsonb"`
 	Status      string     `gorm:"column:status"`
 	Attempts    int        `gorm:"column:attempts"`

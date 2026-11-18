@@ -61,6 +61,8 @@ func NewEcho(
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+	// 必须最外层兜底：handler panic 不能击穿进程（Sentry 关闭时无任何兜底）
+	e.Use(middleware.Recover())
 
 	e.Binder = &MyBinder{}
 

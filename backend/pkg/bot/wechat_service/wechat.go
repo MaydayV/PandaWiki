@@ -388,20 +388,37 @@ func (cfg *WechatServiceConfig) GetKfHumanList(token string, KfId string) (*Huma
 
 // answer set into redis queue and set useful time
 func (cfg *WechatServiceConfig) SendQuestionToAI(conversationID string, wccontent chan string) {
-	// send message
-	val, _ := domain.ConversationManager.Load(conversationID)
-	state := val.(*domain.ConversationState)
+	// 该函数运行在裸 goroutine 中，任何 panic 都会击穿整个进程
+	defer func() {
+		if r := recover(); r != nil {
+			cfg.logger.Error("send question to ai panicked", log.String("conversation_id", conversationID), log.Any("panic", r))
+		}
+	}()
+
+	val, ok := domain.ConversationManager.Load(conversationID)
+	if !ok || val == nil {
+		return
+	}
+	state, ok := val.(*domain.ConversationState)
+	if !ok || state == nil {
+		return
+	}
+
 	for content := range wccontent {
 		state.Mutex.Lock()
-		if state.IsVisited {
-			state.NotificationChan <- content // notify has new data
-		}
 		state.Buffer.WriteString(content)
+		visited := state.IsVisited
 		state.Mutex.Unlock()
+		if !visited {
+			continue
+		}
+		// 发送必须在锁外：持锁向无缓冲 chan 发送会与消费端退出时的抢锁互锁。
+		// 消费端已断开时无人接收，超时放弃实时推送（内容已写入 Buffer，不丢失最终答案）。
+		select {
+		case state.NotificationChan <- content:
+		case <-time.After(domain.NotifySendTimeout):
+		}
 	}
-	// end sent notification
-	defer func() {
-		close(state.NotificationChan)
-		domain.ConversationManager.Delete(conversationID)
-	}()
+	close(state.NotificationChan)
+	domain.ConversationManager.Delete(conversationID)
 }

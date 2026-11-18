@@ -11,7 +11,9 @@ import (
 )
 
 func TestNewDiscordClient(t *testing.T) {
-	cfg, _ := config.NewConfig()
+	t.Setenv("JWT_SECRET", "test-secret")
+	cfg, err := config.NewConfig()
+	require.NoError(t, err)
 	log := log.NewLogger(cfg)
 	token := "token"
 	getQA := func(ctx context.Context, msg string, info domain.ConversationInfo, ConversationID string) (chan string, error) {
