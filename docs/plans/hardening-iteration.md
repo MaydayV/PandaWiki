@@ -63,19 +63,25 @@
 | 轮 6.5 | P2 清尾：SSE 错误泄露、SQL 参数化、admin 存量告警、死依赖 | c8039d08 fix(hardening) | ✅ |
 | 轮 7 | 收尾：全量回归（后端 test/lint、app/admin build 全绿）、文档更新 | 本提交 | ✅ |
 
-## 遗留事项（评估后暂不处理，含理由）
+## 遗留事项（第二轮迭代后更新，2026-11-19）
 
-1. **larkws.Start goroutine 泄漏**（pkg/bot/feishu/stream.go）：上游 SDK 限制（成功路径永久阻塞 select{}），已有注释说明；钉钉/Discord 流有 ctx 退出机制。等上游修复。
-2. **widget LLM 端点无 captcha**：需要前端 widget 配合改造（传 captcha token），涉及产品交互决策；现状有可选的提问间隔限频兜底。
-3. **Echo RealIP 信任 XFF**：需要"可信代理"跨组件设计（caddy 配置由 API 动态下发），简单开关（TRUST_PROXY env）可后续加。
-4. **API token / SimpleAuth 口令明文存储**：加密存储需要迁移方案与密钥管理设计，比较处已改常量时间。
-5. **用户消息原文进 Info 日志**（handler/share 多处）：涉及产品排障需求取舍，建议引入日志脱敏中间件统一处理。
-6. **jwt GetKbID 对写请求全量读 body**：性能优化收益中等，改动触及所有写请求路径，单独任务处理。
-7. **nodes name/content LIKE 无 trigram 索引**：管理端低频操作，数据量大后再加。
-8. **Dockerfile.postgres 零引用**：手动兜底镜像保留，注释已说明离线环境需预下载 pgvector 源码。
+第二轮迭代（轮 8~10，提交 08ef5182 起）已解决首轮遗留中的 4 项：
+
+- ~~Echo RealIP 信任 XFF~~ → **已解决**：caddy 反代强制覆盖设置 X-Real-IP（3 处 request 反代全部注入），api 端 TRUST_PROXY 开关控制信任策略，compose/.env.example 同步。
+- ~~widget 公开端点无防刷~~ → **已解决**：按 IP 的 1 分钟滑动窗口限频（12 次/分，redis 原子 INCR+ExpireNX，故障放行）。
+- ~~SSE 空闲掐断风险~~ → **已解决**：ChatMessage/ChatWidget 消费循环 select 化，LLM 长思考时每 15s 写 `: keepalive` 注释行。
+- ~~数据备份缺失~~ → **已解决**：`docs/deploy/backup.sh`（pg_dump + 滚动保留 + cron 说明），DEPLOYMENT.md 已引用。
+
+仍保留的遗留项（评估后不动）：
+
+1. **larkws.Start goroutine 泄漏**（pkg/bot/feishu/stream.go）：上游 SDK 限制（成功路径永久阻塞 select{}），已有注释说明。等上游修复。
+2. **API token / SimpleAuth 口令明文存储**：加密存储需要迁移方案与密钥管理设计，比较处已改常量时间。
+3. **用户消息原文进 Info 日志**（handler/share 多处）：涉及产品排障需求取舍，建议引入日志脱敏中间件统一处理。
+4. **jwt GetKbID 对写请求全量读 body**：multipart 分支已补（上传路径），JSON 大 body 场景实际不存在，收益不足。
+5. **nodes name/content LIKE 无 trigram 索引**：管理端低频操作，数据量大后再加。
 
 ## 最终状态
 
 - 后端：golangci-lint 0 issues、go test ./... 全绿
 - 前端：app pnpm lint 0 问题、app/admin pnpm build 成功
-- 全部改动分 9 个提交在本地 main，未推送（可用 git revert 逐轮回退）
+- 全部改动分 12 个提交在本地 main，未推送（可用 git revert 逐轮回退）
