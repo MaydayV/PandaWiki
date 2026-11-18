@@ -19,6 +19,8 @@ interface SSEClientOptions {
   onCancel?: SSEErrorCallback;
   onComplete?: SSECompleteCallback;
   method?: string;
+  /** 整体请求超时时间（毫秒），不传默认 5 分钟 */
+  timeout?: number;
 }
 
 class SSEClient<T> {
@@ -44,9 +46,8 @@ class SSEClient<T> {
       onError,
       onComplete,
       method = 'POST',
+      timeout: timeoutDuration = 300000,
     } = this.options;
-
-    const timeoutDuration = 300000;
     const timeoutId = setTimeout(() => {
       this.unsubscribe();
       onError?.(new Error('Request timed out after 5 minutes'));

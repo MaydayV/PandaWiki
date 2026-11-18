@@ -100,52 +100,54 @@ export default defineConfig(({ command, mode }) => {
       assetsDir: 'panda-wiki-admin-assets',
       rollupOptions: {
         output: {
-          manualChunks(id: string) {
-            if (id.includes('node_modules')) {
-              if (
-                [
-                  'react/',
-                  'react-dom/',
-                  'react-router/',
-                  'react-redux/',
-                  '@reduxjs/toolkit/',
-                ].some(pkg => id.includes(`node_modules/${pkg}`))
-              ) {
-                return 'vendor-react';
-              }
-              if (id.includes('node_modules/@mui/')) {
-                return 'vendor-mui';
-              }
-              if (
-                [
-                  'highlight.js/',
-                  'lowlight/',
-                  'katex/',
-                  'prosemirror-state/',
-                ].some(pkg => id.includes(`node_modules/${pkg}`))
-              ) {
-                return 'vendor-editor';
-              }
-              if (
-                [
-                  'react-markdown/',
-                  'remark-gfm/',
-                  'remark-math/',
-                  'remark-breaks/',
-                  'rehype-katex/',
-                  'rehype-raw/',
-                  'rehype-sanitize/',
-                ].some(pkg => id.includes(`node_modules/${pkg}`))
-              ) {
-                return 'vendor-markdown';
-              }
-              if (
-                id.includes('node_modules/yjs/') ||
-                id.includes('node_modules/y-websocket/')
-              ) {
-                return 'vendor-yjs';
-              }
-            }
+          // 使用 rolldown 原生 codeSplitting 分组(manualChunks 仿真会把匹配模块的
+          // 全部依赖闭包递归吸入同一 chunk,导致 @mui/@ctzhian/ui 等被卷入
+          // vendor-modelkit 并进入首屏预加载)。各分组与原 manualChunks 覆盖的
+          // 包保持一致;modelkit/emoji 两组的依赖(@mui、@ctzhian/ui、react)由
+          // 通用分组接管,因此关闭 includeDependenciesRecursively。
+          codeSplitting: {
+            groups: [
+              {
+                name: 'vendor-react',
+                test:
+                  /node_modules\/(?:react\/|react-dom\/|react-router\/|react-redux\/|@reduxjs\/toolkit\/)/,
+              },
+              { name: 'vendor-mui', test: /node_modules\/@mui\// },
+              {
+                name: 'vendor-editor',
+                test:
+                  /node_modules\/(?:highlight\.js\/|lowlight\/|katex\/|prosemirror-state\/)/,
+              },
+              {
+                name: 'vendor-markdown',
+                test:
+                  /node_modules\/(?:react-markdown\/|remark-gfm\/|remark-math\/|remark-breaks\/|rehype-katex\/|rehype-raw\/|rehype-sanitize\/)/,
+              },
+              {
+                name: 'vendor-yjs',
+                test: /node_modules\/(?:yjs\/|y-websocket\/)/,
+              },
+              {
+                name: 'vendor-echarts',
+                test: /node_modules\/(?:echarts\/|zrender\/)/,
+              },
+              {
+                name: 'vendor-modelkit',
+                test: /node_modules\/@ctzhian\/modelkit\//,
+                includeDependenciesRecursively: false,
+              },
+              {
+                name: 'vendor-emoji',
+                test: /node_modules\/(?:emoji-mart\/|@emoji-mart\/)/,
+                includeDependenciesRecursively: false,
+              },
+              {
+                name: 'vendor-cytoscape',
+                test:
+                  /node_modules\/(?:cytoscape\/|cytoscape-cose-bilkent\/|cytoscape-fcose\/)/,
+              },
+              { name: 'vendor-elkjs', test: /node_modules\/elkjs\// },
+            ],
           },
         },
       },

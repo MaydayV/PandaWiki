@@ -1,7 +1,7 @@
 import { TrendData } from '@/api';
+import echarts from '@/utils/echarts';
 import { loadScript } from '@/utils/loadScript';
 import { Box, useTheme } from '@mui/material';
-import * as echarts from 'echarts';
 import { useEffect, useRef, useState } from 'react';
 
 type ECharts = ReturnType<typeof echarts.init>;

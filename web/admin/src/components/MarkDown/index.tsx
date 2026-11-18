@@ -3,7 +3,43 @@ import { Box, IconButton, useTheme } from '@mui/material';
 import 'katex/dist/katex.min.css';
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import SyntaxHighlighter from 'react-syntax-highlighter';
+// 使用 light 构建,避免捆绑 highlight.js 全量语言集,仅注册下方常用语言
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
+import bash from 'react-syntax-highlighter/dist/esm/languages/hljs/bash';
+import c from 'react-syntax-highlighter/dist/esm/languages/hljs/c';
+import cpp from 'react-syntax-highlighter/dist/esm/languages/hljs/cpp';
+import csharp from 'react-syntax-highlighter/dist/esm/languages/hljs/csharp';
+import css from 'react-syntax-highlighter/dist/esm/languages/hljs/css';
+import dart from 'react-syntax-highlighter/dist/esm/languages/hljs/dart';
+import diff from 'react-syntax-highlighter/dist/esm/languages/hljs/diff';
+import dockerfile from 'react-syntax-highlighter/dist/esm/languages/hljs/dockerfile';
+import go from 'react-syntax-highlighter/dist/esm/languages/hljs/go';
+import ini from 'react-syntax-highlighter/dist/esm/languages/hljs/ini';
+import java from 'react-syntax-highlighter/dist/esm/languages/hljs/java';
+import javascript from 'react-syntax-highlighter/dist/esm/languages/hljs/javascript';
+import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
+import kotlin from 'react-syntax-highlighter/dist/esm/languages/hljs/kotlin';
+import less from 'react-syntax-highlighter/dist/esm/languages/hljs/less';
+import lua from 'react-syntax-highlighter/dist/esm/languages/hljs/lua';
+import makefile from 'react-syntax-highlighter/dist/esm/languages/hljs/makefile';
+import markdown from 'react-syntax-highlighter/dist/esm/languages/hljs/markdown';
+import nginx from 'react-syntax-highlighter/dist/esm/languages/hljs/nginx';
+import objectivec from 'react-syntax-highlighter/dist/esm/languages/hljs/objectivec';
+import perl from 'react-syntax-highlighter/dist/esm/languages/hljs/perl';
+import php from 'react-syntax-highlighter/dist/esm/languages/hljs/php';
+import properties from 'react-syntax-highlighter/dist/esm/languages/hljs/properties';
+import protobuf from 'react-syntax-highlighter/dist/esm/languages/hljs/protobuf';
+import python from 'react-syntax-highlighter/dist/esm/languages/hljs/python';
+import ruby from 'react-syntax-highlighter/dist/esm/languages/hljs/ruby';
+import rust from 'react-syntax-highlighter/dist/esm/languages/hljs/rust';
+import scala from 'react-syntax-highlighter/dist/esm/languages/hljs/scala';
+import scss from 'react-syntax-highlighter/dist/esm/languages/hljs/scss';
+import shell from 'react-syntax-highlighter/dist/esm/languages/hljs/shell';
+import sql from 'react-syntax-highlighter/dist/esm/languages/hljs/sql';
+import swift from 'react-syntax-highlighter/dist/esm/languages/hljs/swift';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/hljs/typescript';
+import xml from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
+import yaml from 'react-syntax-highlighter/dist/esm/languages/hljs/yaml';
 import { anOldHope } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
@@ -18,6 +54,51 @@ interface MarkDownProps {
   loading?: boolean;
   content: string;
 }
+
+// 代码块语言来自 markdown 围栏(如 ```js),此处注册常用语言集;
+// hljs 注册语言时会一并注册其别名(如 js/jsx、ts/tsx、py、sh、yml、html 等)。
+// 未注册的语言会走 hljs 自动检测,不影响渲染。
+const hljsLanguages = {
+  bash,
+  c,
+  cpp,
+  csharp,
+  css,
+  dart,
+  diff,
+  dockerfile,
+  go,
+  ini,
+  java,
+  javascript,
+  json,
+  kotlin,
+  less,
+  lua,
+  makefile,
+  markdown,
+  nginx,
+  objectivec,
+  perl,
+  php,
+  properties,
+  protobuf,
+  python,
+  ruby,
+  rust,
+  scala,
+  scss,
+  shell,
+  sql,
+  swift,
+  typescript,
+  xml,
+  yaml,
+};
+
+Object.entries(hljsLanguages).forEach(([lang, language]) => {
+  SyntaxHighlighter.registerLanguage(lang, language);
+});
 
 const MarkDown = ({ loading = false, content }: MarkDownProps) => {
   const theme = useTheme();

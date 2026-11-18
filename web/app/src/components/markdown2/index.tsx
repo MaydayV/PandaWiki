@@ -3,17 +3,13 @@
 import { copyText } from '@/utils';
 import { Box, Dialog, useTheme } from '@mui/material';
 import mk from '@vscode/markdown-it-katex';
-import hljs from 'highlight.js';
+// 仅引入常见语言子集（约 35 种），避免全量 highlight.js 语言集进入主包；
+// markdown 文档场景的代码块语言覆盖不受影响，未注册语言会走 escapeHtml 兜底分支
+import hljs from 'highlight.js/lib/common';
 import 'highlight.js/styles/an-old-hope.css';
 import 'katex/dist/katex.min.css';
 import MarkdownIt from 'markdown-it';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSmartScroll } from '@/hooks';
 import { clearImageBlobCache, createImageRenderer } from './imageRenderer';
 import { incrementalRender } from './incrementalRenderer';
@@ -31,6 +27,31 @@ interface MarkDown2Props {
   content: string;
   autoScroll?: boolean;
 }
+
+// ==================== 常量 ====================
+// 流式输出时 content 高频变化，而 md.render 需对全文重新解析（整体 O(n²)）。
+// 限制渲染频率并合并中间内容（trailing 执行保证最终内容一定被渲染）。
+const RENDER_THROTTLE_MS = 100;
+
+/**
+ * 单次渲染过程（一次 md.render）内 renderer rules 使用的可变状态。
+ * renderer rules 只挂载一次，因此这些状态必须在其外部保存并在每次渲染前重置。
+ */
+interface RenderPassState {
+  imageCount: number;
+  htmlImageCount: number;
+  mermaidCount: number;
+  isInThinking: boolean;
+  thinkingContent: string;
+}
+
+const createRenderPassState = (): RenderPassState => ({
+  imageCount: 0,
+  htmlImageCount: 0,
+  mermaidCount: 0,
+  isInThinking: false,
+  thinkingContent: '',
+});
 
 // ==================== 工具函数 ====================
 /**
@@ -90,6 +111,11 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
   const mermaidSuccessIdRef = useRef<Map<number, string>>(new Map());
   const imageRenderCacheRef = useRef<Map<number, string>>(new Map()); // 图片渲染缓存（HTML）
   const imageBlobCacheRef = useRef<Map<string, string>>(new Map()); // 图片 blob URL 缓存
+  const renderPassStateRef = useRef<RenderPassState>(createRenderPassState());
+  // 渲染节流相关
+  const pendingContentRef = useRef<string | null>(null);
+  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRenderAtRef = useRef(0);
 
   // 使用智能滚动 hook
   const { scrollToBottom } = useSmartScroll({
@@ -120,18 +146,6 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
     // 图片加载失败后，useSmartScroll 的 ResizeObserver 会自动触发滚动
   }, []);
 
-  // 创建图片渲染器
-  const renderImage = useMemo(
-    () =>
-      createImageRenderer({
-        onImageLoad: handleImageLoad,
-        onImageError: handleImageError,
-        imageRenderCache: imageRenderCacheRef.current,
-        imageBlobCache: imageBlobCacheRef.current,
-      }),
-    [handleImageLoad, handleImageError],
-  );
-
   // 创建thinking渲染器
   const renderThinking = useThinkingRenderer({
     showThink,
@@ -139,265 +153,321 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
     loading,
   });
 
-  // 创建mermaid渲染器
-  const renderMermaid = useMemo(
-    () => createMermaidRenderer(mermaidSuccessIdRef),
-    [],
-  );
+  // 图片/mermaid 渲染器仅在挂载后创建（避免在渲染期间读取 ref），
+  // renderer rules 通过 ref 读取
+  const imageRendererRef = useRef<ReturnType<
+    typeof createImageRenderer
+  > | null>(null);
+  const mermaidRendererRef = useRef<ReturnType<
+    typeof createMermaidRenderer
+  > | null>(null);
+
+  // renderer rules 仅挂载一次，但需要读取"最新"的动态依赖（thinking 渲染器随
+  // 状态变化重建、主题色随明暗模式变化），用 ref 保存最新值供 rules 读取
+  const renderThinkingRef = useRef(renderThinking);
+  const primaryColorRef = useRef(theme.palette.primary.main);
+  useEffect(() => {
+    // 渲染仅在 timer 回调（commit 之后）中发生，此处同步的值总是最新
+    renderThinkingRef.current = renderThinking;
+    primaryColorRef.current = theme.palette.primary.main;
+  });
 
   // ==================== 渲染器自定义 ====================
   /**
-   * 自定义 MarkdownIt 渲染器
+   * 自定义 MarkdownIt 渲染器（仅在 MarkdownIt 初始化时挂载一次）
    */
-  const customizeRenderer = useCallback(
-    (md: MarkdownIt) => {
-      const originalFenceRender = md.renderer.rules.fence;
-      // 自定义图片渲染
-      let imageCount = 0;
-      let htmlImageCount = 0; // HTML 标签图片计数
-      let mermaidCount = 0;
-      md.renderer.rules.image = (tokens, idx) => {
-        imageCount++;
-        const token = tokens[idx];
-        const src = getImagePath(token.attrGet('src') || '');
-        const alt = token.attrGet('alt') || token.content;
-        const rawAttrs = token.attrs || [];
-        // 过滤潜在危险属性（如 onload/onerror 等事件处理）
-        const safeAttrs = rawAttrs.filter(([name]) => {
-          const lower = name.toLowerCase();
-          // 屏蔽所有以 on 开头的属性，例如 onload/onerror/onclick 等
-          if (lower.startsWith('on')) return false;
-          return true;
-        });
-        return renderImage(src, alt, safeAttrs, imageCount - 1);
+  const customizeRenderer = useCallback((md: MarkdownIt) => {
+    const originalFenceRender = md.renderer.rules.fence;
+    // 自定义图片渲染（计数器为"单次渲染过程"状态，每次 md.render 前重置）
+    md.renderer.rules.image = (tokens, idx) => {
+      renderPassStateRef.current.imageCount++;
+      const token = tokens[idx];
+      const src = getImagePath(token.attrGet('src') || '');
+      const alt = token.attrGet('alt') || token.content;
+      const rawAttrs = token.attrs || [];
+      // 过滤潜在危险属性（如 onload/onerror 等事件处理）
+      const safeAttrs = rawAttrs.filter(([name]) => {
+        const lower = name.toLowerCase();
+        // 屏蔽所有以 on 开头的属性，例如 onload/onerror/onclick 等
+        if (lower.startsWith('on')) return false;
+        return true;
+      });
+      return imageRendererRef.current!(
+        src,
+        alt,
+        safeAttrs,
+        renderPassStateRef.current.imageCount - 1,
+      );
+    };
+
+    // 自定义代码块渲染
+    md.renderer.rules.fence = (tokens, idx, options, env, renderer) => {
+      const token = tokens[idx];
+      const info = token.info.trim();
+      const code = token.content;
+
+      if (info === 'mermaid') {
+        renderPassStateRef.current.mermaidCount++;
+        return mermaidRendererRef.current!(
+          code,
+          renderPassStateRef.current.mermaidCount,
+        );
+      }
+
+      const defaultRender = originalFenceRender || md.renderer.rules.fence;
+      const result = defaultRender
+        ? defaultRender(tokens, idx, options, env, renderer)
+        : `<pre><code>${code}</code></pre>`;
+
+      return result;
+    };
+
+    // 处理行内代码
+    md.renderer.rules.code_inline = (tokens, idx) => {
+      const token = tokens[idx];
+      const code = token.content;
+      // 对行内代码内容做 HTML 转义，避免 `<svg onload=...>` 等被当成真正标签解析
+      const safeCode = md.utils.escapeHtml(code);
+      return `<code  style="cursor: pointer;">${safeCode}</code>`;
+    };
+
+    // 自定义标题渲染（h1 -> h2）
+    md.renderer.rules.heading_open = (tokens, idx) => {
+      const token = tokens[idx];
+      if (token.tag === 'h1') {
+        token.tag = 'h2';
+      }
+      return `<${token.tag}>`;
+    };
+
+    md.renderer.rules.heading_close = (tokens, idx) => {
+      const token = tokens[idx];
+      return `</${token.tag}>`;
+    };
+
+    // 自定义链接渲染
+    md.renderer.rules.link_open = (tokens, idx) => {
+      const token = tokens[idx];
+      const hrefIndex = token.attrIndex('href');
+      const href = hrefIndex >= 0 ? token.attrs![hrefIndex][1] : '';
+
+      token.attrSet('target', '_blank');
+      token.attrSet('rel', 'noopener noreferrer');
+
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: ${primaryColorRef.current}; text-decoration: underline;">`;
+    };
+
+    // 处理自定义 HTML 标签
+    const setupCustomHtmlHandlers = () => {
+      const originalHtmlBlock = md.renderer.rules.html_block;
+      const originalHtmlInline = md.renderer.rules.html_inline;
+
+      // HTML 白名单 - 只允许这些标签通过
+      const allowedTags = ['think', 'error'];
+
+      // 检查是否是允许的标签
+      const isAllowedTag = (content: string): boolean => {
+        return allowedTags.some(
+          tag => content.includes(`<${tag}>`) || content.includes(`</${tag}>`),
+        );
       };
 
-      // 自定义代码块渲染
-      md.renderer.rules.fence = (tokens, idx, options, env, renderer) => {
-        const token = tokens[idx];
-        const info = token.info.trim();
-        const code = token.content;
+      // 解析 HTML img 标签并提取属性
+      const parseImgTag = (
+        html: string,
+      ): {
+        src: string;
+        alt: string;
+        attrs: [string, string][];
+      } | null => {
+        // 匹配 <img> 标签（支持自闭合和普通标签）
+        const imgMatch = html.match(/<img\s+([^>]*?)\/?>/i);
+        if (!imgMatch) return null;
 
-        if (info === 'mermaid') {
-          mermaidCount++;
-          return renderMermaid(code, mermaidCount);
+        const attrsString = imgMatch[1];
+        const attrs: [string, string][] = [];
+        let src = '';
+        let alt = '';
+
+        // 解析属性：匹配 name="value" 或 name='value' 或 name=value
+        const attrRegex =
+          /([^\s=]+)(?:=["']([^"']*)["']|=(?:["'])?([^\s>]+)(?:["'])?)?/g;
+        let attrMatch;
+        while ((attrMatch = attrRegex.exec(attrsString)) !== null) {
+          const name = attrMatch[1].toLowerCase();
+          const value = attrMatch[2] || attrMatch[3] || '';
+          // 过滤所有事件处理属性（onload/onerror/onclick 等）
+          if (name.startsWith('on')) {
+            continue;
+          }
+          attrs.push([name, value]);
+          if (name === 'src') src = getImagePath(value);
+          if (name === 'alt') alt = value;
         }
 
-        const defaultRender = originalFenceRender || md.renderer.rules.fence;
-        const result = defaultRender
-          ? defaultRender(tokens, idx, options, env, renderer)
-          : `<pre><code>${code}</code></pre>`;
-
-        return result;
+        return { src, alt, attrs };
       };
 
-      // 处理行内代码
-      md.renderer.rules.code_inline = (tokens, idx) => {
+      md.renderer.rules.html_block = (tokens, idx, options, env, renderer) => {
         const token = tokens[idx];
-        const code = token.content;
-        // 对行内代码内容做 HTML 转义，避免 `<svg onload=...>` 等被当成真正标签解析
-        const safeCode = md.utils.escapeHtml(code);
-        return `<code  style="cursor: pointer;">${safeCode}</code>`;
-      };
+        const content = token.content;
+        const passState = renderPassStateRef.current;
 
-      // 自定义标题渲染（h1 -> h2）
-      md.renderer.rules.heading_open = (tokens, idx) => {
-        const token = tokens[idx];
-        if (token.tag === 'h1') {
-          token.tag = 'h2';
+        // 处理 think 标签开始
+        if (content.includes('<think>')) {
+          passState.isInThinking = true;
+          passState.thinkingContent = '';
+          return ''; // 不输出任何内容，开始收集
         }
-        return `<${token.tag}>`;
+
+        // 处理 think 标签结束
+        if (content.includes('</think>')) {
+          if (passState.isInThinking) {
+            passState.isInThinking = false;
+            const renderedThinking = renderThinkingRef.current(
+              passState.thinkingContent.trim(),
+            );
+            passState.thinkingContent = '';
+            return renderedThinking;
+          }
+          return '';
+        }
+
+        // 如果在thinking标签内，收集内容
+        if (passState.isInThinking) {
+          passState.thinkingContent += content;
+          return '';
+        }
+
+        // 处理 error 标签
+        if (content.includes('<error>')) return '<span class="chat-error">';
+        if (content.includes('</error>')) return '</span>';
+
+        // 处理 img 标签
+        if (content.includes('<img')) {
+          const imgData = parseImgTag(content);
+          if (imgData && imgData.src) {
+            const imageIndex = passState.imageCount + passState.htmlImageCount;
+            passState.htmlImageCount++;
+            return imageRendererRef.current!(
+              imgData.src,
+              imgData.alt,
+              imgData.attrs,
+              imageIndex,
+            );
+          }
+        }
+
+        // 🔒 安全检查：不在白名单的标签，转义输出
+        if (!isAllowedTag(content)) {
+          return md.utils.escapeHtml(content);
+        }
+
+        return originalHtmlBlock
+          ? originalHtmlBlock(tokens, idx, options, env, renderer)
+          : content;
       };
 
-      md.renderer.rules.heading_close = (tokens, idx) => {
+      md.renderer.rules.html_inline = (tokens, idx, options, env, renderer) => {
         const token = tokens[idx];
-        return `</${token.tag}>`;
+        const content = token.content;
+        const passState = renderPassStateRef.current;
+
+        if (content.includes('<error>')) return '<span class="chat-error">';
+        if (content.includes('</error>')) return '</span>';
+
+        // 处理 img 标签
+        if (content.includes('<img')) {
+          const imgData = parseImgTag(content);
+          if (imgData && imgData.src) {
+            const imageIndex = passState.imageCount + passState.htmlImageCount;
+            passState.htmlImageCount++;
+            return imageRendererRef.current!(
+              imgData.src,
+              imgData.alt,
+              imgData.attrs,
+              imageIndex,
+            );
+          }
+        }
+
+        // 🔒 安全检查：不在白名单的标签，转义输出
+        if (!isAllowedTag(content)) {
+          return md.utils.escapeHtml(content);
+        }
+
+        return originalHtmlInline
+          ? originalHtmlInline(tokens, idx, options, env, renderer)
+          : content;
       };
+    };
 
-      // 自定义链接渲染
-      md.renderer.rules.link_open = (tokens, idx) => {
-        const token = tokens[idx];
-        const hrefIndex = token.attrIndex('href');
-        const href = hrefIndex >= 0 ? token.attrs![hrefIndex][1] : '';
-
-        token.attrSet('target', '_blank');
-        token.attrSet('rel', 'noopener noreferrer');
-
-        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: ${theme.palette.primary.main}; text-decoration: underline;">`;
-      };
-
-      // 处理自定义 HTML 标签
-      const setupCustomHtmlHandlers = () => {
-        const originalHtmlBlock = md.renderer.rules.html_block;
-        const originalHtmlInline = md.renderer.rules.html_inline;
-
-        // HTML 白名单 - 只允许这些标签通过
-        const allowedTags = ['think', 'error'];
-
-        // 用于跟踪thinking状态
-        let isInThinking = false;
-        let thinkingContent = '';
-
-        // 检查是否是允许的标签
-        const isAllowedTag = (content: string): boolean => {
-          return allowedTags.some(
-            tag =>
-              content.includes(`<${tag}>`) || content.includes(`</${tag}>`),
-          );
-        };
-
-        // 解析 HTML img 标签并提取属性
-        const parseImgTag = (
-          html: string,
-        ): {
-          src: string;
-          alt: string;
-          attrs: [string, string][];
-        } | null => {
-          // 匹配 <img> 标签（支持自闭合和普通标签）
-          const imgMatch = html.match(/<img\s+([^>]*?)\/?>/i);
-          if (!imgMatch) return null;
-
-          const attrsString = imgMatch[1];
-          const attrs: [string, string][] = [];
-          let src = '';
-          let alt = '';
-
-          // 解析属性：匹配 name="value" 或 name='value' 或 name=value
-          const attrRegex =
-            /([^\s=]+)(?:=["']([^"']*)["']|=(?:["'])?([^\s>]+)(?:["'])?)?/g;
-          let attrMatch;
-          while ((attrMatch = attrRegex.exec(attrsString)) !== null) {
-            const name = attrMatch[1].toLowerCase();
-            const value = attrMatch[2] || attrMatch[3] || '';
-            // 过滤所有事件处理属性（onload/onerror/onclick 等）
-            if (name.startsWith('on')) {
-              continue;
-            }
-            attrs.push([name, value]);
-            if (name === 'src') src = getImagePath(value);
-            if (name === 'alt') alt = value;
-          }
-
-          return { src, alt, attrs };
-        };
-
-        md.renderer.rules.html_block = (
-          tokens,
-          idx,
-          options,
-          env,
-          renderer,
-        ) => {
-          const token = tokens[idx];
-          const content = token.content;
-
-          // 处理 think 标签开始
-          if (content.includes('<think>')) {
-            isInThinking = true;
-            thinkingContent = '';
-            return ''; // 不输出任何内容，开始收集
-          }
-
-          // 处理 think 标签结束
-          if (content.includes('</think>')) {
-            if (isInThinking) {
-              isInThinking = false;
-              const renderedThinking = renderThinking(thinkingContent.trim());
-              thinkingContent = '';
-              return renderedThinking;
-            }
-            return '';
-          }
-
-          // 如果在thinking标签内，收集内容
-          if (isInThinking) {
-            thinkingContent += content;
-            return '';
-          }
-
-          // 处理 error 标签
-          if (content.includes('<error>')) return '<span class="chat-error">';
-          if (content.includes('</error>')) return '</span>';
-
-          // 处理 img 标签
-          if (content.includes('<img')) {
-            const imgData = parseImgTag(content);
-            if (imgData && imgData.src) {
-              const imageIndex = imageCount + htmlImageCount;
-              htmlImageCount++;
-              return renderImage(
-                imgData.src,
-                imgData.alt,
-                imgData.attrs,
-                imageIndex,
-              );
-            }
-          }
-
-          // 🔒 安全检查：不在白名单的标签，转义输出
-          if (!isAllowedTag(content)) {
-            return md.utils.escapeHtml(content);
-          }
-
-          return originalHtmlBlock
-            ? originalHtmlBlock(tokens, idx, options, env, renderer)
-            : content;
-        };
-
-        md.renderer.rules.html_inline = (
-          tokens,
-          idx,
-          options,
-          env,
-          renderer,
-        ) => {
-          const token = tokens[idx];
-          const content = token.content;
-
-          if (content.includes('<error>')) return '<span class="chat-error">';
-          if (content.includes('</error>')) return '</span>';
-
-          // 处理 img 标签
-          if (content.includes('<img')) {
-            const imgData = parseImgTag(content);
-            if (imgData && imgData.src) {
-              const imageIndex = imageCount + htmlImageCount;
-              htmlImageCount++;
-              return renderImage(
-                imgData.src,
-                imgData.alt,
-                imgData.attrs,
-                imageIndex,
-              );
-            }
-          }
-
-          // 🔒 安全检查：不在白名单的标签，转义输出
-          if (!isAllowedTag(content)) {
-            return md.utils.escapeHtml(content);
-          }
-
-          return originalHtmlInline
-            ? originalHtmlInline(tokens, idx, options, env, renderer)
-            : content;
-        };
-      };
-
-      setupCustomHtmlHandlers();
-    },
-    [renderImage, renderMermaid, renderThinking, theme],
-  );
+    setupCustomHtmlHandlers();
+  }, []);
 
   // ==================== Effects ====================
-  // 初始化 MarkdownIt
+  // 初始化图片/mermaid 渲染器与 MarkdownIt，并挂载 renderer rules（均仅一次）
   useEffect(() => {
+    if (!imageRendererRef.current) {
+      imageRendererRef.current = createImageRenderer({
+        onImageLoad: handleImageLoad,
+        onImageError: handleImageError,
+        imageRenderCache: imageRenderCacheRef.current,
+        imageBlobCache: imageBlobCacheRef.current,
+      });
+    }
+    if (!mermaidRendererRef.current) {
+      mermaidRendererRef.current = createMermaidRenderer(mermaidSuccessIdRef);
+    }
     if (!mdRef.current) {
       mdRef.current = createMarkdownIt();
     }
+    if (mdRef.current) {
+      customizeRenderer(mdRef.current);
+    }
+  }, [customizeRenderer, handleImageError, handleImageLoad]);
+
+  // 卸载时清理待渲染任务与未执行的 mermaid 渲染任务，避免卸载后仍触发渲染
+  useEffect(() => {
+    return () => {
+      if (renderTimerRef.current !== null) {
+        clearTimeout(renderTimerRef.current);
+        renderTimerRef.current = null;
+      }
+      mermaidRendererRef.current?.cancelAll();
+    };
   }, []);
 
-  // 主要的内容渲染 Effect
+  // ==================== 渲染 ====================
+  /**
+   * 执行一次 markdown 渲染（md.render 为全文解析，调用频率通过节流控制）
+   */
+  const renderMarkdown = useCallback(
+    (processedContent: string) => {
+      const container = containerRef.current;
+      const md = mdRef.current;
+      if (!container || !md) return;
+
+      // 重置单次渲染过程的状态（renderer rules 中的计数器与 thinking 收集状态）
+      renderPassStateRef.current = createRenderPassState();
+
+      try {
+        // 渲染markdown（thinking标签在renderer rules中直接处理）
+        const newHtml = md.render(processedContent);
+
+        incrementalRender(container, newHtml);
+        lastContentRef.current = processedContent;
+        lastRenderAtRef.current = Date.now();
+        scrollToBottom();
+      } catch (error) {
+        console.error('Markdown 渲染错误:', error);
+        container.innerHTML = `<div>${t('markdown.renderError')}</div>`;
+      }
+    },
+    [scrollToBottom, t],
+  );
+
+  // 主要的内容渲染 Effect（节流：合并流式期间的中间内容，trailing 保证最终内容被渲染）
   useEffect(() => {
     if (!containerRef.current || !mdRef.current || !content) return;
 
@@ -407,22 +477,21 @@ const MarkDown2: React.FC<MarkDown2Props> = ({
     // 检查内容变化
     if (processedContent === lastContentRef.current) return;
 
-    customizeRenderer(mdRef.current);
+    // 记录最新待渲染内容；已有待执行任务时直接合并（任务总是渲染最新值）
+    pendingContentRef.current = processedContent;
+    if (renderTimerRef.current !== null) return;
 
-    try {
-      // 渲染markdown（thinking标签在renderer rules中直接处理）
-      const newHtml = mdRef.current.render(processedContent);
-
-      incrementalRender(containerRef.current, newHtml);
-      lastContentRef.current = processedContent;
-      scrollToBottom();
-    } catch (error) {
-      console.error('Markdown 渲染错误:', error);
-      if (containerRef.current) {
-        containerRef.current.innerHTML = `<div>${t('markdown.renderError')}</div>`;
+    const elapsed = Date.now() - lastRenderAtRef.current;
+    const delay = Math.max(0, RENDER_THROTTLE_MS - elapsed);
+    renderTimerRef.current = setTimeout(() => {
+      renderTimerRef.current = null;
+      const pending = pendingContentRef.current;
+      pendingContentRef.current = null;
+      if (pending !== null) {
+        renderMarkdown(pending);
       }
-    }
-  }, [content, customizeRenderer, scrollToBottom, t]);
+    }, delay);
+  }, [content, renderMarkdown]);
 
   // 添加代码块点击复制和图片点击预览功能（事件代理）
   useEffect(() => {

@@ -142,7 +142,10 @@ const AiQaContent: React.FC<{
   }> | null>(null);
   const { palette } = useTheme();
   const messageIdRef = useRef('');
-  const [, setFullAnswer] = useState<string>('');
+  // fullAnswer 仅作为流式内容累加器（不在 UI 中直接渲染），用 ref 累加，
+  // 使派生状态的 setState 调用移出 updater（updater 应为纯函数，
+  // React StrictMode 下 updater 可能双调用，嵌套副作用会重复执行）
+  const fullAnswerRef = useRef('');
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState<ThinkingStatus>(4);
@@ -210,7 +213,7 @@ const AiQaContent: React.FC<{
     }
     setConversationId('');
     setConversation([]);
-    setFullAnswer('');
+    fullAnswerRef.current = '';
     setInput('');
     // 清理图片URL
     uploadedImages.forEach(img => {
@@ -575,37 +578,41 @@ const AiQaContent: React.FC<{
               return newConversation;
             });
 
-            setFullAnswer('');
+            fullAnswerRef.current = '';
             setLoading(false);
 
             setThinking(4);
           } else if (type === 'data') {
-            setFullAnswer(prevFullAnswer => {
-              const newFullAnswer = prevFullAnswer + content;
+            // 先在 updater 外累加并算好派生值，再各自 set，
+            // 避免 setFullAnswer updater 内嵌套 setThinking/setConversation
+            // （updater 在 StrictMode 下可能双调用导致副作用重复）
+            fullAnswerRef.current = fullAnswerRef.current + content;
+            const newFullAnswer = fullAnswerRef.current;
 
-              const { thinkingContent, answerContent } =
-                handleThinkingContent(newFullAnswer);
+            const { thinkingContent, answerContent } =
+              handleThinkingContent(newFullAnswer);
 
-              // 更新状态
-              if (newFullAnswer.includes('</think>')) {
-                setThinking(3);
-              } else if (newFullAnswer.includes('<think>')) {
-                setThinking(2);
-              } else {
-                setThinking(3);
+            // 更新状态
+            if (newFullAnswer.includes('</think>')) {
+              setThinking(3);
+            } else if (newFullAnswer.includes('<think>')) {
+              setThinking(2);
+            } else {
+              setThinking(3);
+            }
+            setConversation(preConversation => {
+              const newConversation = [...preConversation];
+              const lastConversation =
+                newConversation[newConversation.length - 1];
+              if (lastConversation) {
+                // 浅拷贝替换最后一项，避免原地修改旧状态引用
+                newConversation[newConversation.length - 1] = {
+                  ...lastConversation,
+                  a: answerContent,
+                  thinking_content: thinkingContent,
+                };
               }
-              setConversation(preConversation => {
-                const newConversation = [...preConversation];
-                const lastConversation =
-                  newConversation[newConversation.length - 1];
-                if (lastConversation) {
-                  lastConversation.a = answerContent;
-                  lastConversation.thinking_content = thinkingContent;
-                }
-                return newConversation;
-              });
-
-              return newFullAnswer;
+              return newConversation;
             });
           } else if (type === 'chunk_result') {
             setConversation(preConversation => {
@@ -649,7 +656,7 @@ const AiQaContent: React.FC<{
     });
     messageIdRef.current = '';
     setConversation(newConversation);
-    setFullAnswer('');
+    fullAnswerRef.current = '';
     setTimeout(() => {
       chatAnswer(q, pendingImages);
       setInput('');

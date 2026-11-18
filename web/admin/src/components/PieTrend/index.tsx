@@ -1,5 +1,5 @@
 import { TrendData } from '@/api';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { useEffect, useRef, useState } from 'react';
 
 type ECharts = ReturnType<typeof echarts.init>;

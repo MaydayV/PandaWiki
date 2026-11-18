@@ -87,8 +87,6 @@ func NewFeishuClient(ctx context.Context, cancel context.CancelFunc, clientID, c
 	return c
 }
 
-var cardDataTemplate = `{"schema":"2.0","header":{"title":{"content":"%s","tag":"plain_text"}},"config":{"streaming_mode":true,"summary":{"content":""}},"body":{"elements":[{"tag":"markdown","content":"%s","element_id":"markdown_1"}]}}`
-
 func (c *FeishuClient) sendTextMessage(ctx context.Context, receiveIdType string, receiveId string, text string) {
 	msgContent, _ := json.Marshal(map[string]string{"text": text})
 	resp, err := c.client.Im.Message.Create(ctx, larkim.NewCreateMessageReqBuilder().
@@ -108,9 +106,38 @@ func (c *FeishuClient) sendTextMessage(ctx context.Context, receiveIdType string
 	}
 }
 
+// buildQACardData 用 json.Marshal 构造卡片 JSON：fmt.Sprintf 模板会把含引号/换行的
+// 用户问题直接嵌入 JSON 字符串，破坏卡片结构
+func buildQACardData(question, answer string) (string, error) {
+	card := map[string]any{
+		"schema": "2.0",
+		"header": map[string]any{
+			"title": map[string]any{"content": question, "tag": "plain_text"},
+		},
+		"config": map[string]any{
+			"streaming_mode": true,
+			"summary":        map[string]any{"content": ""},
+		},
+		"body": map[string]any{
+			"elements": []any{
+				map[string]any{"tag": "markdown", "content": answer, "element_id": "markdown_1"},
+			},
+		},
+	}
+	b, err := json.Marshal(card)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
 func (c *FeishuClient) sendQACard(ctx context.Context, receiveIdType string, receiveId string, question string, additionalInfo string) {
 	// create card
-	cardData := fmt.Sprintf(cardDataTemplate, question, "稍等，让我想一想...")
+	cardData, err := buildQACardData(question, "稍等，让我想一想...")
+	if err != nil {
+		c.logger.Error("failed to build QA card data", log.Error(err))
+		return
+	}
 	req := larkcardkit.NewCreateCardReqBuilder().
 		Body(larkcardkit.NewCreateCardReqBodyBuilder().
 			Type(`card_json`).
