@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -74,6 +75,26 @@ func NewEcho(
 	}
 	// register validator
 	e.Validator = &echoValidator{validator: validator.New()}
+
+	// RealIP 来源：echo 默认直接信任 X-Forwarded-For/X-Real-IP，可被客户端伪造绕过
+	// 登录限速与对话限频。TRUST_PROXY=true（经 caddy 反代部署，X-Real-IP 由
+	// caddy 强制覆盖设置）时信任代理头，否则只用 TCP 对端地址。
+	if config.HTTP.TrustProxy {
+		e.IPExtractor = func(req *http.Request) string {
+			if xrip := req.Header.Get("X-Real-IP"); xrip != "" {
+				if ip := net.ParseIP(xrip); ip != nil {
+					return xrip
+				}
+			}
+			host, _, err := net.SplitHostPort(req.RemoteAddr)
+			if err != nil {
+				return req.RemoteAddr
+			}
+			return host
+		}
+	} else {
+		e.IPExtractor = echo.ExtractIPDirect()
+	}
 
 	// Add Sentry middleware if enabled
 	if config.Sentry.Enabled && config.Sentry.DSN != "" {

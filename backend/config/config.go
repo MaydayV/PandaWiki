@@ -29,7 +29,8 @@ type LogConfig struct {
 }
 
 type HTTPConfig struct {
-	Port int `mapstructure:"port"`
+	Port       int  `mapstructure:"port"`
+	TrustProxy bool `mapstructure:"trust_proxy"`
 }
 
 type AdminConfig struct {
@@ -281,6 +282,9 @@ func overrideWithEnv(c *Config) {
 	}
 	if env := os.Getenv("ADMIN_DIST_DIR"); env != "" {
 		c.Admin.DistDir = env
+	}
+	if env := os.Getenv("TRUST_PROXY"); env != "" {
+		c.HTTP.TrustProxy = env == "1" || env == "true" || env == "TRUE"
 	}
 	// log level
 	if env := os.Getenv("LOG_LEVEL"); env != "" {

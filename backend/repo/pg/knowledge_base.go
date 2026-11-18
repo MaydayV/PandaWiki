@@ -169,6 +169,8 @@ func (r *KnowledgeBaseRepository) SyncKBAccessSettingsToCaddy(ctx context.Contex
 										"request": map[string]any{
 											"set": map[string][]any{
 												"X-KB-ID": {kb.ID},
+												// caddy 覆盖设置真实客户端 IP，api 端 TRUST_PROXY=true 时以此提取
+												"X-Real-IP": {"{http.request.remote.host}"},
 											},
 										},
 									},
@@ -198,6 +200,8 @@ func (r *KnowledgeBaseRepository) SyncKBAccessSettingsToCaddy(ctx context.Contex
 										"request": map[string]any{
 											"set": map[string][]any{
 												"X-KB-ID": {kb.ID},
+												// caddy 覆盖设置真实客户端 IP，api 端 TRUST_PROXY=true 时以此提取
+												"X-Real-IP": {"{http.request.remote.host}"},
 											},
 										},
 									},
@@ -259,6 +263,8 @@ func (r *KnowledgeBaseRepository) SyncKBAccessSettingsToCaddy(ctx context.Contex
 										"request": map[string]any{
 											"set": map[string][]any{
 												"X-KB-ID": {kb.ID},
+												// caddy 覆盖设置真实客户端 IP，api 端 TRUST_PROXY=true 时以此提取
+												"X-Real-IP": {"{http.request.remote.host}"},
 											},
 										},
 									},

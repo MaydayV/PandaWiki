@@ -16,14 +16,23 @@ import (
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
 	pgrepo "github.com/chaitin/panda-wiki/repo/pg"
+	storecache "github.com/chaitin/panda-wiki/store/cache"
 	"github.com/chaitin/panda-wiki/usecase"
 )
 
 const openAICompletionsEndpoint = "/share/v1/chat/completions"
 
+// sseKeepaliveInterval 是 SSE 心跳注释行的间隔：LLM 长思考时防中间代理空闲掐断
+const sseKeepaliveInterval = 15 * time.Second
+
+// widgetRateLimitPerMin 是 widget 公开端点按真实 IP 的提问频率上限，
+// 为未配置 captcha/限频的嵌入场景提供基础防刷兜底
+const widgetRateLimitPerMin = 12
+
 type ShareChatHandler struct {
 	*handler.BaseHandler
 	logger              *log.Logger
+	cache               *storecache.Cache
 	appUsecase          *usecase.AppUsecase
 	chatUsecase         *usecase.ChatUsecase
 	authUsecase         *usecase.AuthUsecase
@@ -37,6 +46,7 @@ func NewShareChatHandler(
 	e *echo.Echo,
 	baseHandler *handler.BaseHandler,
 	logger *log.Logger,
+	cache *storecache.Cache,
 	appUsecase *usecase.AppUsecase,
 	chatUsecase *usecase.ChatUsecase,
 	authUsecase *usecase.AuthUsecase,
@@ -48,6 +58,7 @@ func NewShareChatHandler(
 	h := &ShareChatHandler{
 		BaseHandler:         baseHandler,
 		logger:              logger.WithModule("handler.share.chat"),
+		cache:               cache,
 		appUsecase:          appUsecase,
 		chatUsecase:         chatUsecase,
 		authUsecase:         authUsecase,
@@ -143,22 +154,34 @@ func (h *ShareChatHandler) ChatMessage(c echo.Context) error {
 		return h.sendErrMsg(c, err.Error())
 	}
 
-	for event := range eventCh {
-		if err := h.writeSSEEvent(c, event); err != nil {
-			// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
-			// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
-			for range eventCh {
+	// LLM 长思考阶段生产者无事件输出，SSE 注释行保活防止中间代理按空闲超时掐断连接
+	for {
+		select {
+		case event, ok := <-eventCh:
+			if !ok {
+				return nil
 			}
-			return err
-		}
-		if event.Type == "done" || event.Type == "error" {
-			// 生产者 close 前可能还有缓冲事件，排干后再退出
-			for range eventCh {
+			if err := h.writeSSEEvent(c, event); err != nil {
+				// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+				// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+				for range eventCh {
+				}
+				return err
 			}
-			break
+			if event.Type == "done" || event.Type == "error" {
+				// 生产者 close 前可能还有缓冲事件，排干后再退出
+				for range eventCh {
+				}
+				return nil
+			}
+		case <-time.After(sseKeepaliveInterval):
+			if err := h.writeSSEKeepalive(c); err != nil {
+				for range eventCh {
+				}
+				return err
+			}
 		}
 	}
-	return nil
 }
 
 // ChatWidget chat widget
@@ -208,6 +231,9 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 		return h.sendErrMsg(c, "widget image upload is disabled")
 	}
 
+	if err := h.enforceWidgetRateLimit(c); err != nil {
+		return err
+	}
 	req.RemoteIP = c.RealIP()
 	if err := h.enforceConversationAskInterval(c.Request().Context(), &req); err != nil {
 		return h.sendErrMsg(c, err.Error())
@@ -223,26 +249,67 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 		return h.sendErrMsg(c, err.Error())
 	}
 
-	for event := range eventCh {
-		if err := h.writeSSEEvent(c, event); err != nil {
-			// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
-			// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
-			for range eventCh {
+	// 与 ChatMessage 相同：SSE 心跳 + 排干保护
+	for {
+		select {
+		case event, ok := <-eventCh:
+			if !ok {
+				return nil
 			}
-			return err
-		}
-		if event.Type == "done" || event.Type == "error" {
-			// 生产者 close 前可能还有缓冲事件，排干后再退出
-			for range eventCh {
+			if err := h.writeSSEEvent(c, event); err != nil {
+				// 客户端已断开：同步排干剩余事件直到生产者退出（生产者受 ctx 取消保护），
+				// 否则生产者永久阻塞在裸发送上，泄漏 LLM 并发槽
+				for range eventCh {
+				}
+				return err
 			}
-			break
+			if event.Type == "done" || event.Type == "error" {
+				// 生产者 close 前可能还有缓冲事件，排干后再退出
+				for range eventCh {
+				}
+				return nil
+			}
+		case <-time.After(sseKeepaliveInterval):
+			if err := h.writeSSEKeepalive(c); err != nil {
+				for range eventCh {
+				}
+				return err
+			}
 		}
 	}
-	return nil
 }
 
 func (h *ShareChatHandler) sendErrMsg(c echo.Context, errMsg string) error {
 	return h.writeSSEEvent(c, domain.SSEEvent{Type: "error", Content: errMsg})
+}
+
+// writeSSEKeepalive 写 SSE 注释行（冒号开头，所有 SSE 客户端按规范忽略）
+func (h *ShareChatHandler) writeSSEKeepalive(c echo.Context) error {
+	if _, err := c.Response().Write([]byte(": keepalive\n\n")); err != nil {
+		return err
+	}
+	c.Response().Flush()
+	return nil
+}
+
+// enforceWidgetRateLimit 按"真实 IP + 1 分钟窗口"限制 widget 公开端点提问频率。
+// widget 为嵌入第三方网站的公开入口，通常无 captcha/登录态，这是基础防刷兜底；
+// redis 故障时放行（不阻断正常对话）。
+func (h *ShareChatHandler) enforceWidgetRateLimit(c echo.Context) error {
+	ip := c.RealIP()
+	if ip == "" {
+		return nil
+	}
+	key := fmt.Sprintf("widget_rl:%s:%d", ip, time.Now().Unix()/60)
+	n, err := h.cache.IncrWindow(c.Request().Context(), key, time.Minute)
+	if err != nil {
+		h.logger.Warn("widget rate limit check failed", log.Error(err))
+		return nil
+	}
+	if n > widgetRateLimitPerMin {
+		return h.sendErrMsg(c, "请求过于频繁，请稍后再试")
+	}
+	return nil
 }
 
 func (h *ShareChatHandler) enforceConversationAskInterval(ctx context.Context, req *domain.ChatRequest) error {
@@ -955,6 +1022,10 @@ func (h *ShareChatHandler) WidgetSearch(c echo.Context) error {
 		return h.NewResponseWithError(c, "validate request failed", err)
 	}
 	ctx := c.Request().Context()
+
+	if err := h.enforceWidgetRateLimit(c); err != nil {
+		return err
+	}
 
 	// validate widget info
 	widgetAppInfo, err := h.appUsecase.GetWidgetAppInfo(c.Request().Context(), req.KBID)

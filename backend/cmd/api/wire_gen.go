@@ -150,7 +150,7 @@ func createApp() (*App, error) {
 	shareNavHandler := share.NewShareNavHandler(baseHandler, echo, navUsecase, logger)
 	shareAppHandler := share.NewShareAppHandler(echo, baseHandler, logger, appUsecase)
 	apiCallAuditRepo := pg2.NewAPICallAuditRepo(db, logger)
-	shareChatHandler := share.NewShareChatHandler(echo, baseHandler, logger, appUsecase, chatUsecase, authUsecase, conversationUsecase, modelUsecase, apiTokenRepo, apiCallAuditRepo)
+	shareChatHandler := share.NewShareChatHandler(echo, baseHandler, logger, cacheCache, appUsecase, chatUsecase, authUsecase, conversationUsecase, modelUsecase, apiTokenRepo, apiCallAuditRepo)
 	sitemapUsecase := usecase.NewSitemapUsecase(nodeRepository, knowledgeBaseRepository, logger)
 	shareSitemapHandler := share.NewShareSitemapHandler(echo, baseHandler, sitemapUsecase, appUsecase, logger)
 	shareStatHandler := share.NewShareStatHandler(baseHandler, echo, statUseCase, logger)

@@ -66,3 +66,14 @@ func (cache *Cache) ReleaseLock(ctx context.Context, key string) bool {
 	_, err := cache.Del(ctx, key).Result()
 	return err == nil
 }
+
+// IncrWindow 原子递增并按首次写入设定窗口过期，用于简单滑动窗口限频
+func (cache *Cache) IncrWindow(ctx context.Context, key string, window time.Duration) (int64, error) {
+	pipe := cache.TxPipeline()
+	incr := pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, window)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+	return incr.Val(), nil
+}

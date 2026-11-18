@@ -88,6 +88,8 @@ services:
       ADMIN_PORT: "2443"
       RAG_PROVIDER: ${RAG_PROVIDER:-pg}
       RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
+      # 经 caddy 反代部署：X-Real-IP 由 caddy 强制覆盖，限频/限速按真实客户端 IP
+      TRUST_PROXY: "true"
     volumes:
       - ./data/caddy/run:/app/run
     # 最终镜像为 alpine:3.21（无 curl，busybox 自带 wget），探测内置 /health 端点
