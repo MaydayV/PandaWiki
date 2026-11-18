@@ -259,6 +259,12 @@ func GetKbID(c echo.Context) (string, error) {
 
 	case http.MethodPost, http.MethodPatch, http.MethodPut:
 
+		// multipart 表单（如文件上传）不是 JSON，走 FormValue 提取 kb_id，
+		// 否则 ValidateKBUserPerm 拿不到 kbId
+		if strings.HasPrefix(c.Request().Header.Get(echo.HeaderContentType), echo.MIMEMultipartForm) {
+			return c.FormValue("kb_id"), nil
+		}
+
 		bodyBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
 			return "", err

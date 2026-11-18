@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"crypto/subtle"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo/v4"
@@ -113,7 +114,8 @@ func (h *ShareAuthHandler) AuthLoginSimple(c echo.Context) error {
 		return h.NewResponseWithError(c, "simple auth is not enabled", nil)
 	}
 
-	if req.Password != kb.AccessSettings.SimpleAuth.Password {
+	// 常量时间比较，避免公开端点被时序侧信道逐字节爆破共享口令
+	if subtle.ConstantTimeCompare([]byte(req.Password), []byte(kb.AccessSettings.SimpleAuth.Password)) != 1 {
 		return h.NewResponseWithError(c, "simple auth password is incorrect", nil)
 	}
 

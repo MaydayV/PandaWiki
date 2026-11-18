@@ -349,7 +349,7 @@ func (cfg *WechatServiceConfig) GetAccessToken() (string, error) {
 	}
 
 	// success
-	cfg.logger.Info("wechatservice get accesstoken success", log.Any("info", tokenResp.AccessToken))
+	cfg.logger.Info("wechatservice get accesstoken success")
 
 	tokenCache.AccessToken = tokenResp.AccessToken
 	tokenCache.TokenExpire = time.Now().Add(time.Duration(tokenResp.ExpiresIn-300) * time.Second)

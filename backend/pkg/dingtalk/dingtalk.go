@@ -181,7 +181,7 @@ func (c *Client) GetAccessToken() (string, error) {
 		return "", tryErr
 	}
 	accessToken := *response.Body.AccessToken
-	c.logger.Debug("get access token", log.String("access_token", accessToken), log.Int("expire_in", int(*response.Body.ExpireIn)))
+	c.logger.Debug("get access token", log.Int("expire_in", int(*response.Body.ExpireIn)))
 
 	if err := c.cache.Set(ctx, cacheKey, accessToken, time.Duration(*response.Body.ExpireIn-300)*time.Second).Err(); err != nil {
 		c.logger.Warn("failed to set cache", log.Error(err))

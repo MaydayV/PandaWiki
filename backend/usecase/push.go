@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -113,17 +114,34 @@ func (u *PushUsecase) NotifyKBUpdate(ctx context.Context, kbID string, release *
 	}
 }
 
+// matchWebhookHost 按 host 精确/子域匹配 webhook 域名。
+// 原 strings.Contains 会放行 evil-dingtalk.com 这类伪造域，推送内容外泄。
+func matchWebhookHost(rawURL string, domains ...string) bool {
+	u, err := url.Parse(strings.ToLower(rawURL))
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if host == "" {
+		return false
+	}
+	for _, d := range domains {
+		if host == d || strings.HasSuffix(host, "."+d) {
+			return true
+		}
+	}
+	return false
+}
+
 func (u *PushUsecase) resolveNotifier(ctx context.Context, kbID, preferredAppID, chatID string) (bot.PushNotifier, error) {
 	rawURL, _ := bot.ParseWebhookTarget(chatID)
 	lower := strings.ToLower(rawURL)
 	switch {
-	case strings.Contains(lower, "qyapi.weixin.qq.com"):
+	case matchWebhookHost(rawURL, "qyapi.weixin.qq.com"):
 		return wecom.NewWecomWebhookNotifier(u.logger), nil
-	case strings.Contains(lower, "oapi.dingtalk.com"), strings.Contains(lower, "dingtalk.com"):
+	case matchWebhookHost(rawURL, "oapi.dingtalk.com", "dingtalk.com"):
 		return dingtalk.NewDingTalkPushNotifier(u.logger), nil
-	case strings.Contains(lower, "feishu.cn"),
-		strings.Contains(lower, "larksuite.com"),
-		strings.Contains(lower, "larkoffice.com"):
+	case matchWebhookHost(rawURL, "feishu.cn", "larksuite.com", "larkoffice.com"):
 		return feishu.NewFeishuWebhookNotifier(), nil
 	case strings.HasPrefix(lower, "http://"), strings.HasPrefix(lower, "https://"):
 		return nil, fmt.Errorf("unsupported webhook host for push target")

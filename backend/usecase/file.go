@@ -36,10 +36,6 @@ type FileUsecase struct {
 	httpClient        *http.Client
 }
 
-const approvedIPDialTimeout = 10 * time.Second
-
-const approvedIPDialAttemptTimeout = 3 * time.Second
-
 const remoteDownloadTimeout = 2 * time.Minute
 
 func NewFileUsecase(logger *log.Logger, s3Client *s3.MinioClient, config *config.Config, systemSettingRepo *pg.SystemSettingRepo) *FileUsecase {
@@ -300,40 +296,9 @@ func (u *FileUsecase) httpClientForIPs(ips []net.IP) *http.Client {
 	}
 }
 
+// dialApprovedIPs 已提升为公共工具 utils.DialApprovedIPs，供其他按 URL 拉取的场景复用
 func dialApprovedIPs(ips []net.IP) func(context.Context, string, string) (net.Conn, error) {
-	return func(ctx context.Context, _, address string) (net.Conn, error) {
-		_, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target address: %w", err)
-		}
-
-		dialDeadline := time.Now().Add(approvedIPDialTimeout)
-		if deadline, ok := ctx.Deadline(); ok && deadline.Before(dialDeadline) {
-			dialDeadline = deadline
-		}
-
-		dialer := net.Dialer{}
-		var lastErr error
-		for _, ip := range ips {
-			remaining := time.Until(dialDeadline)
-			if remaining <= 0 {
-				break
-			}
-			attemptTimeout := min(remaining, approvedIPDialAttemptTimeout)
-			attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
-			conn, err := dialer.DialContext(attemptCtx, "tcp", net.JoinHostPort(ip.String(), port))
-			cancel()
-			if err == nil {
-				return conn, nil
-			}
-			lastErr = err
-		}
-
-		if lastErr == nil {
-			return nil, fmt.Errorf("no approved IP addresses available")
-		}
-		return nil, fmt.Errorf("failed to connect to approved IP addresses: %w", lastErr)
-	}
+	return utils.DialApprovedIPs(ips)
 }
 
 // checkDeniedExtension checks if the file extension is in the denied list
@@ -350,14 +315,16 @@ func (u *FileUsecase) checkDeniedExtension(ctx context.Context, ext string) erro
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
+		// 设置读取失败时 fail-closed：管理员配置的黑名单不能因后端抖动被绕过
 		u.logger.Error("failed to get upload denied extensions setting", "error", err)
-		return nil // Don't block upload if we can't read settings
+		return fmt.Errorf("upload denied extensions setting unavailable, upload rejected for safety")
 	}
 
 	var deniedSetting domain.UploadDeniedExtensionsSetting
 	if err := json.Unmarshal(setting.Value, &deniedSetting); err != nil {
+		// 设置格式损坏同样 fail-closed（宁拒绝不绕过，修复设置即可恢复上传）
 		u.logger.Error("failed to unmarshal denied extensions setting", "error", err)
-		return nil // Don't block upload if settings are malformed
+		return fmt.Errorf("upload denied extensions setting malformed, upload rejected for safety")
 	}
 
 	// Check if extension is denied

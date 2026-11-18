@@ -28,18 +28,16 @@ func NewCache(config *config.Config) (*Cache, error) {
 }
 
 func (cache *Cache) GetOrSet(ctx context.Context, key string, value interface{}, expiration time.Duration) (interface{}, error) {
-	// Try to get the value from cache
-	val, err := cache.Get(ctx, key).Result()
-	if err == redis.Nil {
-		// If not found, set the value
-		if err := cache.Set(ctx, key, value, expiration).Err(); err != nil {
-			return nil, err
-		}
-		return value, nil
-	} else if err != nil {
+	// 先 Get 后 Set 非原子：多实例同时冷启动会各自写入不同值。
+	// 用 SetNX 保证只有一个实例的值生效，其余实例读取已存在的值。
+	set, err := cache.SetNX(ctx, key, value, expiration).Result()
+	if err != nil {
 		return nil, err
 	}
-	return val, nil
+	if set {
+		return value, nil
+	}
+	return cache.Get(ctx, key).Result()
 }
 
 // DeleteKeysWithPrefix 删除所有指定前缀的 key

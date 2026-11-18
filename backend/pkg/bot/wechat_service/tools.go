@@ -2,6 +2,7 @@ package wechat_service
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 // 读取 cursor，以客服账号的消息作为key，返回对应的cursor值
@@ -195,8 +198,29 @@ func GetDefaultImageID(accessToken, ImageBase64 string) (string, error) {
 
 // upload media to wechat server from URL
 func UploadMediaFromURL(accessToken, fileURL string) (string, error) {
-	// 处理URL
-	resp, err := wechatHTTPClient.Get(fileURL)
+	// fileURL 可能来自第三方配置（如 app logo），必须做 SSRF 校验并固定连接 IP
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	approvedIPs, err := utils.ResolveURLForSSRFWithContext(ctx, fileURL)
+	if err != nil {
+		return "", fmt.Errorf("下载图片失败: %w", err)
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DisableKeepAlives = true
+	transport.DialContext = utils.DialApprovedIPs(approvedIPs)
+	client := &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+		// 拒绝重定向：重定向目标未经过 SSRF 校验
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("下载图片失败: %w", err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("下载图片失败: %w", err)
 	}

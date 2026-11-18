@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
+	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
@@ -32,6 +33,17 @@ func NewFileHandler(echo *echo.Echo, baseHandler *handler.BaseHandler, logger *l
 	return h
 }
 
+// ensureKBPerm 对显式指定 kb_id 的上传校验 KB 文档管理权限。
+// 未指定 kb_id 的上传写入随机 uuid 前缀（与任何 KB 无关），放行——
+// 编辑器插图等场景依赖该路径，而显式 kb_id 若不校验则任何登录用户可向任意 KB 前缀写文件。
+func (h *FileHandler) ensureKBPerm(c echo.Context) error {
+	if c.FormValue("kb_id") == "" {
+		return nil
+	}
+	mw := h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage)
+	return mw(func(c echo.Context) error { return nil })(c)
+}
+
 // Upload
 //
 //	@Summary		Upload File
@@ -41,8 +53,11 @@ func NewFileHandler(echo *echo.Echo, baseHandler *handler.BaseHandler, logger *l
 //	@Param			file	formData	file	true	"File"
 //	@Param			kb_id	formData	string	false	"Knowledge Base ID"
 //	@Success		200		{object}	domain.ObjectUploadResp
-//	@Router			/api/v1/file/upload [post]
+//	@Router		/api/v1/file/upload [post]
 func (h *FileHandler) Upload(c echo.Context) error {
+	if err := h.ensureKBPerm(c); err != nil {
+		return err
+	}
 	cxt := c.Request().Context()
 	kbID := c.FormValue("kb_id")
 	if kbID == "" {
@@ -83,6 +98,14 @@ func (h *FileHandler) UploadByUrl(c echo.Context) error {
 
 	if err := c.Validate(req); err != nil {
 		return h.NewResponseWithError(c, "validate request body failed", err)
+	}
+
+	// 与 Upload 同规则：显式 kb_id 需要文档管理权限
+	if req.KbId != "" {
+		mw := h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage)
+		if err := mw(func(c echo.Context) error { return nil })(c); err != nil {
+			return err
+		}
 	}
 
 	kbID := req.KbId

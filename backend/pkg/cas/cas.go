@@ -139,8 +139,8 @@ func (c *Client) ValidateTicket(ticket, state string) (*UserInfo, error) {
 
 	fullURL := validateURL + "?" + params.Encode()
 
+	// 不打印含 ticket 的完整 URL（ticket 是一次性凭据，进日志可被重放）
 	c.logger.Info("validating CAS ticket",
-		log.String("url", fullURL),
 		log.String("version", c.config.Version))
 
 	resp, err := c.httpClient.Get(fullURL)
@@ -154,7 +154,7 @@ func (c *Client) ValidateTicket(ticket, state string) (*UserInfo, error) {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	c.logger.Info("CAS validation response", log.String("response", string(body)))
+	c.logger.Info("CAS validation response", log.Int("body_bytes", len(body)))
 
 	// 根据CAS版本解析不同的响应格式
 	switch c.config.Version {

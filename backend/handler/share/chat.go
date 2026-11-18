@@ -2,6 +2,7 @@ package share
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -400,7 +401,7 @@ func (h *ShareChatHandler) ChatCompletions(c echo.Context) error {
 		auditMeta.APITokenID = &tokenID
 	}
 
-	authorizedByAppSecret := appBot.Settings.OpenAIAPIBotSettings.SecretKey == secretKey
+	authorizedByAppSecret := subtle.ConstantTimeCompare([]byte(appBot.Settings.OpenAIAPIBotSettings.SecretKey), []byte(secretKey)) == 1
 	authorizedByAPIToken := apiToken != nil
 	if !authorizedByAppSecret && !authorizedByAPIToken {
 		return h.sendOpenAIErrorWithAudit(c, auditMeta, "Invalid Authorization key", "unauthorized", startedAt)

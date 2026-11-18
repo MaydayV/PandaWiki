@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -204,4 +205,49 @@ func ResolveURLForSSRFWithContext(ctx context.Context, urlStr string) ([]net.IP,
 func ValidateURLForSSRF(urlStr string) error {
 	_, err := ResolveURLForSSRF(urlStr)
 	return err
+}
+
+const (
+	// SSRFDialTimeout / SSRFDialAttemptTimeout 与 usecase/file.go 原实现保持一致
+	SSRFDialTimeout        = 10 * time.Second
+	SSRFDialAttemptTimeout = 3 * time.Second
+)
+
+// DialApprovedIPs 返回一个 DialContext，只允许连接已通过 SSRF 校验的 IP 列表，
+// 防止 DNS 重绑定绕过（连接阶段重新解析出内网地址）。
+// 与 ResolveURLForSSRFWithContext 搭配使用。
+func DialApprovedIPs(ips []net.IP) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, _, address string) (net.Conn, error) {
+		_, port, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid target address: %w", err)
+		}
+
+		dialDeadline := time.Now().Add(SSRFDialTimeout)
+		if deadline, ok := ctx.Deadline(); ok && deadline.Before(dialDeadline) {
+			dialDeadline = deadline
+		}
+
+		dialer := net.Dialer{}
+		var lastErr error
+		for _, ip := range ips {
+			remaining := time.Until(dialDeadline)
+			if remaining <= 0 {
+				break
+			}
+			attemptTimeout := min(remaining, SSRFDialAttemptTimeout)
+			attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
+			conn, err := dialer.DialContext(attemptCtx, "tcp", net.JoinHostPort(ip.String(), port))
+			cancel()
+			if err == nil {
+				return conn, nil
+			}
+			lastErr = err
+		}
+
+		if lastErr == nil {
+			return nil, fmt.Errorf("no approved IP addresses available")
+		}
+		return nil, fmt.Errorf("failed to connect to approved IP addresses: %w", lastErr)
+	}
 }

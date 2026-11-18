@@ -478,7 +478,7 @@ func (u *AppUsecase) updateDisCordBot(app *domain.App) {
 		return
 	}
 
-	u.logger.Info("discord bot is starting", log.String("token", token))
+	u.logger.Info("discord bot is starting")
 	u.discordBots[app.ID] = discordBots
 	u.pushUsecase.RegisterNotifier(app.ID, discord.NewDiscordPushNotifier(u.logger, token))
 }

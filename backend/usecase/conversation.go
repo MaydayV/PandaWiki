@@ -188,23 +188,11 @@ func (u *ConversationUsecase) CreateConversation(ctx context.Context, conversati
 }
 
 func (u *ConversationUsecase) FeedBack(ctx context.Context, feedback *domain.FeedbackRequest) error {
-	// 先查询数据库，看看目前message的信息
-	messages, err := u.repo.GetConversationMessagesDetailByID(ctx, feedback.MessageId)
-	if err != nil {
+	// 消息存在性检查（错误信息更友好），重复投票由 repo 条件更新原子化保证
+	if _, err := u.repo.GetConversationMessagesDetailByID(ctx, feedback.MessageId); err != nil {
 		return err
 	}
-	u.logger.Debug("feedback info", log.Any("feedback_info", messages.Info))
-
-	// 后端校验一下，只是允许用户进行一次投票
-	if messages.Info.Score == 0 {
-		// 用户可以提供建议
-		if err := u.repo.UpdateMessageFeedback(ctx, feedback); err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("already voted for this message, please do not vote again")
-	}
-	return nil
+	return u.repo.UpdateMessageFeedback(ctx, feedback)
 }
 
 func (u *ConversationUsecase) GetLatestUserMessageCreatedAt(ctx context.Context, kbID, appID, remoteIP string) (*time.Time, error) {

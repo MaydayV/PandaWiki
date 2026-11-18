@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -205,11 +206,15 @@ func (r *ConversationRepository) UpdateMessageFeedback(ctx context.Context, feed
 		FeedbackContent: feedback.FeedbackContent,
 	}
 
-	// 更新消息的反馈信息
-	if err := r.db.WithContext(ctx).Model(&domain.ConversationMessage{}).
-		Where("id = ?", feedback.MessageId).
-		Update("info", feedbackInfo).Error; err != nil {
-		return err
+	// 条件更新：仅当消息尚未评分时生效（原子化，杜绝并发重复投票的检查-写入竞态）
+	res := r.db.WithContext(ctx).Model(&domain.ConversationMessage{}).
+		Where("id = ? AND (info->>'score' = '0' OR info->>'score' IS NULL OR info->>'score' = '')", feedback.MessageId).
+		Update("info", feedbackInfo)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("already voted for this message, please do not vote again")
 	}
 	return nil
 }

@@ -63,6 +63,8 @@ func NewEcho(
 	e.HidePort = true
 	// 必须最外层兜底：handler panic 不能击穿进程（Sentry 关闭时无任何兜底）
 	e.Use(middleware.Recover())
+	// 请求体上限：与 admin 代理一致，防止直连 8000 端口时无限上传
+	e.Use(middleware.BodyLimit("1000M"))
 
 	e.Binder = &MyBinder{}
 
