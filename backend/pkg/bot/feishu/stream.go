@@ -416,6 +416,11 @@ func (c *FeishuClient) Stop() {
 	}
 }
 
+// IsStopped 报告 client 是否已因 Stop（而非启动失败）退出，供调用方区分日志级别
+func (c *FeishuClient) IsStopped() bool {
+	return c.closed.Load()
+}
+
 // Done returns a channel that is closed when Start() has fully returned.
 func (c *FeishuClient) Done() <-chan struct{} {
 	return c.done

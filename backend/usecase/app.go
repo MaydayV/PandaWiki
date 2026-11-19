@@ -335,7 +335,12 @@ func (u *AppUsecase) updateFeishuBot(app *domain.App) {
 		u.logger.Info("feishu bot is starting", log.String("app_id", app.Settings.FeishuBotAppID))
 		err := feishuClient.Start()
 		if err != nil {
-			u.logger.Error("failed to start feishu client", log.Error(err))
+			// Stop（配置更新/删除）触发的正常退出也返回 error，降噪为 Info
+			if feishuClient.IsStopped() {
+				u.logger.Info("feishu client stopped", log.String("app_id", app.Settings.FeishuBotAppID))
+			} else {
+				u.logger.Error("failed to start feishu client", log.Error(err))
+			}
 			cancel()
 			return
 		}

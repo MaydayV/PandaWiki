@@ -439,10 +439,11 @@ func (u *KnowledgeBaseUsecase) CreateAPIToken(ctx context.Context, req *domain.C
 		return nil, err
 	}
 
+	// Create 内部会把 apiToken.Token 就地替换为密文，响应必须返回创建时的明文
 	return &domain.APITokenListItem{
 		ID:                 apiToken.ID,
 		Name:               apiToken.Name,
-		Token:              apiToken.Token,
+		Token:              token,
 		Permission:         apiToken.Permission,
 		RateLimitPerMinute: apiToken.RateLimitPerMinute,
 		DailyQuota:         apiToken.DailyQuota,

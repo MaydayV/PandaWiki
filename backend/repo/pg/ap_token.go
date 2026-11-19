@@ -45,8 +45,25 @@ func (r *APITokenRepo) GetByTokenWithCache(ctx context.Context, token string) (*
 	// 未启用加密时 token 列即明文，行为与历史版本一致
 	var apiToken domain.APIToken
 	if utils.CryptoEnabled() {
-		if err := r.db.WithContext(ctx).Where("token_index = ?", utils.SecretIndex(token)).First(&apiToken).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
+		err := r.db.WithContext(ctx).Where("token_index = ?", utils.SecretIndex(token)).First(&apiToken).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 回退明文查询：ENCRYPTION_KEY 开启前创建的旧 token 行 token_index 里
+			// 存的是明文，命中后懒迁移为索引+密文
+			var legacy domain.APIToken
+			if legacyErr := r.db.WithContext(ctx).Where("token = ?", token).First(&legacy).Error; legacyErr == nil {
+				legacy.TokenIndex = utils.SecretIndex(token)
+				legacy.Token = utils.EncryptSecret(token)
+				if updateErr := r.db.WithContext(ctx).Model(&domain.APIToken{}).
+					Where("id = ?", legacy.ID).
+					Updates(map[string]interface{}{"token_index": legacy.TokenIndex, "token": legacy.Token}).Error; updateErr != nil {
+					r.logger.Warn("lazy migrate legacy api token failed", log.Error(updateErr))
+				}
+				apiToken = legacy
+				err = nil
+			}
+		}
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, nil
 			}
 			return nil, fmt.Errorf("get api token by token failed: %w", err)

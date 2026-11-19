@@ -45,6 +45,8 @@ S3_PUBLIC_BASE_URL=https://your-bucket.oss-cn-hangzhou.aliyuncs.com
 # ↑ OSS 凭证与桶信息须改为真实值（generate-env.sh 不会自动生成 OSS AK/SK）
 JWT_SECRET=$(rand_hex)
 ADMIN_PASSWORD=$(rand_hex)
+# 凭据落库加密（API token / SimpleAuth 口令）；生成后不可更换，否则已加密凭据无法解密
+ENCRYPTION_KEY=$(rand_hex)
 # 生产经 Caddy 注入 X-KB-ID 时可留空；仅直连 App 调试时需要
 DEV_KB_ID=
 PANDAWIKI_IMAGE_REPO=docker.io/caodanv

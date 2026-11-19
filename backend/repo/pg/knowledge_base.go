@@ -24,6 +24,7 @@ import (
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/store/pg"
 	"github.com/chaitin/panda-wiki/store/rag"
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 type KnowledgeBaseRepository struct {
@@ -566,6 +567,11 @@ func (r *KnowledgeBaseRepository) UpdateKnowledgeBase(ctx context.Context, req *
 		return false, err
 	}
 
+	// 对比前还原 SimpleAuth 口令明文：kb/kbNew 读出的是密文，而 AES-GCM 每次加密
+	// nonce 随机，密文比对会让"口令未变"的保存也误判 isChanged（触发 ClearSession
+	// 踢掉全部访问会话 + caddy 重同步）
+	kb.AccessSettings.SimpleAuth.Password = utils.DecryptSecret(kb.AccessSettings.SimpleAuth.Password)
+	kbNew.AccessSettings.SimpleAuth.Password = utils.DecryptSecret(kbNew.AccessSettings.SimpleAuth.Password)
 	if !cmp.Equal(kbNew.AccessSettings, kb.AccessSettings) {
 		isChanged = true
 	}
