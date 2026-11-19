@@ -106,9 +106,29 @@
 解密路径、无其他 token 查询点、SSE 心跳前端按规范忽略注释行、限频窗口
 语义正确、TRUST_PROXY 链路 caddy set 覆盖语义正确、SQL 多行语句完整。
 
-- 后端：golangci-lint 0 issues、go test ./... 全绿（含加密工具单测）
-- 前端：app pnpm lint 0 问题、admin eslint error 0、app/admin pnpm build 成功
-- 全部改动分 19 个提交在本地 main，未推送（可用 git revert 逐轮回退）
+## 第六轮迭代（轮 18~20，2026-11-20）：新勘察面闭环
+
+对**未系统勘察过**的两个面（前端 SSE 消费端、后端 bot 消息链路）重新勘察，
+发现 1 P0 + 10 P1 + 20+ P2，已修复（2a5dac57）：
+
+**后端 bot 链路**（共同放大器：消费端放弃 channel 即级联卡死泵+LLM 槽）：
+- lark 裸 goroutine 无 recover、公众号 GetUserInfo nil 解引用崩进程、
+  wechat_service/dingtalk 更新失败放弃消费（排干）、discord 2000 截断
+  （rune 安全，push 链同步）、wecom 死锁地雷（锁外+超时）、
+  SendMessage 失败当成功、SendQuestionToAI 的 close/Delete 移 defer
+  （panic 路径消费者不阻塞、条目不泄漏）
+
+**前端 SSE 消费端**：
+- P0 app fetch.ts 缺 raw 模式（编辑器润色面板永远空白）
+- P1 onError 缺失（HTTP 错误 loading 卡死 5 分钟）、unsubscribe 误污染
+  上一条回答、新对话幻影请求、AIGenerate 取消后 loading 卡死
+
+复核确认：conversationID 每次新生成使重复消息路径不可达、
+hasActiveStreamRef 复位覆盖全部出口、raw 模式默认值保持现有行为。
+
+- 后端：golangci-lint 0 issues、go test ./... 全绿
+- 前端：app lint/build、admin build 全部通过
+- 全部改动分 20 个提交在本地 main，未推送（可用 git revert 逐轮回退）
 
 ## 部署提示
 
