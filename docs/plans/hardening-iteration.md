@@ -84,11 +84,31 @@
 
 **遗留项清零。** 勘察清单中的全部问题（4 P0 / 30+ P1 / 40+ P2）均已修复或闭环。
 
-## 最终状态
+## 最终状态（第五轮复核后，2026-11-19）
+
+第五轮复核（轮 15~17）对四轮全部改动做完整性检查，发现并修复 7 处缺陷：
+
+**后端加密链路 4 处**（0c48c82c）：
+- P0 CreateAPIToken 返回密文（repo.Create 就地改 Token，响应必须用明文）
+- P0 generate-env.sh 漏配 ENCRYPTION_KEY（补 rand_hex 生成）
+- P1 ENCRYPTION_KEY 开启后旧明文 token 失效（token_index 回退明文查询 + 懒迁移）
+- P1 isChange 密文误判（cmp.Equal 对比密文，nonce 随机导致每次保存都踢会话）
+
+**前端复核 3 处**（a5a9ac07、5646a0b4，P0 零）：
+- P1 图片流式加载窗口：createRoot 重复挂载泄漏 + 重复 fetch
+  （root 注册表复用/unmount + in-flight 去重）
+- P1 AiQaContent updater 原地改引用只修了 data 分支（error/done/
+  chunk_result/onCancel 共 8 处补齐浅拷贝）
+- admin 全量 lint 首次建立基线：8 个存量 error 清零 + vite 正则
+  Windows 分隔符兼容
+
+复核确认项：增量渲染序列化对称性/降级路径安全、SimpleAuth 唯一消费者走
+解密路径、无其他 token 查询点、SSE 心跳前端按规范忽略注释行、限频窗口
+语义正确、TRUST_PROXY 链路 caddy set 覆盖语义正确、SQL 多行语句完整。
 
 - 后端：golangci-lint 0 issues、go test ./... 全绿（含加密工具单测）
-- 前端：app pnpm lint 0 问题、app/admin pnpm build 成功
-- 全部改动分 16 个提交在本地 main，未推送（可用 git revert 逐轮回退）
+- 前端：app pnpm lint 0 问题、admin eslint error 0、app/admin pnpm build 成功
+- 全部改动分 19 个提交在本地 main，未推送（可用 git revert 逐轮回退）
 
 ## 部署提示
 
