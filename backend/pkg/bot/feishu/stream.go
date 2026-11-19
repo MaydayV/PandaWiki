@@ -358,9 +358,9 @@ func (c *FeishuClient) Start() error {
 	// - 旧 ws 连接无法关闭，幽灵连接上的消息由 eventHandler 的 closed 检查屏蔽。
 	started := make(chan error, 1)
 	go func() {
-		if err := cli.Start(c.ctx); err != nil {
-			started <- err
-		}
+		// larkws.Start 仅在失败时返回（成功路径永久阻塞），恒返回非 nil err，
+		// 无条件发送即可：成功分支自然不会到达发送语句
+		started <- cli.Start(c.ctx)
 	}()
 
 	select {
