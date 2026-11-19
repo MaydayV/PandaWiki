@@ -1,11 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { styled, SvgIcon, SvgIconProps } from '@mui/material';
 import { useI18n } from '@/i18n/useI18n';
 
+// ==================== 图片 root 注册表 ====================
+// imageIndex -> 已挂载的 root 及其占位符元素；跨实例同序号会互相覆盖（与
+// 既有 querySelector 全局定位的序号空间一致），复用前按元素判等
+const imageRootRegistry = new Map<number, { root: Root; el: Element }>();
+
 // ==================== 图片数据缓存工具函数 ====================
+// in-flight 请求去重：同一 src 并发调用共享同一个 Promise，避免流式期间
+// 占位符被增量渲染反复重挂载时重复发起网络请求
+const inflightImageFetches = new Map<string, Promise<string>>();
+
 // 下载图片并转换为 blob URL
 const fetchImageAsBlob = async (
   src: string,
@@ -15,6 +24,25 @@ const fetchImageAsBlob = async (
   if (imageBlobCache.has(src)) {
     return imageBlobCache.get(src)!;
   }
+
+  const inflight = inflightImageFetches.get(src);
+  if (inflight) {
+    return inflight;
+  }
+
+  const task = doFetchImageAsBlob(src, imageBlobCache);
+  inflightImageFetches.set(src, task);
+  try {
+    return await task;
+  } finally {
+    inflightImageFetches.delete(src);
+  }
+};
+
+const doFetchImageAsBlob = async (
+  src: string,
+  imageBlobCache: Map<string, string>,
+): Promise<string> => {
 
   try {
     const response = await fetch(src, {
@@ -291,7 +319,29 @@ export const createImageRenderer = (options: ImageRendererOptions) => {
         `.image-container-${imageIndex}`,
       );
       if (placeholder) {
+        // root 注册表：同一占位符复用已有 root（props 未变则 effect 不重跑，
+        // 不会重复 fetch）；占位符被增量渲染移除重插后是新的 DOM 元素，
+        // 此时先 unmount 旧元素上的 root，避免 React root 泄漏
+        const entry = imageRootRegistry.get(imageIndex);
+        if (entry && entry.el === placeholder) {
+          entry.root.render(
+            <ImageComponent
+              src={src}
+              alt={alt}
+              attrs={attrs}
+              imageIndex={imageIndex}
+              onLoad={onImageLoad}
+              onError={onImageError}
+              imageBlobCache={imageBlobCache}
+            />,
+          );
+          return;
+        }
+        if (entry) {
+          entry.root.unmount();
+        }
         const root = createRoot(placeholder);
+        imageRootRegistry.set(imageIndex, { root, el: placeholder });
         root.render(
           <ImageComponent
             src={src}

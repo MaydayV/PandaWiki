@@ -554,11 +554,15 @@ const AiQaContent: React.FC<{
               const lastConversation =
                 newConversation[newConversation.length - 1];
               if (lastConversation) {
-                lastConversation.a =
-                  lastConversation.a +
-                  (content
-                    ? `\n\n${t('widget.answerError')}: <error>${content}</error>`
-                    : `\n\n${t('widget.answerRetry')}`);
+                // 浅拷贝最后一项再改，不污染 prev 的对象（StrictMode 双调用安全）
+                newConversation[newConversation.length - 1] = {
+                  ...lastConversation,
+                  a:
+                    lastConversation.a +
+                    (content
+                      ? `\n\n${t('widget.answerError')}: <error>${content}</error>`
+                      : `\n\n${t('widget.answerRetry')}`),
+                };
               }
               return newConversation;
             });
@@ -569,11 +573,12 @@ const AiQaContent: React.FC<{
               const lastConversation =
                 newConversation[newConversation.length - 1];
               if (lastConversation) {
-                lastConversation.update_time = dayjs().format(
-                  'YYYY-MM-DD HH:mm:ss',
-                );
-                lastConversation.message_id = messageIdRef.current;
-                lastConversation.source = 'chat';
+                newConversation[newConversation.length - 1] = {
+                  ...lastConversation,
+                  update_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                  message_id: messageIdRef.current,
+                  source: 'chat',
+                };
               }
               return newConversation;
             });
@@ -620,10 +625,10 @@ const AiQaContent: React.FC<{
               const lastConversation =
                 newConversation[newConversation.length - 1];
               if (lastConversation) {
-                lastConversation.chunk_result = [
-                  ...lastConversation.chunk_result,
-                  chunk_result,
-                ];
+                newConversation[newConversation.length - 1] = {
+                  ...lastConversation,
+                  chunk_result: [...lastConversation.chunk_result, chunk_result],
+                };
               }
               return newConversation;
             });
@@ -716,12 +721,12 @@ const AiQaContent: React.FC<{
           const newConversation = [...prev];
           const lastConversation = newConversation[newConversation.length - 1];
           if (lastConversation) {
-            lastConversation.a =
-              lastConversation.a + '\n\n<error>Request canceled</error>';
-            lastConversation.update_time = dayjs().format(
-              'YYYY-MM-DD HH:mm:ss',
-            );
-            lastConversation.message_id = messageIdRef.current;
+            newConversation[newConversation.length - 1] = {
+              ...lastConversation,
+              a: lastConversation.a + '\n\n<error>Request canceled</error>',
+              update_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+              message_id: messageIdRef.current,
+            };
           }
           return newConversation;
         });

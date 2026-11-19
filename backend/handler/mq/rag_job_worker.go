@@ -96,13 +96,16 @@ func (w *RAGJobWorker) processOne(ctx context.Context, workerID string) bool {
 		w.logger.Error("process rag job failed",
 			log.String("job_id", job.ID),
 			log.Error(err))
-		if markErr := w.repo.MarkFailed(ctx, job.ID, job.Attempts, job.MaxAttempts, err); markErr != nil {
+		// 状态落库不能继承已取消的 ctx（否则 mark 失败、任务卡 processing 直到
+		// reaper 回收），脱离父级取消但保留 trace 值
+		markCtx := context.WithoutCancel(ctx)
+		if markErr := w.repo.MarkFailed(markCtx, job.ID, job.Attempts, job.MaxAttempts, err); markErr != nil {
 			w.logger.Error("mark rag job failed", log.String("job_id", job.ID), log.Error(markErr))
 		}
 		return true
 	}
 
-	if err := w.repo.MarkDone(ctx, job.ID); err != nil {
+	if err := w.repo.MarkDone(context.WithoutCancel(ctx), job.ID); err != nil {
 		w.logger.Error("mark rag job done failed", log.String("job_id", job.ID), log.Error(err))
 	}
 	return true
