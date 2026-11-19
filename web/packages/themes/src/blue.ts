@@ -7,7 +7,6 @@ const bluePalette: PaletteOptions = {
     contrastText: '#FFFFFF',
   },
   error: {
-
     main: '#F64E54',
   },
   divider: '#ECEEF1',

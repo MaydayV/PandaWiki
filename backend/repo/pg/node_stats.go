@@ -27,9 +27,11 @@ func (r *NodeRepository) GetNodeStatsByNodeId(ctx context.Context, nodeId string
 		}
 	}
 
-	// 实时增量从"当天零点"起算：午夜迁移已把昨天全天 PV 累加进 node_stats.pv，
-	// 若这里仍用滚动 24h 窗口，昨天的 PV 在当天会被双计
-	midnight := time.Now().Truncate(24 * time.Hour)
+	// 实时增量从"本地当天零点"起算：午夜迁移（cron Hour()==0，本地时区）已把
+	// 昨天全天 PV 累加进 node_stats.pv，窗口边界必须与迁移边界同为本地零点
+	// （time.Truncate 按 UTC 截断，直接用会与本地零点错位）
+	now := time.Now()
+	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	var todayStats int64
 	if err := r.db.WithContext(ctx).Model(&domain.StatPage{}).
 		Where("created_at >= ?", midnight).
