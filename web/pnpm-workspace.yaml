@@ -68,7 +68,7 @@ overrides:
   yaml@1: 1.10.3
   yaml@2: 2.8.3
   sharp: 0.35.5
-  next: 16.4.1
+  next: 16.4.6
   echarts: 6.1.0
   katex: '>=0.18.2'
   browserslist: '>=4.28.7'

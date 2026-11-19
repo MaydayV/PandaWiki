@@ -32,7 +32,7 @@
     "katex": "^0.16.22",
     "markdown-it": "^14.3.3",
     "mermaid": "^11.16.1",
-    "next": "^16.4.1",
+    "next": "16.4.1",
     "react-device-detect": "^2.2.3",
     "react-photo-view": "^1.2.7",
     "require-in-the-middle": "^7.5.2",
