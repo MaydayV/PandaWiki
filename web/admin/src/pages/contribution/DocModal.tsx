@@ -8,7 +8,7 @@ import {
 } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { convertToTree } from '@/utils/drag';
-import { Ellipsis, Modal } from '@ctzhian/ui';
+import { Ellipsis, message, Modal } from '@ctzhian/ui';
 import { Box, Checkbox, Stack } from '@mui/material';
 import { IconWenjianjiaKai } from '@panda-wiki/icons';
 import { useEffect, useMemo, useState } from 'react';
@@ -29,7 +29,10 @@ const DocModal = ({ open, onClose, onOk }: DocDeleteProps) => {
   const [folderIds, setFolderIds] = useState<string[]>([]);
 
   const handleOk = () => {
-    if (!selectedNavId) return;
+    if (!selectedNavId) {
+      message.warning('请选择要归入的目录');
+      return;
+    }
     const parentId = folderIds.includes('root') ? '' : folderIds[0] || '';
     onOk({
       nav_id: selectedNavId,
