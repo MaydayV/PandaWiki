@@ -80,8 +80,19 @@ func (u *FileUsecase) UploadFile(ctx context.Context, kbID string, file *multipa
 
 	size := file.Size
 
-	contentType := file.Header.Get("Content-Type")
-	if contentType == "" {
+	// Content-Type 服务端嗅探：客户端可伪造 text/html（桶域名下 stored XSS），
+	// 以实际字节为准，嗅探失败再退回扩展名推断
+	headSrc := io.NewSectionReader(src, 0, 512)
+	buf := make([]byte, 512)
+	n, _ := io.ReadFull(headSrc, buf)
+	sniffed := http.DetectContentType(buf[:n])
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("rewind upload stream failed: %w", err)
+	}
+	var contentType string
+	if sniffed != "" {
+		contentType = sniffed
+	} else {
 		contentType = mime.TypeByExtension(ext)
 	}
 

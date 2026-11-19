@@ -105,7 +105,8 @@ func (h *AppHandler) UpdateApp(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if err := h.usecase.ValidateUpdateApp(ctx, id, &appRequest); err != nil {
-		h.logger.Error("UpdateApp", log.Any("req:", appRequest.Settings), log.Any("err:", err))
+		// 失败日志不得打印 Settings（含各 bot 明文密钥），只记 id
+		h.logger.Error("UpdateApp", log.String("kb_id", id), log.Any("err:", err))
 		return h.NewResponseWithErrCode(c, domain.ErrCodePermissionDenied)
 	}
 

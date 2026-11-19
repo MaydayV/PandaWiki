@@ -95,16 +95,12 @@ func createSelfSignedCerts() error {
 	}
 
 	// Write private key file with appropriate permissions
-	keyFile, err := os.Create("/app/etc/nginx/ssl/panda-wiki.key")
+	// 0600 从创建即生效（避免私钥以宽松权限短暂落盘），并排除 umask 影响
+	keyFile, err := os.OpenFile("/app/etc/nginx/ssl/panda-wiki.key", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %v", err)
 	}
 	defer keyFile.Close()
-
-	// Set private key file permissions to 600 (owner read/write)
-	if err := keyFile.Chmod(0o600); err != nil {
-		return fmt.Errorf("failed to set key file permissions: %v", err)
-	}
 
 	err = pem.Encode(keyFile, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
 	if err != nil {

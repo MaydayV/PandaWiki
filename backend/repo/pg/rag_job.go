@@ -44,7 +44,9 @@ func (r *RagJobRepository) Enqueue(ctx context.Context, requests []*domain.NodeR
 			MaxAttempts: 5,
 		})
 	}
-	if err := r.db.WithContext(ctx).Create(&jobs).Error; err != nil {
+	// 分批插入：rag_jobs 10 列，单语句最多约 6553 行（PG 65535 参数上限），
+	// 全站迁移/大 KB 全量发布一次性入队会直接报 too many SQL variables
+	if err := r.db.WithContext(ctx).CreateInBatches(&jobs, 500).Error; err != nil {
 		return fmt.Errorf("create rag jobs: %w", err)
 	}
 	return nil
