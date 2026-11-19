@@ -6,11 +6,23 @@ const bluePalette: PaletteOptions = {
     main: '#5e4fd8',
     contrastText: '#FFFFFF',
   },
+  error: {
+
+    main: '#F64E54',
+  },
+  divider: '#ECEEF1',
   background: {
-    default: '#F6F5FA',
+    default: '#FFFFFF',
+    paper: '#FFFFFF',
+    paper2: '#F1F2F8',
+    paper3: '#F8F9FA',
+    footer: '#14141B',
   },
   text: {
-    primary: '#0e0c23',
+    primary: '#171c19',
+    secondary: '#3f4441',
+    tertiary: '#717572',
+    disabled: '#6e7781',
   },
 };
 

@@ -213,3 +213,14 @@ func parseAuthUserInfo(raw []byte) domain.AuthUserInfo {
 	}
 	return info
 }
+
+// UpdateContributeNodeID 回填审批产物 node_id（状态已在抢占守卫中变更，
+// 不再带 status=pending 条件）
+func (r *NodeRepository) UpdateContributeNodeID(ctx context.Context, kbID, id string, approvedNodeID *string) error {
+	if approvedNodeID == nil || *approvedNodeID == "" {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&domain.Contribute{}).
+		Where("id = ? AND kb_id = ?", id, kbID).
+		Update("node_id", *approvedNodeID).Error
+}

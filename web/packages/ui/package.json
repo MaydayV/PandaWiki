@@ -5,9 +5,7 @@
   "main": "./src/index.tsx",
   "type": "module",
   "types": "env.d.ts",
-  "scripts": {
-    "icon": "tsx ./scripts/generate.ts"
-  },
+  "scripts": {},
   "exports": {
     ".": "./src/index.tsx",
     "./*": "./src/*/index.tsx"

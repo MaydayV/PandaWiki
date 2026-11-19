@@ -605,6 +605,14 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 		return nil, fmt.Errorf("contribute has already been audited")
 	}
 
+	// 抢占式状态守卫：先原子把 contribute 从 pending 改为目标状态（带
+	// status=pending 条件，RowsAffected==0 即已被并发审批），成功后才执行
+	// 建节点/改内容等副作用——否则并发审批会重复建节点或把被拒稿内容写进正文
+	if affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, req.Status, nil); err != nil {
+		return nil, err
+	} else if affectedRows == 0 {
+		return nil, fmt.Errorf("contribute has already been audited")
+	}
 	var approvedNodeID *string
 	if req.Status == consts.ContributeStatusApproved {
 		switch contribute.Type {
@@ -681,12 +689,9 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 		}
 	}
 
-	affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, req.Status, approvedNodeID)
-	if err != nil {
+	// 副作用执行成功后回填审核产物 node_id（状态已在前置守卫中变更）
+	if err := u.nodeRepo.UpdateContributeNodeID(ctx, req.KBID, req.ID, approvedNodeID); err != nil {
 		return nil, err
-	}
-	if affectedRows == 0 {
-		return nil, fmt.Errorf("contribute has already been audited")
 	}
 
 	return &domain.ContributeAuditResp{

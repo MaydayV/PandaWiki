@@ -44,18 +44,22 @@ export const useTextAnimation = (
     const text = textRef.current;
 
     // 创建文字分割效果 - 支持表情符号
+    // 用 DOM API 构建 span（原 innerHTML 拼接会把标题中的 <>& 当 HTML 解析，
+    // 造成文本损坏与注入形状）
     const splitText = (element: HTMLElement) => {
       const text = element.textContent || '';
-      const chars = Array.from(text).map(char => {
-        return char === ' ' ? '&nbsp;' : char;
-      });
+      element.textContent = '';
 
-      element.innerHTML = chars
-        .map(
-          char =>
-            `<span style="display: inline-block; opacity: 0; transform: translateY(20px);">${char}</span>`,
-        )
-        .join('');
+      const spans: HTMLElement[] = [];
+      Array.from(text).forEach(char => {
+        const span = document.createElement('span');
+        span.style.display = 'inline-block';
+        span.style.opacity = '0';
+        span.style.transform = 'translateY(20px)';
+        span.textContent = char === ' ' ? '\u00A0' : char;
+        element.appendChild(span);
+        spans.push(span);
+      });
 
       return element.querySelectorAll('span');
     };

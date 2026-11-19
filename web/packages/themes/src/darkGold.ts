@@ -6,11 +6,23 @@ const blackPalette: PaletteOptions = {
     main: '#F4D1B4',
     contrastText: '#000000',
   },
+  error: {
+
+    main: '#F64E54',
+  },
+  divider: '#313131',
   background: {
-    default: '#171717',
+    default: '#141923',
+    paper: '#141923',
+    paper2: '#141923',
+    paper3: '#202531',
+    footer: '#242425',
   },
   text: {
     primary: '#FFFFFF',
+    secondary: 'rgba(255, 255, 255, 0.7)',
+    tertiary: 'rgba(255, 255, 255, 0.5)',
+    disabled: 'rgba(255, 255, 255, 0.3)',
   },
 };
 
