@@ -21,7 +21,7 @@ const DocDelete = ({ open, onClose, data, onDeleted }: DocDeleteProps) => {
 
   const submit = () => {
     const ids = data.map(item => item.id!);
-    postApiV1NodeAction({
+    return postApiV1NodeAction({
       ids,
       kb_id,
       action: 'delete',

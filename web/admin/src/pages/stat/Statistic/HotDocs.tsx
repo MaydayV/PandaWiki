@@ -15,7 +15,10 @@ const HotDocs = ({ tab }: { tab: ActiveTab }) => {
 
   useEffect(() => {
     if (!kb_id) return;
+    let stale = false;
     getApiV1StatHotPages({ kb_id, day: tab }).then(res => {
+      // 竞态守卫：丢弃已切换 KB/时间范围后才返回的旧响应
+      if (stale) return;
       const data = (res || [])
         .slice()
         .sort((a, b) => (b.count || 0) - (a.count || 0))
@@ -23,6 +26,9 @@ const HotDocs = ({ tab }: { tab: ActiveTab }) => {
       setList(data);
       setMax(Math.max(...data.map(item => item.count || 0), 0));
     });
+    return () => {
+      stale = true;
+    };
   }, [tab, kb_id]);
 
   return (

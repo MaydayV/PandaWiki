@@ -983,7 +983,9 @@ func (r *NodeRepository) GetNodeReleaseListByKBID(ctx context.Context, kbID stri
 		Where("kb_release_node_releases.kb_id = ?", kbID).
 		Where("kb_release_node_releases.release_id = ?", kbRelease.ID).
 		Where("nodes.permissions->>'visible' != ?", consts.NodeAccessPermClosed).
-		Select("node_releases.node_id as id, node_releases.name, node_releases.type, node_releases.parent_id, nodes.position, node_releases.meta->>'emoji' as emoji, node_releases.updated_at, nodes.permissions, nodes.meta, kb_release_node_releases.nav_id")
+		// meta 取发布快照而非 nodes 草稿：nodes.meta 的 summary/translations 在
+		// 编辑保存后即更新，未发布内容会经 share 列表公开泄露
+		Select("node_releases.node_id as id, node_releases.name, node_releases.type, node_releases.parent_id, nodes.position, node_releases.meta->>'emoji' as emoji, node_releases.updated_at, nodes.permissions, node_releases.meta as meta, kb_release_node_releases.nav_id")
 
 	if err := qs.Find(&nodes).Error; err != nil {
 		return nil, err
@@ -1708,14 +1710,63 @@ func (r *NodeRepository) ValidateNodesBelongToKB(ctx context.Context, kbID strin
 	if kbID == "" || len(nodeIds) == 0 {
 		return nil
 	}
+	// 去重：调用方可能传重复 id，IN 计数按去重后比较，避免误拒
+	uniq := make([]string, 0, len(nodeIds))
+	seen := make(map[string]struct{}, len(nodeIds))
+	for _, id := range nodeIds {
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	if len(uniq) == 0 {
+		return nil
+	}
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&domain.Node{}).
-		Where("kb_id = ? AND id IN (?)", kbID, nodeIds).
+		Where("kb_id = ? AND id IN (?)", kbID, uniq).
 		Count(&count).Error; err != nil {
 		return fmt.Errorf("validate nodes belong to kb failed: %w", err)
 	}
-	if count != int64(len(nodeIds)) {
+	if count != int64(len(uniq)) {
 		return domain.ErrPermissionDenied
 	}
 	return nil
+}
+
+// RevertNodeReleases 补偿发布流程：CreateKBRelease 失败时回退 CreateNodeReleases
+// 已提交的结果（节点状态回 Unreleased、删除 release 记录与 audit），
+// 避免"节点显示已发布却不在任何 KB release"的中间态
+func (r *NodeRepository) RevertNodeReleases(ctx context.Context, kbID string, releaseIDs []string) error {
+	if len(releaseIDs) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 先取 release → node_id 映射（删除后查不到），仅回退仍为 Published 的节点
+		var nodeIDs []string
+		if err := tx.Model(&domain.NodeRelease{}).
+			Where("kb_id = ? AND id IN (?)", kbID, releaseIDs).
+			Distinct().
+			Pluck("node_id", &nodeIDs).Error; err != nil {
+			return fmt.Errorf("query release node ids failed: %w", err)
+		}
+		if err := tx.Model(&domain.NodeRelease{}).
+			Where("kb_id = ? AND id IN (?)", kbID, releaseIDs).
+			Delete(&domain.NodeRelease{}).Error; err != nil {
+			return fmt.Errorf("delete node releases failed: %w", err)
+		}
+		if len(nodeIDs) > 0 {
+			if err := tx.Model(&domain.Node{}).
+				Where("kb_id = ? AND status = ? AND id IN (?)",
+					kbID, domain.NodeStatusPublished, nodeIDs).
+				Update("status", domain.NodeStatusUnreleased).Error; err != nil {
+				return fmt.Errorf("revert node status failed: %w", err)
+			}
+		}
+		return nil
+	})
 }

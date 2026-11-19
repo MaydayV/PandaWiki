@@ -39,7 +39,7 @@ const DocStatus = ({
   refresh,
 }: DocStatusProps) => {
   const submit = () => {
-    postApiV1NodeAction({
+    return postApiV1NodeAction({
       ids: data.map(it => it.id!),
       kb_id,
       action: status,

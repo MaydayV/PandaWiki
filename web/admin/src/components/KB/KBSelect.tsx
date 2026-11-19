@@ -70,7 +70,14 @@ const KBSelect = () => {
           onChange={e => {
             if (e.target.value === kb_id || !e.target.value) return;
             dispatch(setKbId(e.target.value as string));
-            if (resetPagination) setSearchParams({ page: '1', pageSize: '20' });
+            if (resetPagination)
+              // 置空串覆盖旧值，useURLSearchParams 内部 filterEmpty 会将其从 URL 中移除
+              setSearchParams({
+                page: '1',
+                pageSize: '20',
+                conversion_id: '',
+                subject: '',
+              });
             message.success('切换成功');
           }}
           IconComponent={({ className, ...rest }) => {

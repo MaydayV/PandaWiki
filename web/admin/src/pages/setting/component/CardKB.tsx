@@ -35,7 +35,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
 import AddRole from './AddRole';
@@ -104,7 +104,7 @@ const ApiToken = () => {
         color: 'error',
       },
       onOk: () => {
-        deleteApiProV1TokenDelete({
+        return deleteApiProV1TokenDelete({
           id,
           kb_id,
         }).then(() => {
@@ -127,7 +127,7 @@ const ApiToken = () => {
   };
 
   const onConfirmAdd = handleSubmit(data => {
-    postApiProV1TokenCreate({
+    return postApiProV1TokenCreate({
       kb_id,
       name: data.name,
       permission: data.perm as ApiTokenPermission,
@@ -460,13 +460,17 @@ const CardKB = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [adminList, setAdminList] = useState<V1KBUserListItemResp[]>([]);
 
-  const getUserList = () => {
+  const getUserListSeqRef = useRef(0);
+  const getUserList = useCallback(() => {
+    // 竞态守卫：记录请求序号，仅应用最新一次请求的响应，防止旧 KB 响应晚到覆盖新数据
+    const seq = ++getUserListSeqRef.current;
     getApiV1KnowledgeBaseUserList({
       kb_id,
     }).then(res => {
+      if (seq !== getUserListSeqRef.current) return;
       setAdminList(res || []);
     });
-  };
+  }, [kb_id]);
 
   const isPro = useMemo(() => {
     return PROFESSION_VERSION_PERMISSION.includes(license.edition!);
@@ -475,11 +479,11 @@ const CardKB = () => {
   useEffect(() => {
     if (!kb_id) return;
     getUserList();
-  }, [kb_id]);
+  }, [getUserList, kb_id]);
 
   useEffect(() => {
     dispatch(setRefreshAdminRequest(getUserList));
-  }, []);
+  }, [dispatch, getUserList]);
 
   const onDeleteUser = (id: string) => {
     Modal.confirm({
@@ -489,7 +493,7 @@ const CardKB = () => {
         color: 'error',
       },
       onOk: () => {
-        deleteApiV1KnowledgeBaseUserDelete({
+        return deleteApiV1KnowledgeBaseUserDelete({
           kb_id,
           user_id: id,
         }).then(() => {

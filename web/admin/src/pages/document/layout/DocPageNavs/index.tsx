@@ -372,7 +372,7 @@ const DocPageNavs = ({
   const handleDeleteConfirm = useCallback(() => {
     if (!deletingNav) return;
     const nav = deletingNav;
-    deleteApiV1NavDelete({ id: nav.id!, kb_id }).then(() => {
+    return deleteApiV1NavDelete({ id: nav.id!, kb_id }).then(() => {
       message.success('删除成功');
       handleDeleteConfirmClose();
       const next = (navListProp || []).filter(n => n.id !== nav.id);

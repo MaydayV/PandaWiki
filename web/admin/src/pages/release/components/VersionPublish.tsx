@@ -106,7 +106,7 @@ const VersionPublish = ({
 
     // 有选中的文档/文件夹，或存在未发布目录时，允许提交
     if (nodeIds.length > 0 || hasReleasedNavs) {
-      postApiV1KnowledgeBaseRelease({
+      return postApiV1KnowledgeBaseRelease({
         kb_id,
         ...data,
         ...(nodeIds.length ? { node_ids: nodeIds } : {}),

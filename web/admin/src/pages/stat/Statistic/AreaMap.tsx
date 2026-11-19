@@ -45,7 +45,10 @@ const AreaMap = ({ tab }: { tab: ActiveTab }) => {
 
   useEffect(() => {
     if (!kb_id) return;
+    let stale = false;
     getApiV1StatGeoCount({ kb_id, day: tab }).then(res => {
+      // 竞态守卫：丢弃已切换 KB/时间范围后才返回的旧响应
+      if (stale) return;
       const displayCountMap = new Map<string, number>();
       const worldMapCount = new Map<string, number>();
 
@@ -81,6 +84,9 @@ const AreaMap = ({ tab }: { tab: ActiveTab }) => {
       setList(toSortedList(displayCountMap));
       setMapList(toSortedList(worldMapCount));
     });
+    return () => {
+      stale = true;
+    };
   }, [kb_id, tab]);
 
   return (

@@ -39,6 +39,53 @@ const handleThinkingContent = (content: string) => {
   };
 };
 
+// 将会话消息列表组装为用户/AI 问答对
+const buildConversationPairs = (
+  res: DomainConversationDetailResp,
+): ChatConversationPair[] => {
+  const pairs: ChatConversationPair[] = [];
+  let currentPair: Partial<ChatConversationPair> = {};
+  res.messages?.forEach(message => {
+    if (message.role === 'user') {
+      currentPair = {
+        user: message.content,
+        image_paths: message.image_paths,
+      };
+    } else if (message.role === 'assistant') {
+      if (
+        currentPair.user ||
+        (currentPair.image_paths && currentPair.image_paths.length > 0)
+      ) {
+        const { thinkingContent, answerContent } = handleThinkingContent(
+          message.content || '',
+        );
+        currentPair.assistant = answerContent;
+        currentPair.thinking_content = thinkingContent;
+        currentPair.created_at = message.created_at;
+        // @ts-expect-error 类型不兼容
+        currentPair.info = message.info;
+        pairs.push(currentPair as ChatConversationPair);
+        currentPair = {};
+      }
+    }
+  });
+
+  if (
+    currentPair.user ||
+    (currentPair.image_paths && currentPair.image_paths.length > 0)
+  ) {
+    pairs.push({
+      user: currentPair.user,
+      image_paths: currentPair.image_paths,
+      assistant: '',
+      created_at: '',
+      info: { score: 0 },
+    } as ChatConversationPair);
+  }
+
+  return pairs;
+};
+
 export const StyledConversationItem = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
@@ -196,55 +243,27 @@ const Detail = ({
     ChatConversationPair[] | null
   >(null);
 
-  const getDetail = () => {
-    getApiV1ConversationDetail({ id, kb_id }).then(res => {
-      setDetail(res);
-      const pairs: ChatConversationPair[] = [];
-      let currentPair: Partial<ChatConversationPair> = {};
-      res.messages?.forEach(message => {
-        if (message.role === 'user') {
-          currentPair = {
-            user: message.content,
-            image_paths: message.image_paths,
-          };
-        } else if (message.role === 'assistant') {
-          if (
-            currentPair.user ||
-            (currentPair.image_paths && currentPair.image_paths.length > 0)
-          ) {
-            const { thinkingContent, answerContent } = handleThinkingContent(
-              message.content || '',
-            );
-            currentPair.assistant = answerContent;
-            currentPair.thinking_content = thinkingContent;
-            currentPair.created_at = message.created_at;
-            // @ts-expect-error 类型不兼容
-            currentPair.info = message.info;
-            pairs.push(currentPair as ChatConversationPair);
-            currentPair = {};
-          }
-        }
-      });
-
-      if (
-        currentPair.user ||
-        (currentPair.image_paths && currentPair.image_paths.length > 0)
-      ) {
-        pairs.push({
-          user: currentPair.user,
-          image_paths: currentPair.image_paths,
-          assistant: '',
-          created_at: '',
-          info: { score: 0 },
-        } as ChatConversationPair);
-      }
-
-      setConversations(pairs);
-    });
-  };
-
   useEffect(() => {
-    if (open && id) getDetail();
+    if (!open || !id) return;
+    // 打开或切换会话时先清空，避免短暂渲染上一次会话的内容
+    setDetail(null);
+    setConversations(null);
+    let stale = false;
+    getApiV1ConversationDetail({ id, kb_id })
+      .then(res => {
+        // 竞态守卫：丢弃弹窗已关闭或已切换到其他会话后的旧响应
+        if (stale) return;
+        setDetail(res);
+        setConversations(buildConversationPairs(res));
+      })
+      .catch(() => {
+        if (stale) return;
+        setDetail(null);
+        setConversations(null);
+      });
+    return () => {
+      stale = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, open]);
 

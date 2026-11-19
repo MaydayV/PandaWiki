@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
@@ -96,11 +98,26 @@ func (h *RAGMQHandler) ProcessVectorRequest(ctx context.Context, request *domain
 			}
 		}
 
-		docID, err := h.rag.UpsertRecords(ctx, &rag.UpsertRecordsRequest{
+		// doc_id 生命周期兜底：CreateNodeReleases 不生成 doc_id（历史数据为空串）。
+		// 空 doc_id 直传会导致 UpsertRecords 先按 doc_id='' 删除——pg provider 下
+		// 所有 chunk 的 doc_id 都是 ''，会把同 dataset 其他节点的向量全部清掉；
+		// 且权限同步/删除链都按 doc_id 定位，空串让它们永久失效。
+		// 此处生成 uuid 并持久化，之后链路按正常 doc_id 工作。
+		docID := nodeRelease.DocID
+		if docID == "" {
+			docID = uuid.NewString()
+			if err := h.nodeRepo.UpdateNodeReleaseDocID(ctx, request.NodeReleaseID, docID); err != nil {
+				if h.config.RAG.Provider == "pg" {
+					_ = h.markNodeRagFailed(ctx, nodeRelease.NodeID, err.Error())
+				}
+				return fmt.Errorf("assign node release doc_id failed: %w", err)
+			}
+		}
+		docID, err = h.rag.UpsertRecords(ctx, &rag.UpsertRecordsRequest{
 			ID:        nodeRelease.ID,
 			Title:     nodeRelease.Name,
 			DatasetID: kb.DatasetID,
-			DocID:     nodeRelease.DocID,
+			DocID:     docID,
 			Content:   nodeRelease.Content,
 			GroupIDs:  groupIds,
 		})

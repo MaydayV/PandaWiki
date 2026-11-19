@@ -589,10 +589,42 @@ func (r *KnowledgeBaseRepository) GetKnowledgeBaseByID(ctx context.Context, kbID
 
 func (r *KnowledgeBaseRepository) DeleteKnowledgeBase(ctx context.Context, kbID string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("kb_id = ?", kbID).Delete(&domain.Node{}).Error; err != nil {
-			return err
+		// schema 无外键约束，KB 级删除必须在应用层完成全部级联清理，
+		// 否则各子表残留孤儿数据（nav/release/comment/auth/stat 等）
+		cascades := []struct {
+			model  interface{}
+			column string
+		}{
+			{&domain.App{}, "kb_id"},
+			{&domain.Nav{}, "kb_id"},
+			{&domain.NavRelease{}, "kb_id"},
+			{&domain.NodeRelease{}, "kb_id"},
+			{&domain.NodeReleaseBackup{}, "kb_id"},
+			{&domain.KBRelease{}, "kb_id"},
+			{&domain.KBReleaseNodeRelease{}, "kb_id"},
+			{&domain.Comment{}, "kb_id"},
+			{&domain.Contribute{}, "kb_id"},
+			{&domain.APIToken{}, "kb_id"},
+			{&domain.Auth{}, "kb_id"},
+			{&domain.Conversation{}, "kb_id"},
+			{&domain.ConversationMessage{}, "kb_id"},
+			{&domain.StatPage{}, "kb_id"},
 		}
-		if err := tx.Where("kb_id = ?", kbID).Delete(&domain.App{}).Error; err != nil {
+		for _, c := range cascades {
+			if err := tx.Where(c.column+" = ?", kbID).Delete(c.model).Error; err != nil {
+				return fmt.Errorf("delete %T failed: %w", c.model, err)
+			}
+		}
+		// 无 kb_id 列的子表按 nodes 子查询清理（须在 nodes 删除前，行集随语句物化）
+		if err := tx.Exec(`DELETE FROM node_stats WHERE node_id IN (SELECT id FROM nodes WHERE kb_id = ?)`, kbID).Error; err != nil {
+			return fmt.Errorf("delete node_stats failed: %w", err)
+		}
+		if err := tx.Exec(`DELETE FROM node_auth_groups WHERE node_id IN (SELECT id FROM nodes WHERE kb_id = ?)`, kbID).Error; err != nil {
+			return fmt.Errorf("delete node_auth_groups failed: %w", err)
+		}
+		// kb_release_node_releases 通过 kb_releases 的 id 关联，上面按 kb_id 直删覆盖；
+		// kb_users/settings 若结构体缺失对应列可安全为 0 行删除
+		if err := tx.Where("kb_id = ?", kbID).Delete(&domain.KBUsers{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Where("id = ?", kbID).Delete(&domain.KnowledgeBase{}).Error; err != nil {

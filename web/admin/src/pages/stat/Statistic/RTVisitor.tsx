@@ -21,10 +21,14 @@ const RTVisitor = ({ isWideScreen }: { isWideScreen: boolean }) => {
 
   useEffect(() => {
     if (kb_id) {
+      let stale = false;
       getApiV1StatInstantPages({ kb_id }).then(res => {
+        // 竞态守卫：丢弃已切换 KB 后才返回的旧响应
+        if (stale) return;
         setPages(res as StatInstantPageItme[]);
       });
       getApiV1StatInstantCount({ kb_id }).then(res => {
+        if (stale) return;
         const stats = ((res || []) as any[]).map(it => ({
           count: it.count,
           time: dayjs(it.time).format('YYYY-MM-DD HH:mm'),
@@ -59,6 +63,9 @@ const RTVisitor = ({ isWideScreen }: { isWideScreen: boolean }) => {
           statsData.map(it => ({ count: it.count, name: it.time })).reverse(),
         );
       });
+      return () => {
+        stale = true;
+      };
     }
   }, [kb_id]);
 

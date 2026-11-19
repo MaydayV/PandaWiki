@@ -43,7 +43,7 @@ const NavEditModal = ({
 
   const submit = (value: FormValues) => {
     if (isEdit && nav?.id) {
-      patchApiV1NavUpdate({
+      return patchApiV1NavUpdate({
         id: nav.id,
         kb_id,
         name: value.name,
@@ -52,7 +52,7 @@ const NavEditModal = ({
         onSuccess({ id: nav.id!, name: value.name });
       });
     } else {
-      postApiV1NavAdd({
+      return postApiV1NavAdd({
         kb_id,
         name: value.name,
       }).then(() => {

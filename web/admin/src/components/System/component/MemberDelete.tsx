@@ -17,7 +17,7 @@ interface MemberDeleteProps {
 const MemberDelete = ({ open, onClose, user, refresh }: MemberDeleteProps) => {
   const submit = () => {
     if (!user?.id) return;
-    deleteApiV1UserDelete({ user_id: user.id }).then(() => {
+    return deleteApiV1UserDelete({ user_id: user.id }).then(() => {
       message.success('删除成功');
       refresh();
       onClose();

@@ -18,7 +18,10 @@ const ClientStat = ({ tab }: { tab: ActiveTab }) => {
 
   useEffect(() => {
     if (!kb_id) return;
+    let stale = false;
     getApiV1StatBrowsers({ kb_id, day: tab }).then(res => {
+      // 竞态守卫：丢弃已切换 KB/时间范围后才返回的旧响应
+      if (stale) return;
       setOsList(
         (res.os || [])
           .sort((a, b) => b.count! - a.count!)
@@ -40,6 +43,9 @@ const ClientStat = ({ tab }: { tab: ActiveTab }) => {
           })),
       );
     });
+    return () => {
+      stale = true;
+    };
   }, [tab, kb_id]);
 
   return (

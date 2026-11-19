@@ -43,9 +43,15 @@ const TypeCount = ({ tab }: { tab: ActiveTab }) => {
 
   useEffect(() => {
     if (!kb_id) return;
+    let stale = false;
     getApiV1StatCount({ kb_id, day: tab }).then(res => {
+      // 竞态守卫：丢弃已切换 KB/时间范围后才返回的旧响应
+      if (stale) return;
       setData(res);
     });
+    return () => {
+      stale = true;
+    };
   }, [tab, kb_id]);
 
   return (

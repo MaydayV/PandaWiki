@@ -8,7 +8,7 @@ import {
 } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { Box, CircularProgress, Tab, Tabs, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CardAI from './component/CardAI';
 import CardFeedback from './component/CardFeedback';
 import CardKB from './component/CardKB';
@@ -32,17 +32,37 @@ const Setting = () => {
   const [searchParams, setSearchParams] = useURLSearchParams();
   const activeTab = searchParams.get('tab') || 'portal-website';
   const [kb, setKb] = useState<DomainKnowledgeBaseDetail | null>(null);
+  const [loading, setLoading] = useState(true);
   const [url, setUrl] = useState<string>('');
   const [info, setInfo] = useState<DomainAppDetailResp>();
+  const kbReqSeqRef = useRef(0);
+  const infoReqSeqRef = useRef(0);
 
-  const getInfo = async () => {
-    const res = await getApiV1AppDetail({ kb_id: kb_id!, type: '1' });
-    setInfo(res);
+  const getInfo = () => {
+    // 竞态守卫：记录请求序号，仅应用最新一次请求的响应
+    const seq = ++infoReqSeqRef.current;
+    getApiV1AppDetail({ kb_id: kb_id!, type: '1' }).then(res => {
+      if (seq !== infoReqSeqRef.current) return;
+      setInfo(res);
+    });
   };
 
   const getKb = () => {
     if (!kb_id) return;
-    getApiV1KnowledgeBaseDetail({ id: kb_id }).then(res => setKb(res));
+    // 竞态守卫：记录请求序号，仅应用最新一次请求的响应，防止旧 KB 响应晚到覆盖新数据
+    const seq = ++kbReqSeqRef.current;
+    setLoading(true);
+    getApiV1KnowledgeBaseDetail({ id: kb_id })
+      .then(res => {
+        if (seq !== kbReqSeqRef.current) return;
+        setKb(res);
+      })
+      .catch(() => {
+        // 失败时保留旧数据；首载失败时 kb 仍为 null，配合下方错误态兜底
+      })
+      .finally(() => {
+        if (seq === kbReqSeqRef.current) setLoading(false);
+      });
     getInfo();
   };
 
@@ -82,10 +102,37 @@ const Setting = () => {
   }, [kb]);
 
   useEffect(() => {
-    if (kb_id) getKb();
+    if (!kb_id) {
+      setLoading(false);
+      return;
+    }
+    // kb 切换时先清空旧 KB 数据，避免渲染旧 KB 的设置
+    setKb(null);
+    getKb();
   }, [kb_id]);
 
   if (!kb) {
+    if (loading) {
+      return (
+        <Card sx={{ height: 'calc(100vh - 148px)' }}>
+          <Box
+            sx={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              gap: 1.5,
+            }}
+          >
+            <CircularProgress size={24} />
+            <Typography variant='body2' color='text.secondary'>
+              正在加载设置...
+            </Typography>
+          </Box>
+        </Card>
+      );
+    }
     return (
       <Card sx={{ height: 'calc(100vh - 148px)' }}>
         <Box
@@ -98,9 +145,8 @@ const Setting = () => {
             gap: 1.5,
           }}
         >
-          <CircularProgress size={24} />
           <Typography variant='body2' color='text.secondary'>
-            正在加载设置...
+            设置加载失败，请刷新重试
           </Typography>
         </Box>
       </Card>

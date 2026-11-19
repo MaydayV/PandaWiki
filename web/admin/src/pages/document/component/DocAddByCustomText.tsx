@@ -68,7 +68,7 @@ const DocAddByCustomText = ({
 
   const submit = (value: FormValues) => {
     if (data) {
-      putApiV1NodeDetail({
+      return putApiV1NodeDetail({
         id: data.id || '',
         kb_id: id,
         nav_id: data.nav_id || nav_id || '',
@@ -99,7 +99,7 @@ const DocAddByCustomText = ({
       if (parentId) {
         params.parent_id = parentId;
       }
-      postApiV1Node(params).then(({ id }) => {
+      return postApiV1Node(params).then(({ id }) => {
         message.success('创建成功');
         reset();
         handleClose();

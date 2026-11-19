@@ -148,11 +148,17 @@ func (u *KnowledgeBaseUsecase) GetKnowledgeBasePerm(ctx context.Context, kbID st
 }
 
 func (u *KnowledgeBaseUsecase) DeleteKnowledgeBase(ctx context.Context, kbID string) error {
+	// 先取 KB 拿 DatasetID（向量库按 dataset_id 删除，此前误传 kbID 导致
+	// 被删 KB 的全部向量永久残留）
+	kb, err := u.GetKnowledgeBase(ctx, kbID)
+	if err != nil {
+		return err
+	}
 	if err := u.repo.DeleteKnowledgeBase(ctx, kbID); err != nil {
 		return err
 	}
 	// delete vector store
-	if err := u.rag.DeleteKnowledgeBase(ctx, kbID); err != nil {
+	if err := u.rag.DeleteKnowledgeBase(ctx, kb.DatasetID); err != nil {
 		return err
 	}
 	if err := u.kbCache.DeleteKB(ctx, kbID); err != nil {
@@ -162,12 +168,15 @@ func (u *KnowledgeBaseUsecase) DeleteKnowledgeBase(ctx context.Context, kbID str
 }
 
 func (u *KnowledgeBaseUsecase) CreateKBRelease(ctx context.Context, req *domain.CreateKBReleaseReq, userId string) (string, error) {
+	// releaseIDs 提升到函数作用域：KB release 创建失败时补偿回退需要它
+	var releaseIDs []string
 	if len(req.NodeIDs) > 0 {
 		// create published nodes
-		releaseIDs, err := u.nodeRepo.CreateNodeReleases(ctx, req.KBID, userId, req.NodeIDs)
+		ids, err := u.nodeRepo.CreateNodeReleases(ctx, req.KBID, userId, req.NodeIDs)
 		if err != nil {
 			return "", fmt.Errorf("failed to create published nodes: %w", err)
 		}
+		releaseIDs = ids
 		if len(releaseIDs) > 0 {
 			// async upsert vector content via mq
 			nodeContentVectorRequests := make([]*domain.NodeReleaseVectorRequest, 0)
@@ -193,6 +202,14 @@ func (u *KnowledgeBaseUsecase) CreateKBRelease(ctx context.Context, req *domain.
 		CreatedAt:   time.Now(),
 	}
 	if err := u.repo.CreateKBRelease(ctx, release); err != nil {
+		// 补偿：① 已提交（节点 Published + node_releases 已写）但 KB release 失败，
+		// 回退 ① 的结果，避免"节点显示已发布却不在任何 KB release"的中间态；
+		// RAG 入队有 rag_jobs 重试兜底，无需补偿
+		if len(releaseIDs) > 0 {
+			if revertErr := u.nodeRepo.RevertNodeReleases(ctx, req.KBID, releaseIDs); revertErr != nil {
+				return "", fmt.Errorf("failed to create kb release: %w (compensation also failed: %w)", err, revertErr)
+			}
+		}
 		return "", fmt.Errorf("failed to create kb release: %w", err)
 	}
 
@@ -302,6 +319,14 @@ func (u *KnowledgeBaseUsecase) RollbackKBRelease(ctx context.Context, req *domai
 	for _, item := range docs {
 		nodeID, rollbackErr := u.nodeRepo.RollbackNodeRelease(ctx, req.KBID, item.NodeReleaseID, userID)
 		if rollbackErr != nil {
+			// 节点已被删除的 release 无法回滚（release 随节点删除，此处防御
+			// 并发删除窗口），跳过继续回滚其余节点——整批失败会留下更糟的
+			// 部分回滚状态且无恢复手段
+			if errors.Is(rollbackErr, gorm.ErrRecordNotFound) {
+				u.logger.Warn("skip rollback for deleted node release",
+					log.String("node_release_id", item.NodeReleaseID))
+				continue
+			}
 			return nil, rollbackErr
 		}
 		if _, ok := seen[nodeID]; ok {

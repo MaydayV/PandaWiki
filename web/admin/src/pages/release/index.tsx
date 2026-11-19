@@ -131,6 +131,11 @@ const Release = () => {
   };
 
   useEffect(() => {
+    // 切换 KB 时重置页码，避免新 KB 复用旧页码导致空数据
+    setPage(1);
+  }, [kb_id]);
+
+  useEffect(() => {
     if (kb_id) getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, kb_id]);

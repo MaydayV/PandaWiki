@@ -20,7 +20,7 @@ const KBDelete = ({ open, onClose, data }: KBDeleteProps) => {
 
   const handleOk = () => {
     if (!data) return;
-    deleteApiV1KnowledgeBaseDetail({ id: data?.id || '' }).then(() => {
+    return deleteApiV1KnowledgeBaseDetail({ id: data?.id || '' }).then(() => {
       message.success('删除成功');
       const newKbList = kbList?.filter(item => item.id !== data.id) || [];
       dispatch(setKbList(newKbList));

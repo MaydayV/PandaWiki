@@ -176,12 +176,13 @@ const Comments = ({
         color: 'primary',
       },
       onOk: () => {
-        postApiV1CommentDelete({ kb_id, ids: [id] }).then(() => {
+        return postApiV1CommentDelete({ kb_id, ids: [id] }).then(() => {
           message.success('删除成功');
           if (page === 1) {
             getData({});
           } else {
             setPage(1);
+            getData({ paramPage: 1 });
           }
         });
       },
@@ -194,7 +195,7 @@ const Comments = ({
       content: '确定要拒绝该评论吗？',
       okText: '拒绝',
       onOk: () => {
-        postApiProV1CommentModerate({
+        return postApiProV1CommentModerate({
           ids: [id],
           status: DomainCommentStatus.CommentStatusReject,
         }).then(() => {
@@ -211,7 +212,7 @@ const Comments = ({
       content: '确定要通过该评论吗？',
       okText: '通过',
       onOk: () => {
-        postApiProV1CommentModerate({
+        return postApiProV1CommentModerate({
           ids: [id],
           status: DomainCommentStatus.CommentStatusAccepted,
         }).then(() => {

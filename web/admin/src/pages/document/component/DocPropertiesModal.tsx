@@ -80,6 +80,7 @@ const DocPropertiesModal = ({
 }: DocPropertiesModalProps) => {
   const { kb_id, license } = useAppSelector(state => state.config);
   const [loading, setLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [userGroups, setUserGroups] = useState<GroupOption[]>([]);
   const {
     control,
@@ -121,7 +122,8 @@ const DocPropertiesModal = ({
   };
 
   const onSubmit = handleSubmit(values => {
-    Promise.all([
+    setSubmitLoading(true);
+    return Promise.all([
       patchApiV1NodePermissionEdit({
         kb_id: kb_id!,
         ids: data
@@ -151,10 +153,14 @@ const DocPropertiesModal = ({
             kb_id: kb_id!,
           })
         : undefined,
-    ]).then(() => {
-      message.success('编辑成功');
-      onOk();
-    });
+    ])
+      .then(() => {
+        message.success('编辑成功');
+        onOk();
+      })
+      .finally(() => {
+        setSubmitLoading(false);
+      });
   });
 
   const isBusiness = useMemo(() => {
@@ -233,7 +239,7 @@ const DocPropertiesModal = ({
       onCancel={onCancel}
       width={700}
       okButtonProps={{
-        loading: loading,
+        loading: submitLoading,
       }}
       onOk={onSubmit}
     >

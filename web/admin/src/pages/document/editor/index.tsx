@@ -58,11 +58,6 @@ const DocEditor = () => {
     return convertToTree(nodeList);
   }, [groups, nav_id]);
 
-  const getInfo = async () => {
-    const res = await getApiV1AppDetail({ kb_id: kb_id!, type: '1' });
-    setDocWidth(res.settings?.theme_and_style?.doc_width || 'full');
-  };
-
   const getKbList = (id?: string) => {
     const kb_id = id || localStorage.getItem('kb_id') || '';
     getApiV1KnowledgeBaseList().then(res => {
@@ -79,27 +74,32 @@ const DocEditor = () => {
     });
   };
 
+  const refreshCatalogSeqRef = useRef(0);
   const refreshCatalog = async (): Promise<
     GithubComChaitinPandaWikiApiNodeV1NodeListGroupNavResp[]
   > => {
     const params = {
       kb_id: kb_id || localStorage.getItem('kb_id') || '',
     };
+    // 竞态守卫：记录请求序号，仅应用最新一次请求的响应，防止旧 KB 响应晚到覆盖新数据
+    const seq = ++refreshCatalogSeqRef.current;
     setCatalogLoading(true);
     try {
       const res = await getApiV1NodeListGroupNav(params);
       const list = res || [];
-      setGroups(list);
-      if (list.length > 0) {
-        const storedNavId = localStorage.getItem(`nav_id_${params.kb_id}`);
-        const validInList =
-          storedNavId && list.some(g => g.nav_id === storedNavId);
-        const idToUse = validInList ? storedNavId! : list[0].nav_id || '';
-        dispatch(setNavId(idToUse));
+      if (seq === refreshCatalogSeqRef.current) {
+        setGroups(list);
+        if (list.length > 0) {
+          const storedNavId = localStorage.getItem(`nav_id_${params.kb_id}`);
+          const validInList =
+            storedNavId && list.some(g => g.nav_id === storedNavId);
+          const idToUse = validInList ? storedNavId! : list[0].nav_id || '';
+          dispatch(setNavId(idToUse));
+        }
       }
       return list;
     } finally {
-      setCatalogLoading(false);
+      if (seq === refreshCatalogSeqRef.current) setCatalogLoading(false);
     }
   };
 
@@ -126,9 +126,16 @@ const DocEditor = () => {
   useEffect(() => {
     if (!kb_id) {
       getKbList();
-    } else {
-      getInfo();
+      return;
     }
+    let stale = false;
+    getApiV1AppDetail({ kb_id, type: '1' }).then(res => {
+      if (stale) return;
+      setDocWidth(res.settings?.theme_and_style?.doc_width || 'full');
+    });
+    return () => {
+      stale = true;
+    };
   }, [kb_id]);
 
   useEffect(() => {

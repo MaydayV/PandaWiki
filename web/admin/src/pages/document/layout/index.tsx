@@ -50,6 +50,7 @@ const Content = () => {
   const [loading, setLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
+  const getDataSeqRef = useRef(0);
   const getData = useCallback(() => {
     if (!kb_id) {
       setLoading(false);
@@ -57,9 +58,12 @@ const Content = () => {
     }
     const params: { kb_id: string; search?: string } = { kb_id };
     if (search) params.search = search;
+    // 竞态守卫：记录请求序号，仅应用最新一次请求的响应，防止旧 KB 响应晚到覆盖新数据
+    const seq = ++getDataSeqRef.current;
     setLoading(true);
     getApiV1NodeListGroupNav(params)
       .then(res => {
+        if (seq !== getDataSeqRef.current) return;
         const list = res || [];
         setGroups(list);
         const nextNavList = list
@@ -84,7 +88,9 @@ const Content = () => {
         }
         setHasLoadedOnce(true);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (seq === getDataSeqRef.current) setLoading(false);
+      });
   }, [search, kb_id, dispatch]);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
