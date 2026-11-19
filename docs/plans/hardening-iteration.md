@@ -162,3 +162,18 @@ repo 层/web/packages/收尾角落）持续闭环，修复 **2 个新 P0**（跨
 - 前端：app eslint 0 问题、admin eslint error 0、app/admin/themes build 全部成功
 - 累计 **28 个修复提交**（1d562991..4a0f7d20）在本地 main，未推送
 - 勘察面覆盖率：backend 全部目录 + web 三端全部目录 + 共享包 + 部署链路
+
+## 第八轮迭代（轮 31~35，2026-11-20）：并发专项 + 漏洞扫描 + 投稿链路
+
+新勘察面（govulncheck/pnpm audit/全局共享状态并发/api-pro+投稿链路），
+修复 1 P0 + 2 P1 + 10 P2：
+
+| 提交 | 主题 |
+|---|---|
+| 5def4bb0 | next 16.4.6（pnpm audit 清零） |
+| be88c5ab | 并发专项（IsDone 裸读/wsCli atomic/cron CAS/全局 slice 拷贝/dingtalk 挂死缓解/discord 顺序）+ govulncheck 缓解确认 |
+| 2cfc9516 | 投稿链路（P0 nav_id 丢失致文档树不可见/审批校验前置+失败回写 pending） |
+| （本轮） | DocModal 空组提示收尾 |
+
+轮 34/35 连续两轮零新发现，二次达成停止条件。累计 **34 个提交**
+（1d562991..本提交）。
