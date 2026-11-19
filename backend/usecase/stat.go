@@ -47,6 +47,12 @@ func NewStatUseCase(repo *pg.StatRepository, nodeRepo *pg.NodeRepository, conver
 }
 
 func (u *StatUseCase) RecordPage(ctx context.Context, stat *domain.StatPage) error {
+	// NodeID 必须属于统计目标 KB，防止把 PV/漏斗伪造灌入其它 KB
+	if stat != nil && stat.NodeID != "" && stat.KBID != "" {
+		if err := u.nodeRepo.ValidateNodesBelongToKB(ctx, stat.KBID, []string{stat.NodeID}); err != nil {
+			return fmt.Errorf("stat page node does not belong to kb: %w", err)
+		}
+	}
 	webApp, err := u.appRepo.GetOrCreateAppByKBIDAndType(ctx, stat.KBID, domain.AppTypeWeb)
 	if err != nil {
 		return err

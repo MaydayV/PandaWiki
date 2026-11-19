@@ -58,6 +58,11 @@ const configSlice = createSlice({
     setKbId(state, { payload }) {
       localStorage.setItem('kb_id', payload);
       state.kb_id = payload;
+      // 切换 KB 后清理旧 KB 残留：nav_id 属于旧 KB 的目录，appPreviewData/kbDetail
+      // 引用旧 KB 数据（Header/设置页会随 kb_id 重拉，此处只清易漏的两项）
+      state.nav_id = '';
+      state.appPreviewData = null;
+      state.kbDetail = {} as DomainKnowledgeBaseDetail;
     },
     setNavId(state, { payload }) {
       state.nav_id = payload;

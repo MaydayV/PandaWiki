@@ -187,10 +187,14 @@ func (u *ConversationUsecase) CreateConversation(ctx context.Context, conversati
 	return nil
 }
 
-func (u *ConversationUsecase) FeedBack(ctx context.Context, feedback *domain.FeedbackRequest) error {
-	// 消息存在性检查（错误信息更友好），重复投票由 repo 条件更新原子化保证
-	if _, err := u.repo.GetConversationMessagesDetailByID(ctx, feedback.MessageId); err != nil {
+func (u *ConversationUsecase) FeedBack(ctx context.Context, kbID string, feedback *domain.FeedbackRequest) error {
+	// 消息存在性 + KB 归属校验（匿名端点，防跨 KB 刷票），重复投票由 repo 条件更新原子化保证
+	messages, err := u.repo.GetConversationMessagesDetailByID(ctx, feedback.MessageId)
+	if err != nil {
 		return err
+	}
+	if kbID == "" || messages.KBID != kbID {
+		return fmt.Errorf("message not found")
 	}
 	return u.repo.UpdateMessageFeedback(ctx, feedback)
 }

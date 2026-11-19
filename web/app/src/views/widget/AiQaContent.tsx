@@ -726,7 +726,7 @@ const AiQaContent: React.FC<{
         hasActiveStreamRef.current = false;
         setLoading(false);
         setThinking(4);
-        message.error('请求失败，请稍后重试');
+        message.error(t('common.requestFailed'));
       },
       onCancel: () => {
         // 流已结束（非活跃）时不追加取消标记，避免污染上一条已完成的回答

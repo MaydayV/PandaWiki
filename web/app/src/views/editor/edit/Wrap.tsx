@@ -102,7 +102,7 @@ const Wrap = ({ detail: defaultDetail = {} }: WrapProps) => {
       );
       return Promise.resolve('/static-file/' + key);
     } catch (error) {
-      message.error('验证失败');
+      message.error(t('chat.validationFailed'));
       return Promise.reject(error);
     }
   };

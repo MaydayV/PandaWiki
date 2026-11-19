@@ -92,6 +92,12 @@ func (u *WechatServiceUsecase) getQAFunc(kbID string, appType domain.AppType) bo
 		contentCh := make(chan string, 10)
 		go func() {
 			defer close(contentCh)
+			// 泵 panic 会使 defer close 照常执行，recover 后进程不崩
+			defer func() {
+				if r := recover(); r != nil {
+					u.logger.Error("wechat_service pump panicked", log.Any("panic", r))
+				}
+			}()
 			for event := range eventCh {
 				if event.Type == "done" || event.Type == "error" {
 					// 生产者 close 前可能还有缓冲事件，排干后再退出，

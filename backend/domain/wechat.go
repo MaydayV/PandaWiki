@@ -13,6 +13,7 @@ const NotifySendTimeout = 5 * time.Second
 // ConversationState
 type ConversationState struct {
 	Mutex            sync.Mutex
+	KBID             string // 会话归属 KB，answer SSE 端点据此校验跨 KB 读取
 	Question         string
 	Buffer           bytes.Buffer
 	IsVisited        bool

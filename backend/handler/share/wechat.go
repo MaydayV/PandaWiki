@@ -95,6 +95,12 @@ func (h *ShareWechatHandler) GetWechatAnswer(c echo.Context) error {
 	if conversationID == "" {
 		return h.NewResponseWithError(c, "conversation_id is required", nil)
 	}
+	// KB 归属校验：该端点此前完全无鉴权且按裸 conversation ID 全库查询，
+	// 拿到 UUID 即可跨 KB 回显任意会话全文（question/answer/message_id）
+	kbID := c.Request().Header.Get("X-KB-ID")
+	if kbID == "" {
+		return h.sendErrMsg(c, "kb is required")
+	}
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
@@ -103,10 +109,10 @@ func (h *ShareWechatHandler) GetWechatAnswer(c echo.Context) error {
 
 	// checkout if the conversation exists in map
 	val, ok := domain.ConversationManager.Load(conversationID)
-	if !ok { // not exist check db
-		conversation, err := h.conversationCase.GetConversationDetail(c.Request().Context(), "", conversationID)
+	if !ok { // not exist check db（带 kb 过滤，跨 KB 的 conversation ID 查不到即拒绝）
+		conversation, err := h.conversationCase.GetConversationDetail(c.Request().Context(), kbID, conversationID)
 		if err != nil {
-			return h.sendErrMsg(c, err.Error())
+			return h.sendErrMsg(c, "conversation not found")
 		}
 		// send answer and question
 		// 对话刚创建时可能只有用户消息，索引访问前必须检查长度（公开端点，防 panic）
@@ -138,6 +144,10 @@ func (h *ShareWechatHandler) GetWechatAnswer(c echo.Context) error {
 	state, ok := val.(*domain.ConversationState)
 	if !ok || state == nil {
 		return h.sendErrMsg(c, "conversation state unavailable")
+	}
+	// 内存态会话同样校验 KB 归属（跨 KB 的 conversation ID 直接拒绝）
+	if state.KBID != kbID {
+		return h.sendErrMsg(c, "conversation not found")
 	}
 	// 1. send question
 	if err := h.writeSSEEvent(c, domain.SSEEvent{Type: "question", Content: state.Question}); err != nil {
@@ -290,6 +300,12 @@ func (h *ShareWechatHandler) WechatHandlerService(c echo.Context) error {
 	}
 
 	go func(ctx context.Context, wechatServiceConf *wechat_service.WechatServiceConfig, msg *wechat_service.WeixinUserAskMsg, kbID string) {
+		// 裸 goroutine 内 panic 会击穿整个进程
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("wechat service async panicked", log.Any("panic", r))
+			}
+		}()
 		asyncCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
 		defer cancel()
 		err := h.wechatUsecase.WechatService(asyncCtx, msg, kbID, wechatServiceConf)
@@ -412,6 +428,11 @@ func (h *ShareWechatHandler) WechatHandlerApp(c echo.Context) error {
 	}
 
 	go func(ctx context.Context, msg *wechat.ReceivedMessage, wechatConfig *wechat.WechatConfig, kbId string, appInfo *domain.AppDetailResp) {
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("wechat app async panicked", log.Any("panic", r))
+			}
+		}()
 		asyncCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
 		defer cancel()
 

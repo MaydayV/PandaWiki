@@ -1057,7 +1057,8 @@ func (r *NodeRepository) MoveNodeBetween(ctx context.Context, id, parentID, prev
 			}
 		}
 
-		querySet := tx.Model(&domain.Node{}).Where("id = ?", id).Update("position", newPos).Update("parent_id", parentID)
+		// 更新必须限定 KB：GetNodeByID 无 kb 过滤，缺失时持 A-KB 权限可移动 B-KB 文档
+		querySet := tx.Model(&domain.Node{}).Where("id = ? AND kb_id = ?", id, kbId).Update("position", newPos).Update("parent_id", parentID)
 
 		if node.Status == domain.NodeStatusPublished {
 			querySet = querySet.Update("status", domain.NodeStatusDraft)
@@ -1700,4 +1701,21 @@ func (r *NodeRepository) GetNodeStats(ctx context.Context, kbId string) (*v1.Nod
 	}
 
 	return &stats, nil
+}
+
+// ValidateNodesBelongToKB 校验全部节点属于指定 KB，任一不属于即拒绝（跨 KB 写防护）
+func (r *NodeRepository) ValidateNodesBelongToKB(ctx context.Context, kbID string, nodeIds []string) error {
+	if kbID == "" || len(nodeIds) == 0 {
+		return nil
+	}
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&domain.Node{}).
+		Where("kb_id = ? AND id IN (?)", kbID, nodeIds).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("validate nodes belong to kb failed: %w", err)
+	}
+	if count != int64(len(nodeIds)) {
+		return domain.ErrPermissionDenied
+	}
+	return nil
 }

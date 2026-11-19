@@ -81,6 +81,13 @@ func (u *ChatUsecase) initDFA() error {
 func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan domain.SSEEvent, error) {
 	eventCh := make(chan domain.SSEEvent, 100)
 	go func() {
+		// 生产者 panic 时进程崩溃，recover 后消费端经 channel close 优雅感知
+		//（defer close/semaphore 释放不受影响）
+		defer func() {
+			if r := recover(); r != nil {
+				u.logger.Error("chat producer panicked", log.Any("panic", r))
+			}
+		}()
 		// acquire LLM concurrency slot
 		select {
 		case u.llmSemaphore <- struct{}{}:
@@ -327,6 +334,13 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 func (u *ChatUsecase) ChatRagOnly(ctx context.Context, req *domain.ChatRagOnlyRequest) (<-chan domain.SSEEvent, error) {
 	eventCh := make(chan domain.SSEEvent, 100)
 	go func() {
+		// 生产者 panic 时进程崩溃，recover 后消费端经 channel close 优雅感知
+		//（defer close/semaphore 释放不受影响）
+		defer func() {
+			if r := recover(); r != nil {
+				u.logger.Error("chat producer panicked", log.Any("panic", r))
+			}
+		}()
 		// acquire LLM concurrency slot
 		select {
 		case u.llmSemaphore <- struct{}{}:

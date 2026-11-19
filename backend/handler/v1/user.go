@@ -42,7 +42,8 @@ func NewUserHandler(e *echo.Echo, baseHandler *handler.BaseHandler, logger *log.
 	group.POST("/login", h.Login)
 
 	group.GET("", h.GetUserInfo, h.auth.Authorize)
-	group.GET("/list", h.ListUsers, h.auth.Authorize)
+	// 全量用户列表（含角色）仅管理员可见，普通协作者可枚举账号属信息泄露
+	group.GET("/list", h.ListUsers, h.auth.Authorize, h.auth.ValidateUserRole(consts.UserRoleAdmin))
 	group.POST("/create", h.CreateUser, h.auth.Authorize, h.auth.ValidateUserRole(consts.UserRoleAdmin))
 	group.PUT("/reset_password", h.ResetPassword, h.auth.Authorize, h.auth.ValidateUserRole(consts.UserRoleAdmin))
 	group.DELETE("/delete", h.DeleteUser, h.auth.Authorize, h.auth.ValidateUserRole(consts.UserRoleAdmin))
@@ -119,6 +120,11 @@ func (h *UserHandler) Login(c echo.Context) error {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("reset login attempts panicked", "panic", r)
+			}
+		}()
 		if err := h.rateLimiter.ResetLoginAttempts(context.Background(), ip); err != nil {
 			h.logger.Error("failed to reset login attempts", "error", err, "ip", ip)
 		}

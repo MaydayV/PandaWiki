@@ -390,7 +390,9 @@ func (h *ShareChatHandler) FeedBack(c echo.Context) error {
 		return h.NewResponseWithError(c, "validate request failed", err)
 	}
 	h.logger.Debug("receive feedback request:", log.Any("feedback_request", feedbackReq))
-	if err := h.conversationUsecase.FeedBack(c.Request().Context(), &feedbackReq); err != nil {
+	// 消息必须属于 X-KB-ID 对应 KB（该端点匿名可访问，防跨 KB 刷票）
+	kbID := c.Request().Header.Get("X-KB-ID")
+	if err := h.conversationUsecase.FeedBack(c.Request().Context(), kbID, &feedbackReq); err != nil {
 		return h.NewResponseWithError(c, "handle feedback failed", err)
 	}
 	return h.NewResponseWithData(c, "success")

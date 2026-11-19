@@ -26,10 +26,12 @@ func (r *CommentRepository) CreateComment(ctx context.Context, comment *domain.C
 	return nil
 }
 
-func (r *CommentRepository) GetCommentList(ctx context.Context, nodeID string) ([]*domain.ShareCommentListItem, int64, error) {
-	// 按照时间排序来查询node_id的comments
+func (r *CommentRepository) GetCommentList(ctx context.Context, kbID, nodeID string) ([]*domain.ShareCommentListItem, int64, error) {
+	// 按照时间排序来查询node_id的comments；join nodes 限定 KB，防止跨 KB 读评论
 	var comments []*domain.ShareCommentListItem
-	query := r.db.WithContext(ctx).Model(&domain.Comment{}).Where("node_id = ?", nodeID)
+	query := r.db.WithContext(ctx).Model(&domain.Comment{}).
+		Joins("JOIN nodes ON nodes.id = comments.node_id AND nodes.kb_id = ?", kbID).
+		Where("comments.node_id = ?", nodeID)
 
 	if domain.GetBaseEditionLimitation(ctx).AllowCommentAudit {
 		query = query.Where("status = ?", domain.CommentStatusAccepted) //accepted

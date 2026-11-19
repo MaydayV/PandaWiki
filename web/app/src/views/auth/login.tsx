@@ -357,7 +357,7 @@ export default function Login() {
                     startIcon={<IconDingDing />}
                     sx={{ height: '50px', fontSize: 16 }}
                   >
-                    登录
+                    {t('login.login')}
                   </Button>
                 )}
                 {sourceType === ConstsSourceType.SourceTypeFeishu && (
@@ -368,7 +368,7 @@ export default function Login() {
                     startIcon={<IconFeishu />}
                     sx={{ height: '50px', fontSize: 16 }}
                   >
-                    登录
+                    {t('login.login')}
                   </Button>
                 )}
                 {sourceType === ConstsSourceType.SourceTypeWeCom && (
@@ -379,7 +379,7 @@ export default function Login() {
                     startIcon={<IconQiyeweixin />}
                     sx={{ height: '50px', fontSize: 16 }}
                   >
-                    登录
+                    {t('login.login')}
                   </Button>
                 )}
                 {sourceType === ConstsSourceType.SourceTypeOAuth && (
@@ -412,7 +412,7 @@ export default function Login() {
                     startIcon={<CasIcon sx={{ fontSize: '28px !important' }} />}
                     sx={{ height: '50px', fontSize: 16 }}
                   >
-                    登录
+                    {t('login.login')}
                   </Button>
                 )}
 

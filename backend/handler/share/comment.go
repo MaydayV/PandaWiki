@@ -156,7 +156,7 @@ func (h *ShareCommentHandler) GetCommentList(c echo.Context) error {
 	}
 
 	// 查询数据库获取所有评论-->0 所有， 1，2 为需要审核的评论
-	commentsList, err := h.usecase.GetCommentListByNodeID(ctx, nodeID)
+	commentsList, err := h.usecase.GetCommentListByNodeID(ctx, kbID, nodeID)
 	if err != nil {
 		return h.NewResponseWithError(c, "failed to get comment list", err)
 	}

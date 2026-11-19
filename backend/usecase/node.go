@@ -451,6 +451,10 @@ func (u *NodeUsecase) SummaryNode(ctx context.Context, req *domain.NodeSummaryRe
 		if err != nil {
 			return fmt.Errorf("get latest node release failed: %w", err)
 		}
+		// 节点必须属于请求的 KB，防止持 A-KB 权限读 B-KB 节点全文（经 AI 摘要回显）
+		if node.KBID != req.KBID {
+			return domain.ErrPermissionDenied
+		}
 		if _, err := u.llmUsecase.SummaryNode(ctx, req.KBID, model, node.Name, node.Content); err != nil {
 			return fmt.Errorf("summary node failed: %w", err)
 		}
@@ -647,6 +651,10 @@ func (u *NodeUsecase) StreamSummaryNode(ctx context.Context, req *domain.NodeSum
 	node, err := u.nodeRepo.GetNodeByID(ctx, req.IDs[0])
 	if err != nil {
 		return fmt.Errorf("get latest node release failed: %w", err)
+	}
+	// 同上：跨 KB 摘要泄露防护
+	if node.KBID != req.KBID {
+		return domain.ErrPermissionDenied
 	}
 
 	if err := u.llmUsecase.StreamSummaryNode(ctx, req.KBID, model, node.Name, node.Content, onChunk); err != nil {
@@ -958,6 +966,11 @@ func (u *NodeUsecase) ValidateNodePermissionsEdit(_ v1.NodePermissionEditReq, _ 
 }
 
 func (u *NodeUsecase) NodePermissionsEdit(ctx context.Context, req v1.NodePermissionEditReq) error {
+	// 权限组更新走 node_auth_groups 表（无 kb 列），在此统一校验全部节点归属
+	// 请求 KB，防止持 A-KB 权限改 B-KB 文档的访问分组
+	if err := u.nodeRepo.ValidateNodesBelongToKB(ctx, req.KbId, req.IDs); err != nil {
+		return err
+	}
 	if req.Permissions != nil {
 		updateMap := map[string]interface{}{
 			"permissions": req.Permissions,

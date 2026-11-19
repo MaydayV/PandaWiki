@@ -109,6 +109,7 @@ func (u *WecomUsecase) HandleMsg(ctx context.Context, kbID, signature, timestamp
 		// Store conversation state in manager first
 		if _, ok := domain.ConversationManager.Load(conversationID); !ok {
 			state := &domain.ConversationState{
+				KBID:             kbID,
 				Question:         req.Text.Content,
 				NotificationChan: make(chan string),
 				IsVisited:        false,
@@ -117,6 +118,11 @@ func (u *WecomUsecase) HandleMsg(ctx context.Context, kbID, signature, timestamp
 			_, loaded := domain.ConversationManager.LoadOrStore(conversationID, state)
 			if !loaded {
 				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							u.logger.Error("wecom async qa panicked", log.Any("panic", r))
+						}
+					}()
 					bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 					defer cancel()
 					eventCh, err := u.chatUsecase.Chat(bgCtx, &domain.ChatRequest{

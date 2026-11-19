@@ -99,6 +99,7 @@ func (cfg *WechatConfig) ProcessUrlMessage(msg ReceivedMessage, GetQA bot.GetQAF
 	//2. go send to ai and store in map--> get conversation-id
 	if _, ok := domain.ConversationManager.Load(conversationID); !ok {
 		state := &domain.ConversationState{
+			KBID:             cfg.kbID,
 			Question:         msg.Content,
 			NotificationChan: make(chan string), // notification channel
 			IsVisited:        false,

@@ -1,9 +1,13 @@
+'use client';
+
 import notFound from '@/assets/images/404.png';
+import { useI18n } from '@/i18n/useI18n';
 import { FooterProvider } from '@/components/footer';
 import { Box, Stack } from '@mui/material';
 import Image from 'next/image';
 
 export default function NotFound() {
+  const { t } = useI18n();
   return (
     <Box
       sx={{
@@ -28,7 +32,7 @@ export default function NotFound() {
           alignItems='center'
           sx={{ color: 'text.tertiary', fontSize: 14, mt: 3 }}
         >
-          页面不存在
+          {t('error.notFound')}
         </Stack>
       </Stack>
       <Box

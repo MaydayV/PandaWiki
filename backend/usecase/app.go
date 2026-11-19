@@ -275,6 +275,12 @@ func (u *AppUsecase) getQAFunc(kbID string, appType domain.AppType) bot.GetQAFun
 		contentCh := make(chan string, 10)
 		go func() {
 			defer close(contentCh)
+			// 泵 panic 会使 defer close 照常执行，recover 后进程不崩
+			defer func() {
+				if r := recover(); r != nil {
+					u.logger.Error("app pump panicked", log.Any("panic", r))
+				}
+			}()
 			for event := range eventCh {
 				if event.Type == "done" || event.Type == "error" {
 					// 生产者 close 前可能还有缓冲事件，排干后再退出，
@@ -332,6 +338,11 @@ func (u *AppUsecase) updateFeishuBot(app *domain.App) {
 	)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				u.logger.Error("feishu bot start panicked", log.Any("panic", r))
+			}
+		}()
 		u.logger.Info("feishu bot is starting", log.String("app_id", app.Settings.FeishuBotAppID))
 		err := feishuClient.Start()
 		if err != nil {
@@ -387,6 +398,11 @@ func (u *AppUsecase) updateLarkBot(app *domain.App) {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				u.logger.Error("lark bot start panicked", log.Any("panic", r))
+			}
+		}()
 		u.logger.Info("lark bot is starting", log.String("app_id", app.Settings.LarkBotSettings.AppID))
 		err := larkClient.Start()
 		if err != nil {
@@ -436,6 +452,11 @@ func (u *AppUsecase) updateDingTalkBot(app *domain.App) {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				u.logger.Error("dingtalk bot start panicked", log.Any("panic", r))
+			}
+		}()
 		u.logger.Info("dingtalk bot is starting", log.String("client_id", app.Settings.DingTalkBotClientID))
 		err := dingTalkClient.Start()
 		if err != nil {
