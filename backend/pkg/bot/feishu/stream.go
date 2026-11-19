@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +52,9 @@ type FeishuClient struct {
 	msgMap       sync.Map
 	getQA        bot.GetQAFun
 	done         chan struct{}
+	// closed 在 Stop（ctx 取消）后置位：larkws 无公开关闭方法，旧连接会保留，
+	// eventHandler 据此忽略幽灵连接上的消息
+	closed atomic.Bool
 }
 
 func NewFeishuClient(ctx context.Context, cancel context.CancelFunc, clientID, clientSecret string, logger *log.Logger, getQA bot.GetQAFun) *FeishuClient {
@@ -295,6 +299,11 @@ func (c *FeishuClient) Start() error {
 	defer close(c.done)
 	eventHandler := dispatcher.NewEventDispatcher("", "").
 		OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
+			// 幽灵连接屏蔽：Stop 后旧 ws 连接无法关闭（SDK 无公开关闭方法），
+			// 飞书服务端可能仍向其推送消息，忽略以保证新实例正常应答
+			if c.closed.Load() {
+				return nil
+			}
 			// ignore duplicate message
 			if *event.Event.Message.MessageId == "" {
 				return nil
@@ -340,10 +349,32 @@ func (c *FeishuClient) Start() error {
 		larkws.WithEventHandler(eventHandler),
 		larkws.WithLogger(&FeishuBotLogger{logger: c.logger}),
 	)
-	// FIXME: goroutine leak in larkws.Start.
-	// larkws.Client.Start 仅在失败时返回（成功路径永久阻塞），返回值恒为非 nil，
-	// 因此这里无条件包装返回，与原有 err != nil 判断行为一致。
-	return fmt.Errorf("failed to start feishu client: %w", cli.Start(c.ctx))
+
+	// larkws.Start 成功路径永久阻塞（select{}）且不响应 ctx 取消（SDK 内部
+	// 不监听 ctx，也无公开关闭方法），无法用它驱动本 client 的生命周期：
+	// - 放入独立 goroutine，启动失败（connect 阶段，30s 内返回）上报给调用方；
+	// - 成功后以 ctx 取消作为结束信号，Stop/cancel 即触发 done close，
+	//   调用方的 <-Done() 不再永久阻塞（此前飞书配置更新会导致 bot 永久失联）；
+	// - 旧 ws 连接无法关闭，幽灵连接上的消息由 eventHandler 的 closed 检查屏蔽。
+	started := make(chan error, 1)
+	go func() {
+		if err := cli.Start(c.ctx); err != nil {
+			started <- err
+		}
+	}()
+
+	select {
+	case err := <-started:
+		return fmt.Errorf("failed to start feishu client: %w", err)
+	case <-time.After(feishuStartTimeout):
+		// 未在超时内失败视为连接成功（成功路径永不返回）
+	}
+
+	<-c.ctx.Done()
+	c.closed.Store(true)
+	// 留给 larkws 内部 pingLoop/读循环感知连接异常的时间，减少幽灵窗口
+	time.Sleep(time.Second)
+	return fmt.Errorf("feishu client stopped: context canceled")
 }
 
 // 下面功能都是需要开启飞书对应的权限才可以获取到用户信息 -- 应用权限(否则获取不到对话用户的信息)
@@ -368,6 +399,9 @@ func (c *FeishuClient) GetUserInfo(UserOpenId string) (*larkcontact.User, error)
 
 	return resp.Data.User, nil
 }
+
+// feishuStartTimeout 内未返回错误视为连接就绪（larkws.Start 成功路径永不返回）
+const feishuStartTimeout = 30 * time.Second
 
 func (c *FeishuClient) Stop() {
 	c.cancel()

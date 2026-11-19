@@ -596,6 +596,10 @@ ALTER TABLE nodes ADD COLUMN IF NOT EXISTS rag_info jsonb default '{}';
 
 -- 索引：GetNodeIdsWithoutStatusByKbId / GetNodeStats / GetNodeListByStatus 按 kb_id + rag_info->>'status' 过滤/统计文档 RAG 学习状态
 CREATE INDEX IF NOT EXISTS idx_nodes_kb_id_rag_status ON nodes(kb_id, (rag_info->>'status'));
+-- 服务 repo/pg/node.go 管理端搜索：name LIKE ? OR content LIKE ?
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_nodes_name_trgm ON nodes USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_nodes_content_trgm ON nodes USING gin (content gin_trgm_ops);
 
 -- <<< END 000030_add_node_status_msg.up.sql
 
@@ -833,6 +837,8 @@ CREATE INDEX IF NOT EXISTS node_release_backup_deleted_at_idx ON node_release_ba
 
 -- >>> BEGIN pgvector_rag (stack-slim)
 CREATE EXTENSION IF NOT EXISTS vector;
+-- 管理端文档搜索 name/content LIKE '%kw%' 的 GIN trigram 索引
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS rag_chunks (
     id          TEXT PRIMARY KEY,

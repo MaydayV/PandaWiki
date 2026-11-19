@@ -272,16 +272,18 @@ func GetKbID(c echo.Context) (string, error) {
 
 		c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		var m map[string]interface{}
-		if err := json.Unmarshal(bodyBytes, &m); err == nil {
-			if strings.Contains(c.Request().URL.Path, "knowledge_base") {
-				if id, exists := m["id"].(string); exists && id != "" {
-					return id, nil
-				}
+		// 轻量 struct 解析替代 map[string]interface{}：写请求 body 可能很大
+		// （如 node 正文保存），避免每个请求的 map 分配与 interface 装箱开销
+		var probe struct {
+			ID   string `json:"id"`
+			KbID string `json:"kb_id"`
+		}
+		if err := json.Unmarshal(bodyBytes, &probe); err == nil {
+			if strings.Contains(c.Request().URL.Path, "knowledge_base") && probe.ID != "" {
+				return probe.ID, nil
 			}
-
-			if id, exists := m["kb_id"].(string); exists && id != "" {
-				return id, nil
+			if probe.KbID != "" {
+				return probe.KbID, nil
 			}
 		}
 		return "", nil
