@@ -397,7 +397,7 @@ func (h *ShareWechatHandler) WechatHandlerApp(c echo.Context) error {
 	if err != nil {
 		return h.NewResponseWithError(c, "UnmarshalMsg failed", err)
 	}
-	h.logger.Info("wechat app msg", log.Any("user msg", msg))
+	h.logger.Debug("wechat app msg", log.Any("user msg", msg))
 
 	if msg.MsgType != "text" { // 用户进入会话，或者其他非提问类型的事件
 		return c.String(http.StatusOK, "")
@@ -493,7 +493,7 @@ func (h *ShareWechatHandler) WecomAIBotHandle(c echo.Context) error {
 		return h.NewResponseWithError(c, "wecom app bot is not enabled", nil)
 	}
 
-	h.logger.Info("msg:", log.String("body", string(body)))
+	h.logger.Debug("msg:", log.String("body", string(body)))
 	resp, err := h.wecomUsecase.HandleMsg(ctx, kbID, signature, timestamp, nonce, string(body), appInfo)
 	if err != nil {
 		h.logger.Error("wecom ai bot handle msg failed", log.Error(err))

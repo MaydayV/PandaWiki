@@ -194,14 +194,14 @@ func (h *ShareAppHandler) WechatHandlerOfficialAccount(c echo.Context) error {
 
 	// message handler
 	server.SetMessageHandler(func(msg *message.MixMessage) *message.Reply {
-		h.logger.Info("received message:", log.Any("msgtype", msg.MsgType), log.Any("fromUserName", msg.FromUserName), log.String("content", msg.Content), log.Any("event type", msg.Event))
+		h.logger.Debug("received message:", log.Any("msgtype", msg.MsgType), log.Any("fromUserName", msg.FromUserName), log.String("content", msg.Content), log.Any("event type", msg.Event))
 
 		switch msg.MsgType {
 		case message.MsgTypeText:
 			// text消息
 			userOpenID := msg.FromUserName
 			userContent := msg.Content
-			h.logger.Info("user_open_id user_content", log.Any("user_open_id", userOpenID), log.Any("user content", userContent))
+			h.logger.Debug("user_open_id user_content", log.Any("user_open_id", userOpenID), log.Any("user content", userContent))
 			// 异步发送
 			go func(openID, content string) {
 				ctx := context.Background()

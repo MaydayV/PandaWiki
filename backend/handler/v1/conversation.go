@@ -107,7 +107,7 @@ func (h *ConversationHandler) GetMessageFeedBackList(c echo.Context) error {
 	if err := c.Bind(&request); err != nil {
 		return h.NewResponseWithError(c, "invalid request", err)
 	}
-	h.logger.Info("GetMessageFeedBackList request", log.Any("request", request))
+	h.logger.Debug("GetMessageFeedBackList request", log.Any("request", request))
 	ctx := c.Request().Context()
 	messages, err := h.usecase.GetMessageList(ctx, &request)
 	if err != nil {

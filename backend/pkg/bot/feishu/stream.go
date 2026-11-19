@@ -52,8 +52,10 @@ type FeishuClient struct {
 	msgMap       sync.Map
 	getQA        bot.GetQAFun
 	done         chan struct{}
-	// closed 在 Stop（ctx 取消）后置位：larkws 无公开关闭方法，旧连接会保留，
-	// eventHandler 据此忽略幽灵连接上的消息
+	// wsCli 是本地 fork 的 larkws client（third_party/larksuite-oapi-sdk-go-v3，
+	// 补丁增加 Close 优雅关闭），Stop 时主动断开连接
+	wsCli *larkws.Client
+	// closed 在 Stop 后置位：eventHandler 据此忽略连接关闭竞态窗口内的消息
 	closed atomic.Bool
 }
 
@@ -349,6 +351,7 @@ func (c *FeishuClient) Start() error {
 		larkws.WithEventHandler(eventHandler),
 		larkws.WithLogger(&FeishuBotLogger{logger: c.logger}),
 	)
+	c.wsCli = cli
 
 	// larkws.Start 成功路径永久阻塞（select{}）且不响应 ctx 取消（SDK 内部
 	// 不监听 ctx，也无公开关闭方法），无法用它驱动本 client 的生命周期：
@@ -358,9 +361,11 @@ func (c *FeishuClient) Start() error {
 	// - 旧 ws 连接无法关闭，幽灵连接上的消息由 eventHandler 的 closed 检查屏蔽。
 	started := make(chan error, 1)
 	go func() {
-		// larkws.Start 仅在失败时返回（成功路径永久阻塞），恒返回非 nil err，
-		// 无条件发送即可：成功分支自然不会到达发送语句
-		started <- cli.Start(c.ctx)
+		// larkws.Start（本地 fork）在 Close/ctx 取消后返回 nil（优雅关闭），
+		// 仅失败路径返回非 nil err 上报
+		if err := cli.Start(c.ctx); err != nil {
+			started <- err
+		}
 	}()
 
 	select {
@@ -372,7 +377,8 @@ func (c *FeishuClient) Start() error {
 
 	<-c.ctx.Done()
 	c.closed.Store(true)
-	// 留给 larkws 内部 pingLoop/读循环感知连接异常的时间，减少幽灵窗口
+	// 本地 fork 的 Close 已主动断开连接并让 Start 返回，
+	// 这里等待内部 pingLoop/读循环完成退出
 	time.Sleep(time.Second)
 	return fmt.Errorf("feishu client stopped: context canceled")
 }
@@ -405,6 +411,9 @@ const feishuStartTimeout = 30 * time.Second
 
 func (c *FeishuClient) Stop() {
 	c.cancel()
+	if c.wsCli != nil {
+		c.wsCli.Close()
+	}
 }
 
 // Done returns a channel that is closed when Start() has fully returned.

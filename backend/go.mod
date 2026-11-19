@@ -214,3 +214,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// 本地 fork：上游 ws 包无公开关闭方法（Start 成功路径 select{} 永久阻塞），
+// 本地补丁增加 Close 优雅关闭与 ctx 响应，见 ws/client.go 的 Close 注释
+replace github.com/larksuite/oapi-sdk-go/v3 => ./third_party/larksuite-oapi-sdk-go-v3

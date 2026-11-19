@@ -298,7 +298,7 @@ func (cfg *WechatServiceConfig) SendMessage(jsonData []byte, token string) error
 	}
 	// 发送消息给微信客服成功
 	s := string(body)
-	cfg.logger.Info("response from wechatservice success", log.Any("body", s))
+	cfg.logger.Debug("response from wechatservice success", log.Any("body", s))
 
 	return nil
 }
