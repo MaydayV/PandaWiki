@@ -63,25 +63,31 @@
 | 轮 6.5 | P2 清尾：SSE 错误泄露、SQL 参数化、admin 存量告警、死依赖 | c8039d08 fix(hardening) | ✅ |
 | 轮 7 | 收尾：全量回归（后端 test/lint、app/admin build 全绿）、文档更新 | 本提交 | ✅ |
 
-## 遗留事项（第二轮迭代后更新，2026-11-19）
+## 遗留事项（第三轮迭代后更新，2026-11-19）
 
-第二轮迭代（轮 8~10，提交 08ef5182 起）已解决首轮遗留中的 4 项：
+第三轮迭代（轮 11~12）又解决了首轮"评估后不动"清单中的 2 项：
 
-- ~~Echo RealIP 信任 XFF~~ → **已解决**：caddy 反代强制覆盖设置 X-Real-IP（3 处 request 反代全部注入），api 端 TRUST_PROXY 开关控制信任策略，compose/.env.example 同步。
-- ~~widget 公开端点无防刷~~ → **已解决**：按 IP 的 1 分钟滑动窗口限频（12 次/分，redis 原子 INCR+ExpireNX，故障放行）。
-- ~~SSE 空闲掐断风险~~ → **已解决**：ChatMessage/ChatWidget 消费循环 select 化，LLM 长思考时每 15s 写 `: keepalive` 注释行。
-- ~~数据备份缺失~~ → **已解决**：`docs/deploy/backup.sh`（pg_dump + 滚动保留 + cron 说明），DEPLOYMENT.md 已引用。
+- ~~飞书 bot Done 永久阻塞/幽灵连接~~ → **已解决**：验证 larkws SDK（含 v3.13.0）
+  无公开关闭方法且内部不监听 ctx 取消后，改用工程化规避——larkws.Start 放独立
+  goroutine（30s 内未失败视为就绪，启动失败仍上报），FeishuClient 生命周期由
+  ctx 取消驱动（done 正常 close，重启路径不再永久阻塞），幽灵连接消息由
+  eventHandler 的 closed 原子检查屏蔽。修复前更新飞书配置会导致 bot 永久失联。
+- ~~管理端 LIKE 搜索无索引~~ → **已解决**：fresh SQL 增加 pg_trgm 扩展与
+  nodes.name/content GIN trigram 索引。
+- ~~GetKbID 大 body 双倍解析~~ → **已缓解**：JSON 探测改轻量 struct 解析，
+  消除 map 分配与 interface 装箱开销（读取行为不变）。
 
-仍保留的遗留项（评估后不动）：
+仍保留的遗留项（最终，评估后不动）：
 
-1. **larkws.Start goroutine 泄漏**（pkg/bot/feishu/stream.go）：上游 SDK 限制（成功路径永久阻塞 select{}），已有注释说明。等上游修复。
-2. **API token / SimpleAuth 口令明文存储**：加密存储需要迁移方案与密钥管理设计，比较处已改常量时间。
-3. **用户消息原文进 Info 日志**（handler/share 多处）：涉及产品排障需求取舍，建议引入日志脱敏中间件统一处理。
-4. **jwt GetKbID 对写请求全量读 body**：multipart 分支已补（上传路径），JSON 大 body 场景实际不存在，收益不足。
-5. **nodes name/content LIKE 无 trigram 索引**：管理端低频操作，数据量大后再加。
+1. **API token / SimpleAuth 口令明文存储**：加密存储需要迁移方案与密钥管理设计；
+   与"仅全新部署"策略叠加会断裂老库兼容路径，比较处已改常量时间。
+2. **用户消息原文进 Info 日志**（handler/share 多处）：涉及产品排障需求取舍，
+   建议引入日志脱敏中间件统一处理。
+3. **larkws select{} 空转 goroutine**：连接关闭仍受 SDK 限制，业务影响已通过
+   closed 屏蔽与生命周期重构消除（仅剩 SDK 内部的空转 goroutine，零 CPU）。
 
 ## 最终状态
 
 - 后端：golangci-lint 0 issues、go test ./... 全绿
 - 前端：app pnpm lint 0 问题、app/admin pnpm build 成功
-- 全部改动分 12 个提交在本地 main，未推送（可用 git revert 逐轮回退）
+- 全部改动分 14 个提交在本地 main，未推送（可用 git revert 逐轮回退）
