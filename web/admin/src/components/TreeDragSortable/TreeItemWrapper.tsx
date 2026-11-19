@@ -5,7 +5,7 @@ import type { TreeItemComponentProps } from './types';
 
 export const TreeItemWrapper = forwardRef<
   HTMLDivElement,
-  React.PropsWithChildren<TreeItemComponentProps<{}>>
+  React.PropsWithChildren<TreeItemComponentProps<Record<string, never>>>
 >((props, ref) => {
   const {
     clone,

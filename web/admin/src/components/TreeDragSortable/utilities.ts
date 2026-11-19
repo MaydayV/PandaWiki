@@ -60,8 +60,8 @@ export function getProjection<T>(
   const projectedDepth = activeItem.depth + dragDepth;
 
   let depth = projectedDepth;
-  let directParent = findParentWithDepth(depth - 1, previousItem);
-  let parent = findParentWhichCanHaveChildren(
+  const directParent = findParentWithDepth(depth - 1, previousItem);
+  const parent = findParentWhichCanHaveChildren(
     directParent,
     activeItem,
     canRootHaveChildren,

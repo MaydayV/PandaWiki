@@ -71,7 +71,9 @@ const ShowText = ({
                     if (ok) message.success('复制成功');
                     document.body.removeChild(ta);
                   }
-                } catch (e) {}
+                } catch (e) {
+                  // ignore clipboard failures
+                }
                 onClick?.();
               } else {
                 copyText(content);

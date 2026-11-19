@@ -25,11 +25,11 @@ declare module '@ctzhian/modelkit' {
     param?: ModelParam;
   }
 
-  export interface CreateModelReq extends Model {}
+  export type CreateModelReq = Model;
 
-  export interface UpdateModelReq extends Model {}
+  export type UpdateModelReq = Model;
 
-  export interface CheckModelReq extends Model {}
+  export type CheckModelReq = Model;
 
   export interface ListModelReq {
     provider?: string;

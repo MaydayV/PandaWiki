@@ -24,7 +24,7 @@ export type TreeItem<T> = {
 } & T;
 
 export type TreeItems<T extends Record<string, any>> = TreeItem<T>[];
-export type TreeItemComponentProps<T = {}> = {
+export type TreeItemComponentProps<T = Record<string, never>> = {
   item: TreeItem<T>;
   parent: FlattenedItem<T> | null;
 
