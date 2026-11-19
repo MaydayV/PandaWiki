@@ -136,3 +136,29 @@ hasActiveStreamRef 复位覆盖全部出口、raw 模式默认值保持现有行
   新写入的凭据为密文，旧明文数据仍可读取；配置后请勿更换密钥。
 - SDK fork 说明：`third_party/larksuite-oapi-sdk-go-v3` 是上游 v3.4.20 的本地
   补丁副本（ws/client.go 的 Close 注释标明改动点），升级上游时需重新套用补丁。
+
+## 第七轮深度迭代（轮 21~30，2026-11-20）
+
+六个新勘察面（权限矩阵/i18n/goroutine/发布状态机/admin 数据流/app 数据流/
+repo 层/web/packages/收尾角落）持续闭环，修复 **2 个新 P0**（跨 KB 会话
+泄露、RAG doc_id 断裂致检索全坏）+ **30+ P1** + 大量 P2：
+
+| 提交 | 主题 |
+|---|---|
+| 22b609eb | 权限矩阵（P0 会话泄露/摘要泄露/MoveNode 跨 KB/user list）+ i18n + goroutine 加固×10 |
+| 7fbd267b | 发布状态机（P0 doc_id 断裂/KB 级联/发布补偿）+ admin 数据流竞态 |
+| a959c42d | 剩余 handler（敏感词缓存/解绑 session/口令限速）+ app 数据流 |
+| 9b77237a | 复核轮 22/23——恢复误删的 nodes 级联 + 限速 key 隔离 |
+| ea1d2c21 | 复核前端——release 页残留竞态 + setting 文案 |
+| b13ea55f+86491c49 | repo 层（PV 双计/投稿审批抢占式）+ 主题 token 补齐 + 时区修正 |
+| 4a0f7d20 | 收尾角落（RAG 入队分批/上传嗅探/密钥日志/cert 权限） |
+
+**轮 29（复核轮 26-28 diff）与轮 30（独立抽查+全量门禁）连续两轮零发现，
+满足停止条件。**
+
+## 最终状态（轮 30）
+
+- 后端：golangci-lint 0 issues、go test ./... 全绿（含加密/DFA/rag_job 单测）
+- 前端：app eslint 0 问题、admin eslint error 0、app/admin/themes build 全部成功
+- 累计 **28 个修复提交**（1d562991..4a0f7d20）在本地 main，未推送
+- 勘察面覆盖率：backend 全部目录 + web 三端全部目录 + 共享包 + 部署链路
