@@ -16,6 +16,9 @@ type DFAInstance struct {
 }
 
 // GetDFA returns the singleton instance of DFA
+//
+// Deprecated: 敏感词检查已改为请求路径 NewDFAInstance 即时构建，此缓存
+// 无刷新入口且对新 KB 返回 nil，仅保留兼容 pro 版本引用
 func GetDFA(kbID string) *DFAInstance {
 	mu.RLock()
 	defer mu.RUnlock()

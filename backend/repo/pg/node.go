@@ -1746,6 +1746,8 @@ func (r *NodeRepository) RevertNodeReleases(ctx context.Context, kbID string, re
 		return nil
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// node_release_audits 无 release 关联列（按 node_id+action 记录），
+		// 不随补偿删除——audit 保留"发布后又回退"的痕迹，语义可接受
 		// 先取 release → node_id 映射（删除后查不到），仅回退仍为 Published 的节点
 		var nodeIDs []string
 		if err := tx.Model(&domain.NodeRelease{}).

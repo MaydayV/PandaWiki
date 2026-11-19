@@ -609,23 +609,38 @@ func (r *KnowledgeBaseRepository) DeleteKnowledgeBase(ctx context.Context, kbID 
 			{&domain.Conversation{}, "kb_id"},
 			{&domain.ConversationMessage{}, "kb_id"},
 			{&domain.StatPage{}, "kb_id"},
+			{&domain.AuthConfig{}, "kb_id"},
+			{&domain.AuthGroup{}, "kb_id"},
+			{&domain.Setting{}, "kb_id"},
+			{&domain.StatPageHour{}, "kb_id"},
+			{&domain.PromptVersion{}, "kb_id"},
+			{&domain.APICallAudit{}, "kb_id"},
+			{&domain.NodeReleaseAudit{}, "kb_id"},
 		}
 		for _, c := range cascades {
 			if err := tx.Where(c.column+" = ?", kbID).Delete(c.model).Error; err != nil {
 				return fmt.Errorf("delete %T failed: %w", c.model, err)
 			}
 		}
-		// 无 kb_id 列的子表按 nodes 子查询清理（须在 nodes 删除前，行集随语句物化）
+		// 无 kb_id 列/无模型的子表：按 nodes 子查询或直删（须在 nodes 删除前物化）
 		if err := tx.Exec(`DELETE FROM node_stats WHERE node_id IN (SELECT id FROM nodes WHERE kb_id = ?)`, kbID).Error; err != nil {
 			return fmt.Errorf("delete node_stats failed: %w", err)
 		}
 		if err := tx.Exec(`DELETE FROM node_auth_groups WHERE node_id IN (SELECT id FROM nodes WHERE kb_id = ?)`, kbID).Error; err != nil {
 			return fmt.Errorf("delete node_auth_groups failed: %w", err)
 		}
-		// kb_release_node_releases 通过 kb_releases 的 id 关联，上面按 kb_id 直删覆盖；
-		// kb_users/settings 若结构体缺失对应列可安全为 0 行删除
+		if err := tx.Exec(`DELETE FROM mcp_calls WHERE kb_id = ?`, kbID).Error; err != nil {
+			return fmt.Errorf("delete mcp_calls failed: %w", err)
+		}
+		if err := tx.Exec(`DELETE FROM document_feedbacks WHERE kb_id = ?`, kbID).Error; err != nil {
+			return fmt.Errorf("delete document_feedbacks failed: %w", err)
+		}
 		if err := tx.Where("kb_id = ?", kbID).Delete(&domain.KBUsers{}).Error; err != nil {
 			return err
+		}
+		// nodes 最后删除：上面全部级联与子查询依赖它物化行集
+		if err := tx.Where("kb_id = ?", kbID).Delete(&domain.Node{}).Error; err != nil {
+			return fmt.Errorf("delete nodes failed: %w", err)
 		}
 		if err := tx.Where("id = ?", kbID).Delete(&domain.KnowledgeBase{}).Error; err != nil {
 			return err

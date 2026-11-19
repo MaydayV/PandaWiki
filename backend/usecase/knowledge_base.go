@@ -188,7 +188,12 @@ func (u *KnowledgeBaseUsecase) CreateKBRelease(ctx context.Context, req *domain.
 				})
 			}
 			if err := u.ragRepo.AsyncUpdateNodeReleaseVector(ctx, nodeContentVectorRequests); err != nil {
-				return "", err
+				// 入队失败与 ③ 失败同态：节点 Published + release 已写但不在任何
+				// KB release，补偿回退保持状态机一致
+				if revertErr := u.nodeRepo.RevertNodeReleases(ctx, req.KBID, releaseIDs); revertErr != nil {
+					return "", fmt.Errorf("failed to enqueue rag jobs: %w (compensation also failed: %w)", err, revertErr)
+				}
+				return "", fmt.Errorf("failed to enqueue rag jobs: %w", err)
 			}
 		}
 	}

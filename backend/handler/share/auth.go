@@ -39,7 +39,7 @@ func NewShareAuthHandler(
 	h := &ShareAuthHandler{
 		BaseHandler: baseHandler,
 		logger:      handlerLogger,
-		rateLimiter: ratelimit.NewRateLimiter(handlerLogger, cache),
+		rateLimiter: ratelimit.NewRateLimiterWithScope(handlerLogger, cache, "share_simple_auth"),
 		kbUsecase:   kbUsecase,
 		authUsecase: authUsecase,
 	}

@@ -398,15 +398,11 @@ func (u *ChatUsecase) CreateAcOnChunk(ctx context.Context, kbID string, answer *
 		return onChunk, nil
 	}
 
-	// get filter（即时构建，替代启动时全局缓存）
-	kbBlockWords, err := u.blockWordRepo.GetBlockWords(ctx, kbID)
-	if err != nil {
-		u.logger.Error("failed to get question block words", log.Error(err))
-		kbBlockWords = nil
-	}
+	// filter 即时构建：直接复用调用方传入的词表（Chat 已查过，避免重复查询；
+	// 词表与提问侧检查同源，保证过滤行为一致）
 	var filter *utils.DFAInstance
-	if len(kbBlockWords) > 0 {
-		filter = utils.NewDFAInstance(kbBlockWords)
+	if len(blockWords) > 0 {
+		filter = utils.NewDFAInstance(blockWords)
 	}
 
 	onChunk := func(ctx context.Context, dataType, chunk string) error {
