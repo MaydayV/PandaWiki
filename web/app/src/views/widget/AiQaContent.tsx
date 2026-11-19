@@ -146,6 +146,9 @@ const AiQaContent: React.FC<{
   // 使派生状态的 setState 调用移出 updater（updater 应为纯函数，
   // React StrictMode 下 updater 可能双调用，嵌套副作用会重复执行）
   const fullAnswerRef = useRef('');
+  // 标记是否有活跃的 SSE 流：流结束后 unsubscribe 触发 onCancel 时直接跳过，
+  // 避免给上一条已完成的回答追加 "Request canceled"
+  const hasActiveStreamRef = useRef(false);
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState<ThinkingStatus>(4);
@@ -208,9 +211,8 @@ const AiQaContent: React.FC<{
     if (loading) {
       handleSearchAbort();
     }
-    if (input.length > 0) {
-      onSearch(input, true);
-    }
+    // 先清空会话再决定是否携带输入发起新会话，避免先请求后清空导致 LLM 白跑一轮
+    const pendingInput = input;
     setConversationId('');
     setConversation([]);
     fullAnswerRef.current = '';
@@ -224,6 +226,9 @@ const AiQaContent: React.FC<{
     setUploadedImages([]);
     setLoading(false);
     setNonce('');
+    if (pendingInput.length > 0) {
+      onSearch(pendingInput, true);
+    }
   };
 
   const handleSearch = (reset: boolean = false) => {
@@ -537,6 +542,7 @@ const AiQaContent: React.FC<{
     if (nonce) reqData.nonce = nonce;
 
     if (sseClientRef.current) {
+      hasActiveStreamRef.current = true;
       sseClientRef.current.subscribe(
         JSON.stringify(reqData),
         ({ type, content, chunk_result }) => {
@@ -547,6 +553,7 @@ const AiQaContent: React.FC<{
           } else if (type === 'nonce') {
             setNonce(prev => prev + content);
           } else if (type === 'error') {
+            hasActiveStreamRef.current = false;
             setLoading(false);
             setThinking(4);
             setConversation(prev => {
@@ -568,6 +575,7 @@ const AiQaContent: React.FC<{
             });
             if (content) message.error(content);
           } else if (type === 'done') {
+            hasActiveStreamRef.current = false;
             setConversation(prev => {
               const newConversation = [...prev];
               const lastConversation =
@@ -714,7 +722,16 @@ const AiQaContent: React.FC<{
       headers: {
         'Content-Type': 'application/json',
       },
+      onError: () => {
+        hasActiveStreamRef.current = false;
+        setLoading(false);
+        setThinking(4);
+        message.error('请求失败，请稍后重试');
+      },
       onCancel: () => {
+        // 流已结束（非活跃）时不追加取消标记，避免污染上一条已完成的回答
+        if (!hasActiveStreamRef.current) return;
+        hasActiveStreamRef.current = false;
         setLoading(false);
         setThinking(4);
         setConversation(prev => {

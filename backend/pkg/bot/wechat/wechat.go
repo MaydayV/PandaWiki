@@ -402,6 +402,11 @@ func (cfg *WechatConfig) SendQuestionToAI(conversationID string, wccontent chan 
 		return
 	}
 
+	// close 与 Delete 的 defer 必须在进入消费循环前注册（defer 在 panic 点
+	// 之后声明不生效）：panic 中断时也保证消费者不永久阻塞、条目不泄漏
+	defer close(state.NotificationChan)
+	defer domain.ConversationManager.Delete(conversationID)
+
 	for content := range wccontent {
 		state.Mutex.Lock()
 		state.Buffer.WriteString(content)
@@ -417,6 +422,4 @@ func (cfg *WechatConfig) SendQuestionToAI(conversationID string, wccontent chan 
 		case <-time.After(domain.NotifySendTimeout):
 		}
 	}
-	close(state.NotificationChan)
-	domain.ConversationManager.Delete(conversationID)
 }

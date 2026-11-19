@@ -411,6 +411,10 @@ func (c *DingTalkClient) processMessage(ctx context.Context, data *chatbot.BotCa
 				c.logger.Error("UpdateInteractiveCard in ticker", log.Error(err))
 				if updateErr := c.UpdateAIStreamCard(trackID, "出错了，请稍后再试", true); updateErr != nil {
 					c.logger.Error("UpdateInteractiveCard in ticker failed", log.Error(updateErr))
+					// 卡片更新失败不放弃消费：排干 contentCh 到关闭再退出，
+					// 否则泵/Chat 生产者阻塞、LLM 并发槽永久泄漏
+					for range contentCh {
+					}
 					return fmt.Errorf("stream update card failed: %w; fallback update failed: %w", err, updateErr)
 				}
 				return nil

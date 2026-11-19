@@ -131,19 +131,33 @@ func (c *LarkClient) setupEventHandler() {
 				}
 				// Replace mention placeholders with actual user names
 				questionText := c.replaceMentions(message.Text, event.Event.Message.Mentions)
-				go c.sendQACard(c.ctx, "chat_id", *event.Event.Message.ChatId, questionText, *event.Event.Sender.SenderId.OpenId)
+				c.sendQACardAsync(c.ctx, "chat_id", *event.Event.Message.ChatId, questionText, *event.Event.Sender.SenderId.OpenId, messageId)
 			case "p2p":
 				var message Message
 				if err := json.Unmarshal([]byte(*event.Event.Message.Content), &message); err != nil {
 					c.logger.Error("failed to unmarshal message", log.Error(err))
 					return nil
 				}
-				go c.sendQACard(c.ctx, "open_id", *event.Event.Sender.SenderId.OpenId, message.Text, *event.Event.Message.ChatId)
+				c.sendQACardAsync(c.ctx, "open_id", *event.Event.Sender.SenderId.OpenId, message.Text, *event.Event.Message.ChatId, messageId)
 			default:
 				c.logger.Warn("unsupported chat type", log.String("chat_type", *event.Event.Message.ChatType))
 			}
 			return nil
 		})
+}
+
+// sendQACardAsync 在独立 goroutine 中处理 QA 卡片：裸 goroutine 内 panic 会击穿
+// 整个进程（与 feishu/discord/dingtalk 的 recover 保护对齐），并清理 msgMap 允许重试
+func (c *LarkClient) sendQACardAsync(ctx context.Context, receiveIdType, receiveId, question, additionalInfo, messageId string) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.logger.Error("send QA card panicked", log.String("message_id", messageId), log.Any("panic", r))
+				c.msgMap.Delete(messageId)
+			}
+		}()
+		c.sendQACard(ctx, receiveIdType, receiveId, question, additionalInfo)
+	}()
 }
 
 // GetEventHandler returns the event dispatcher for HTTP callback handling
@@ -310,8 +324,11 @@ func (c *LarkClient) sendQACard(ctx context.Context, receiveIdType string, recei
 			buf.WriteString(<-answerCh)
 		}
 		if err := sendUpdate(); err != nil {
+			// 更新失败不退出：退回循环继续消费 answerCh，下一 chunk 自动重试；
+			// 提前 return 会放弃消费，生产者阻塞、LLM 并发槽泄漏（与 SSE 消费端
+			// 排干原则一致——必须消费到 channel 关闭）
 			c.logger.Error("lark client failed to send QA update", log.Error(err), log.Int("sequence", seq))
-			return
+			continue
 		}
 	}
 	c.logger.Info("start processing QA", log.String("message_id", *res.Data.MessageId))

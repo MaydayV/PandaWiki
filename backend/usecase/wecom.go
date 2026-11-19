@@ -241,11 +241,17 @@ func (u *WecomUsecase) SendQuestionToAI(conversationID string, eventCh <-chan do
 		}
 		if event.Type == "data" {
 			state.Mutex.Lock()
-			if state.IsVisited {
-				state.NotificationChan <- event.Content // notify has new data
-			}
 			state.Buffer.WriteString(event.Content)
+			visited := state.IsVisited
 			state.Mutex.Unlock()
+			if visited {
+				// 发送必须在锁外（持锁向无缓冲 chan 发送会与消费端抢锁互锁），
+				// 超时放弃实时推送（内容已写入 Buffer）
+				select {
+				case state.NotificationChan <- event.Content:
+				case <-time.After(domain.NotifySendTimeout):
+				}
+			}
 		}
 	}
 }

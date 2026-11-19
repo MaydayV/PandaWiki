@@ -83,6 +83,9 @@ func (d *DiscordClient) handleMessage(s *discordgo.Session, m *discordgo.Message
 	message, err := s.ChannelMessageSend(m.ChannelID, "正在获取答案...")
 	if err != nil {
 		d.logger.Error("failed to send message to discord", log.String("error", err.Error()))
+		// 占位消息发送失败时 qaChan 无人消费，排干到关闭（LLM 槽泄漏防护）
+		for range qaChan {
+		}
 		return
 	}
 	go func() {
@@ -96,9 +99,20 @@ func (d *DiscordClient) handleMessage(s *discordgo.Session, m *discordgo.Message
 		for qa := range qaChan {
 			buf.WriteString(qa)
 		}
-		_, err := s.ChannelMessageEdit(message.ChannelID, message.ID, buf.String())
+		// Discord 消息上限 2000 字符，超长必 400 且占位消息永不更新
+		_, err := s.ChannelMessageEdit(message.ChannelID, message.ID, truncateForDiscord(buf.String(), 2000))
 		if err != nil {
 			d.logger.Error("failed to edit message to discord", log.String("error", err.Error()))
 		}
 	}()
+}
+
+// truncateForDiscord 按 rune 截断到 limit（字节截断可能切断多字节字符产生
+// 非法 UTF-8，Discord 会 400）
+func truncateForDiscord(content string, limit int) string {
+	runes := []rune(content)
+	if len(runes) <= limit {
+		return content
+	}
+	return string(runes[:limit-3]) + "..."
 }

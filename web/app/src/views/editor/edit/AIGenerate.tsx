@@ -58,6 +58,7 @@ const AIGenerate = ({
 
   const onCancel = () => {
     sseClientRef.current?.unsubscribe();
+    setLoading(false);
     defaultEditor.editor.commands.setContent('');
     readEditor.editor.commands.setContent('');
     setContent('');
@@ -77,6 +78,8 @@ const AIGenerate = ({
       headers: {
         'Content-Type': 'application/json',
       },
+      // 后端该接口返回裸 markdown 流（无 SSE 帧），需用 raw 模式直接回调文本块
+      responseMode: 'raw',
       onComplete: () => setLoading(false),
       onError: () => setLoading(false),
     });

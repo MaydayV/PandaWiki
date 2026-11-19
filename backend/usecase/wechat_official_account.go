@@ -13,10 +13,11 @@ import (
 )
 
 func (u *AppUsecase) GetWechatOfficialAccountResponse(ctx context.Context, oa *officialaccount.OfficialAccount, KbID, openID, content string) (string, error) {
-	// 需要权限
+	// 需要权限；GetUserInfo 失败时 userinfo 为 nil，下游解引用会 panic（裸 goroutine 内即进程崩溃）
 	userinfo, err := oa.GetUser().GetUserInfo(openID)
 	if err != nil {
 		u.logger.Error("GetUserInfo failed", log.Error(err))
+		return "", fmt.Errorf("get user info failed: %w", err)
 	}
 	u.logger.Info("userinfo", log.Any("userinfo", userinfo))
 

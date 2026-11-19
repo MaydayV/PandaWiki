@@ -54,8 +54,8 @@ func (n *DiscordPushNotifier) SendTextMessage(ctx context.Context, chatID string
 	if n.token == "" {
 		return fmt.Errorf("discord bot token is empty")
 	}
-	if len(content) > discordContentLimit {
-		content = content[:discordContentLimit-3] + "..."
+	if len([]rune(content)) > discordContentLimit {
+		content = truncateForDiscord(content, discordContentLimit)
 	}
 
 	body, err := json.Marshal(discordMessageReq{Content: content})

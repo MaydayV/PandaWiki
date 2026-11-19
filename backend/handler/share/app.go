@@ -204,6 +204,12 @@ func (h *ShareAppHandler) WechatHandlerOfficialAccount(c echo.Context) error {
 			h.logger.Debug("user_open_id user_content", log.Any("user_open_id", userOpenID), log.Any("user content", userContent))
 			// 异步发送
 			go func(openID, content string) {
+				// 裸 goroutine 内 panic 会击穿整个进程（echo 只 recover handler 本体）
+				defer func() {
+					if r := recover(); r != nil {
+						h.logger.Error("official account async handler panicked", log.Any("panic", r))
+					}
+				}()
 				ctx := context.Background()
 				// send content to ai
 				result, err := h.usecase.GetWechatOfficialAccountResponse(ctx, officialAccount, kbID, openID, content)

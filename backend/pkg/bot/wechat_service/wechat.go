@@ -170,6 +170,10 @@ func (cfg *WechatServiceConfig) ProcessMessage(msgRet *MsgRet, GetQA bot.GetQAFu
 	//2. get baseurl and image path
 	info, err := cfg.WeRepo.GetWechatStatic(cfg.Ctx, cfg.kbID, domain.AppTypeWeb)
 	if err != nil {
+		// GetQA 已启动（Chat 生产者 + 泵已在写入 wccontent），此处放弃前必须
+		// 排干到关闭，否则泵裸发送阻塞、LLM 并发槽永久泄漏
+		for range wccontent {
+		}
 		return err
 	}
 
@@ -406,6 +410,11 @@ func (cfg *WechatServiceConfig) SendQuestionToAI(conversationID string, wcconten
 		return
 	}
 
+	// close 与 Delete 的 defer 必须在进入消费循环前注册（defer 在 panic 点
+	// 之后声明不生效）：panic 中断时也保证消费者不永久阻塞、条目不泄漏
+	defer close(state.NotificationChan)
+	defer domain.ConversationManager.Delete(conversationID)
+
 	for content := range wccontent {
 		state.Mutex.Lock()
 		state.Buffer.WriteString(content)
@@ -421,6 +430,4 @@ func (cfg *WechatServiceConfig) SendQuestionToAI(conversationID string, wcconten
 		case <-time.After(domain.NotifySendTimeout):
 		}
 	}
-	close(state.NotificationChan)
-	domain.ConversationManager.Delete(conversationID)
 }

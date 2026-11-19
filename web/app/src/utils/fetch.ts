@@ -21,6 +21,8 @@ interface SSEClientOptions {
   method?: string;
   /** 整体请求超时时间（毫秒），不传默认 5 分钟 */
   timeout?: number;
+  /** 响应模式：'sse'（默认）按 SSE data: 帧解析 JSON；'raw' 将响应文本块原样回调 */
+  responseMode?: 'sse' | 'raw';
 }
 
 class SSEClient<T> {
@@ -50,7 +52,11 @@ class SSEClient<T> {
     } = this.options;
     const timeoutId = setTimeout(() => {
       this.unsubscribe();
-      onError?.(new Error('Request timed out after 5 minutes'));
+      onError?.(
+        new Error(
+          `Request timed out after ${Math.round(timeoutDuration / 1000)} seconds`,
+        ),
+      );
     }, timeoutDuration);
 
     const upperMethod = method.toUpperCase();
@@ -114,7 +120,13 @@ class SSEClient<T> {
   ) {
     if (!chunk) return;
 
-    this.buffer += this.textDecoder.decode(chunk, { stream: true });
+    const text = this.textDecoder.decode(chunk, { stream: true });
+    if (this.options.responseMode === 'raw') {
+      callback(text as T);
+      return;
+    }
+
+    this.buffer += text;
     const lines = this.buffer.split('\n');
     let currentData = '';
     let isDataLine = false;
@@ -148,7 +160,7 @@ class SSEClient<T> {
   public unsubscribe() {
     this.controller.abort();
     if (this.reader) {
-      this.reader.cancel();
+      this.reader.cancel().catch(() => {});
     }
     this.options.onCancel?.(new Error('Request canceled'));
   }
