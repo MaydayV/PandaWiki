@@ -13,6 +13,7 @@ import (
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/store/cache"
 	"github.com/chaitin/panda-wiki/store/pg"
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 type APITokenRepo struct {
@@ -40,14 +41,27 @@ func (r *APITokenRepo) GetByTokenWithCache(ctx context.Context, token string) (*
 		}
 	}
 
-	// 缓存未命中，从数据库查询
+	// 缓存未命中，从数据库查询：加密模式按 HMAC 索引列等值查询（密文不可作查询条件），
+	// 未启用加密时 token 列即明文，行为与历史版本一致
 	var apiToken domain.APIToken
-	if err := r.db.WithContext(ctx).Where("token = ?", token).First(&apiToken).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
+	if utils.CryptoEnabled() {
+		if err := r.db.WithContext(ctx).Where("token_index = ?", utils.SecretIndex(token)).First(&apiToken).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("get api token by token failed: %w", err)
 		}
-		return nil, fmt.Errorf("get api token by token failed: %w", err)
+	} else {
+		if err := r.db.WithContext(ctx).Where("token = ?", token).First(&apiToken).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("get api token by token failed: %w", err)
+		}
 	}
+
+	// 落库的是密文，返回调用方（缓存/校验逻辑）前还原明文
+	apiToken.Token = utils.DecryptSecret(apiToken.Token)
 
 	if tokenData, err := json.Marshal(&apiToken); err == nil {
 		if err := r.cache.Set(ctx, cacheKey, tokenData, 30*time.Minute).Err(); err != nil {
@@ -59,6 +73,10 @@ func (r *APITokenRepo) GetByTokenWithCache(ctx context.Context, token string) (*
 }
 
 func (r *APITokenRepo) Create(ctx context.Context, apiToken *domain.APIToken) error {
+	if apiToken.Token != "" {
+		apiToken.TokenIndex = utils.SecretIndex(apiToken.Token)
+		apiToken.Token = utils.EncryptSecret(apiToken.Token)
+	}
 	if err := r.db.WithContext(ctx).Create(apiToken).Error; err != nil {
 		return fmt.Errorf("create api token failed: %w", err)
 	}
@@ -73,6 +91,9 @@ func (r *APITokenRepo) ListByKBAndUser(ctx context.Context, kbID, userID string)
 		Find(&apiTokens).Error; err != nil {
 		return nil, fmt.Errorf("list api tokens failed: %w", err)
 	}
+	for _, t := range apiTokens {
+		t.Token = utils.DecryptSecret(t.Token)
+	}
 	return apiTokens, nil
 }
 
@@ -86,6 +107,7 @@ func (r *APITokenRepo) GetByID(ctx context.Context, id, kbID, userID string) (*d
 		}
 		return nil, fmt.Errorf("get api token by id failed: %w", err)
 	}
+	apiToken.Token = utils.DecryptSecret(apiToken.Token)
 	return &apiToken, nil
 }
 
@@ -153,7 +175,8 @@ func (r *APITokenRepo) invalidateTokenCache(ctx context.Context, token string) e
 	if token == "" || r.cache == nil {
 		return nil
 	}
-	if err := r.cache.Del(ctx, apiTokenCacheKey(token)).Err(); err != nil {
+	// Update/Delete 传入的是 DB 读出的密文，缓存 key 按明文计算（与写入侧一致）
+	if err := r.cache.Del(ctx, apiTokenCacheKey(utils.DecryptSecret(token))).Err(); err != nil {
 		return fmt.Errorf("invalidate api token cache failed: %w", err)
 	}
 	return nil

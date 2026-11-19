@@ -11,10 +11,12 @@ import (
 )
 
 type APIToken struct {
-	ID                 string                  `json:"id" gorm:"primaryKey"`
-	Name               string                  `json:"name" gorm:"not null"`
-	UserID             string                  `json:"user_id" gorm:"not null"`
+	ID     string `json:"id" gorm:"primaryKey"`
+	Name   string `json:"name" gorm:"not null"`
+	UserID string `json:"user_id" gorm:"not null"`
+	// Token 落库为密文（ENCRYPTION_KEY 配置后 AES-256-GCM），repo 返回调用方前解密
 	Token              string                  `json:"token" gorm:"uniqueIndex;not null"`
+	TokenIndex         string                  `json:"-" gorm:"column:token_index;not null"`
 	KbId               string                  `json:"kb_id" gorm:"not null"`
 	Permission         consts.UserKBPermission `json:"permission" gorm:"not null"`
 	RateLimitPerMinute int                     `json:"rate_limit_per_minute" gorm:"not null;default:0"`

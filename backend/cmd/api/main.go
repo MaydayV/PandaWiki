@@ -12,6 +12,7 @@ import (
 	"github.com/chaitin/panda-wiki/log"
 	pwhttp "github.com/chaitin/panda-wiki/server/http"
 	"github.com/chaitin/panda-wiki/setup"
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 // @title panda-wiki API
@@ -30,6 +31,9 @@ func main() {
 	if err := setup.CheckInitCert(); err != nil {
 		panic(err)
 	}
+
+	// 注入凭据落库加密密钥（API token / SimpleAuth 口令；未配置 = 明文兼容）
+	utils.SetEncryptionKey(app.Config.EncryptionKey)
 
 	// SIGTERM/SIGINT 触发优雅退出（docker stop 会先发 SIGTERM）
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

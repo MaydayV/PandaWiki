@@ -22,6 +22,9 @@ type Config struct {
 	CaddyAPI      string       `mapstructure:"caddy_api"`
 	SubnetPrefix  string       `mapstructure:"subnet_prefix"`
 	RunWorker     bool         `mapstructure:"run_worker"`
+	// EncryptionKey 用于 API token / SimpleAuth 口令的落库加密（AES-256-GCM）。
+	// 未配置 = 明文存储（兼容既有部署）；配置后启用加密并写入 token_index。
+	EncryptionKey string `mapstructure:"encryption_key"`
 }
 
 type LogConfig struct {
@@ -285,6 +288,9 @@ func overrideWithEnv(c *Config) {
 	}
 	if env := os.Getenv("TRUST_PROXY"); env != "" {
 		c.HTTP.TrustProxy = env == "1" || env == "true" || env == "TRUE"
+	}
+	if env := os.Getenv("ENCRYPTION_KEY"); env != "" {
+		c.EncryptionKey = env
 	}
 	// log level
 	if env := os.Getenv("LOG_LEVEL"); env != "" {

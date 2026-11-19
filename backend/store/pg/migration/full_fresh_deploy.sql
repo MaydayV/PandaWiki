@@ -542,12 +542,16 @@ CREATE TABLE IF NOT EXISTS api_tokens (
     kb_id TEXT NOT NULL,
     name TEXT NOT NULL,
     user_id TEXT NOT NULL,
+    -- ENCRYPTION_KEY 启用后存 AES-GCM 密文；未启用时为明文（兼容）
     token TEXT NOT NULL,
+    -- 明文 token 的 HMAC-SHA256 索引（确定性），等值查询走此列
+    token_index TEXT NOT NULL DEFAULT '',
     permission TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE(token)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_api_tokens_token_index ON api_tokens(token_index);
 -- <<< END 000025_create_api_tokens_table.up.sql
 
 -- >>> BEGIN 000026_add_sync.up.sql

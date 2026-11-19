@@ -19,6 +19,7 @@ import (
 	"github.com/chaitin/panda-wiki/repo/mq"
 	"github.com/chaitin/panda-wiki/repo/pg"
 	"github.com/chaitin/panda-wiki/store/rag"
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 type KnowledgeBaseUsecase struct {
@@ -93,6 +94,10 @@ func (u *KnowledgeBaseUsecase) GetKnowledgeBaseListByUserId(ctx context.Context)
 }
 
 func (u *KnowledgeBaseUsecase) UpdateKnowledgeBase(ctx context.Context, req *domain.UpdateKnowledgeBaseReq) error {
+	// SimpleAuth 口令落库加密（ENCRYPTION_KEY 未配置时原样明文，兼容既有部署）
+	if req.AccessSettings != nil {
+		req.AccessSettings.SimpleAuth.Password = utils.EncryptSecret(req.AccessSettings.SimpleAuth.Password)
+	}
 	isChange, err := u.repo.UpdateKnowledgeBase(ctx, req)
 	if err != nil {
 		return err
@@ -117,6 +122,7 @@ func (u *KnowledgeBaseUsecase) GetKnowledgeBase(ctx context.Context, kbID string
 		return nil, err
 	}
 	if kb != nil {
+		kb.AccessSettings.SimpleAuth.Password = utils.DecryptSecret(kb.AccessSettings.SimpleAuth.Password)
 		return kb, nil
 	}
 	kb, err = u.repo.GetKnowledgeBaseByID(ctx, kbID)
@@ -126,6 +132,8 @@ func (u *KnowledgeBaseUsecase) GetKnowledgeBase(ctx context.Context, kbID string
 	if err := u.kbCache.SetKB(ctx, kbID, kb); err != nil {
 		return nil, err
 	}
+	// 缓存存加密态，返回调用方（设置回显/口令校验）前还原明文
+	kb.AccessSettings.SimpleAuth.Password = utils.DecryptSecret(kb.AccessSettings.SimpleAuth.Password)
 	return kb, nil
 }
 
