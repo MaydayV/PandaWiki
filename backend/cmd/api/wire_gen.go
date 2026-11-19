@@ -77,7 +77,12 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	shareAuthMiddleware := middleware.NewShareAuthMiddleware(logger, knowledgeBaseUsecase)
+	authRepo := pg2.NewAuthRepo(db, logger, cacheCache)
+	authUsecase, err := usecase.NewAuthUsecase(authRepo, logger, knowledgeBaseRepository, cacheCache)
+	if err != nil {
+		return nil, err
+	}
+	shareAuthMiddleware := middleware.NewShareAuthMiddleware(logger, knowledgeBaseUsecase, authUsecase)
 	captchaCaptcha := captcha.NewCaptcha()
 	baseHandler := handler.NewBaseHandler(echo, logger, configConfig, authMiddleware, shareAuthMiddleware, captchaCaptcha)
 	userUsecase, err := usecase.NewUserUsecase(userRepository, logger, configConfig)
@@ -95,7 +100,6 @@ func createApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	authRepo := pg2.NewAuthRepo(db, logger, cacheCache)
 	systemSettingRepo := pg2.NewSystemSettingRepo(db, logger)
 	modelUsecase := usecase.NewModelUsecase(modelRepository, nodeRepository, ragRepository, ragService, logger, configConfig, knowledgeBaseRepository, systemSettingRepo)
 	nodeUsecase := usecase.NewNodeUsecase(nodeRepository, navRepository, appRepository, ragRepository, userRepository, knowledgeBaseRepository, llmUsecase, ragService, logger, minioClient, modelRepository, authRepo, modelUsecase)
@@ -125,10 +129,6 @@ func createApp() (*App, error) {
 	commentRepository := pg2.NewCommentRepository(db, logger)
 	commentUsecase := usecase.NewCommentUsecase(commentRepository, logger, nodeRepository, ipAddressRepo, authRepo)
 	commentHandler := v1.NewCommentHandler(echo, baseHandler, logger, authMiddleware, commentUsecase)
-	authUsecase, err := usecase.NewAuthUsecase(authRepo, logger, knowledgeBaseRepository, cacheCache)
-	if err != nil {
-		return nil, err
-	}
 	authV1Handler := v1.NewAuthV1Handler(echo, baseHandler, logger, authUsecase)
 	navUsecase := usecase.NewNavUsecase(navRepository, nodeRepository, ragRepository, logger)
 	navHandler := v1.NewNavHandler(baseHandler, echo, navUsecase, authMiddleware, logger)
@@ -155,7 +155,7 @@ func createApp() (*App, error) {
 	shareSitemapHandler := share.NewShareSitemapHandler(echo, baseHandler, sitemapUsecase, appUsecase, logger)
 	shareStatHandler := share.NewShareStatHandler(baseHandler, echo, statUseCase, logger)
 	shareCommentHandler := share.NewShareCommentHandler(echo, baseHandler, logger, commentUsecase, appUsecase)
-	shareAuthHandler := share.NewShareAuthHandler(echo, baseHandler, logger, knowledgeBaseUsecase, authUsecase)
+	shareAuthHandler := share.NewShareAuthHandler(echo, baseHandler, logger, cacheCache, knowledgeBaseUsecase, authUsecase)
 	shareConversationHandler := share.NewShareConversationHandler(baseHandler, echo, conversationUsecase, logger)
 	wechatRepository := pg2.NewWechatRepository(db, logger)
 	wechatServiceUsecase := usecase.NewWechatUsecase(logger, configConfig, appUsecase, chatUsecase, wechatRepository, authRepo)

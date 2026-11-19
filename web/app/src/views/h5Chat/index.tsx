@@ -236,7 +236,11 @@ const H5Chat = () => {
   const [appSetting, setAppSetting] = useState<V1WechatAppInfoResp | null>(
     null,
   );
-  const [loading, setLoading] = useState(true);
+  // 初始仅在 URL 带 id（即将开始回答）时进入打字态；无 id 时保持空闲，
+  // 避免在 effect 内同步 setState 进入打字态后永久卡住
+  const [loading, setLoading] = useState(() =>
+    Boolean(searchParams.get('id')),
+  );
   const [answer, setAnswer] = useState('');
   const [score, setScore] = useState(0);
   const [message_id, setMessageId] = useState('');
@@ -374,6 +378,14 @@ const H5Chat = () => {
       headers: {
         'Content-Type': 'application/json',
       },
+      onError: () => {
+        // 传输层失败（HTTP 错误/超时/解析失败）时退出打字态并提示
+        setLoading(false);
+        message.error(t('common.requestFailed'));
+      },
+      onComplete: () => {
+        setLoading(false);
+      },
       onCancel: () => {
         setLoading(false);
         setAnswer(() => {
@@ -384,7 +396,7 @@ const H5Chat = () => {
     return () => {
       sseClientRef.current?.unsubscribe();
     };
-  }, [searchParams, basePath]);
+  }, [searchParams, basePath, t]);
 
   return (
     <StyledContainer>

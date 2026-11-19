@@ -63,35 +63,43 @@ const DocEditor = () => {
       emoji: nodeDetail?.meta?.emoji,
       captcha_token: token,
       content_type: contentType || 'html',
-    }).then(() => {
-      message.success(t('editor.saveSuccessClose'));
-      setTimeout(() => {
+    })
+      .then(() => {
+        message.success(t('editor.saveSuccessClose'));
+        setTimeout(() => {
+          setSaveLoading(false);
+          try {
+            // 优先尝试直接关闭当前窗口
+            window.close();
+            // 若浏览器阻止关闭，则尽量离开当前页
+            setTimeout(() => {
+              // 仍未关闭时，尝试回退；若无历史则跳首页
+              if (history.length > 1) {
+                history.back();
+              } else {
+                // 某些浏览器可通过替换为 _self 再关闭
+                try {
+                  window.open('', '_self');
+                  window.close();
+                } catch {}
+                // 最终兜底：跳转到首页
+                setTimeout(() => {
+                  if (!document.hidden) {
+                    window.location.href = '/';
+                  }
+                }, 50);
+              }
+            }, 0);
+          } catch {}
+        }, 3000);
+      })
+      .catch(error => {
+        // 提交失败时提前复位 loading 并提示，避免按钮永久禁用；
+        // 继续抛出让调用方保持确认弹窗打开（Modal 内部会捕获）
+        message.error(t('common.requestFailed'));
         setSaveLoading(false);
-        try {
-          // 优先尝试直接关闭当前窗口
-          window.close();
-          // 若浏览器阻止关闭，则尽量离开当前页
-          setTimeout(() => {
-            // 仍未关闭时，尝试回退；若无历史则跳首页
-            if (history.length > 1) {
-              history.back();
-            } else {
-              // 某些浏览器可通过替换为 _self 再关闭
-              try {
-                window.open('', '_self');
-                window.close();
-              } catch {}
-              // 最终兜底：跳转到首页
-              setTimeout(() => {
-                if (!document.hidden) {
-                  window.location.href = '/';
-                }
-              }, 50);
-            }
-          }, 0);
-        } catch {}
-      }, 3000);
-    });
+        throw error;
+      });
   };
 
   useEffect(() => {

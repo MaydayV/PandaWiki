@@ -337,3 +337,10 @@ func (r *AuthRepo) GetOrCreateAuth(ctx context.Context, auth *domain.Auth, sourc
 
 	return auth, nil
 }
+
+// CountByKBIDAndID 统计指定 auth 记录数（session 回查用）
+func (r *AuthRepo) CountByKBIDAndID(ctx context.Context, kbID string, id uint, count *int64) error {
+	return r.db.WithContext(ctx).Model(&domain.Auth{}).
+		Where("kb_id = ? AND id = ?", kbID, id).
+		Count(count).Error
+}

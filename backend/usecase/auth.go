@@ -178,3 +178,14 @@ func (u *AuthUsecase) SaveNewSession(c echo.Context, auth *domain.Auth) error {
 	c.Logger().Info("session_saved:", newSess.Values)
 	return nil
 }
+
+// HasAuthByID 校验 session 指向的 auth 绑定是否仍存在：
+// 解绑第三方登录（OpenAuthDelete）后旧 session 应立即失效
+func (u *AuthUsecase) HasAuthByID(ctx context.Context, kbID string, authID uint) bool {
+	var count int64
+	if err := u.AuthRepo.CountByKBIDAndID(ctx, kbID, authID, &count); err != nil {
+		// 查询失败保守放行（不因 DB 抖动锁死全部企业认证用户）
+		return true
+	}
+	return count > 0
+}

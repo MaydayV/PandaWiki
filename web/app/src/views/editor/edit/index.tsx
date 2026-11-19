@@ -1,16 +1,19 @@
 'use client';
 import { getShareV1NodeDetail } from '@/request/ShareNode';
 import { V1NodeDetailResp } from '@/request/types';
+import { message } from '@ctzhian/ui';
 import { Box } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useWrapContext } from '..';
+import { useI18n } from '@/i18n/useI18n';
 import LoadingEditorWrap from './Loading';
 import EditorWrap from './Wrap';
 
 const Edit = () => {
   const { id = '' } = useParams();
   const { setNodeDetail, nodeDetail } = useWrapContext();
+  const { t } = useI18n();
   // 有 id 时初始即为加载中，无 id 时直接进入编辑态，避免在 effect 内同步 setState
   const [loading, setLoading] = useState(() => Boolean(id));
   const [detail, setDetail] = useState<V1NodeDetailResp | null>(nodeDetail);
@@ -27,10 +30,14 @@ const Edit = () => {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 0);
       })
+      .catch(() => {
+        // 详情加载失败时提示，保持 detail 为空并跳过编辑器渲染，避免空指针
+        message.error(t('common.requestFailed'));
+      })
       .finally(() => {
         setLoading(false);
       });
-  }, [id, setNodeDetail]);
+  }, [id, setNodeDetail, t]);
 
   useEffect(() => {
     if (id) {
@@ -70,7 +77,11 @@ const Edit = () => {
         },
       }}
     >
-      {loading ? <LoadingEditorWrap /> : <EditorWrap detail={detail!} />}
+      {loading ? (
+        <LoadingEditorWrap />
+      ) : (
+        detail && <EditorWrap detail={detail} />
+      )}
     </Box>
   );
 };

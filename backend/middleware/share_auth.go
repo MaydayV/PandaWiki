@@ -13,14 +13,16 @@ import (
 )
 
 type ShareAuthMiddleware struct {
-	logger    *log.Logger
-	kbUsecase *usecase.KnowledgeBaseUsecase
+	logger      *log.Logger
+	kbUsecase   *usecase.KnowledgeBaseUsecase
+	authUsecase *usecase.AuthUsecase
 }
 
-func NewShareAuthMiddleware(logger *log.Logger, kbUsecase *usecase.KnowledgeBaseUsecase) *ShareAuthMiddleware {
+func NewShareAuthMiddleware(logger *log.Logger, kbUsecase *usecase.KnowledgeBaseUsecase, authUsecase *usecase.AuthUsecase) *ShareAuthMiddleware {
 	return &ShareAuthMiddleware{
-		logger:    logger.WithModule("middleware.share_auth"),
-		kbUsecase: kbUsecase,
+		logger:      logger.WithModule("middleware.share_auth"),
+		kbUsecase:   kbUsecase,
+		authUsecase: authUsecase,
 	}
 }
 
@@ -113,6 +115,14 @@ func (h *ShareAuthMiddleware) Authorize(next echo.HandlerFunc) echo.HandlerFunc 
 			userId, ok := sess.Values["user_id"].(uint)
 			if !ok || userId == 0 {
 				h.logger.Error("session user_id get failed", log.Error(err))
+				return c.JSON(http.StatusUnauthorized, domain.PWResponse{
+					Success: false,
+					Message: "Unauthorized",
+				})
+			}
+			// 回查 session 指向的 auth 记录仍存在（user_id 即 auths.id）：
+			// 解绑第三方登录后旧 session（30 天）立即失效
+			if !h.authUsecase.HasAuthByID(c.Request().Context(), kb.ID, userId) {
 				return c.JSON(http.StatusUnauthorized, domain.PWResponse{
 					Success: false,
 					Message: "Unauthorized",

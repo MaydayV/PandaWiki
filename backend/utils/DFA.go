@@ -174,3 +174,18 @@ func (d *DFA) Check(text string) error {
 	}
 	return nil
 }
+
+// NewDFAInstance 按词表即时构建 DFA 实例。
+// 敏感词检查在请求路径直接使用本构造（词表量级小，构建微秒级），
+// 替代启动时全局缓存——缓存永不刷新导致改词不生效、新 KB nil panic。
+func NewDFAInstance(words []string) *DFAInstance {
+	dfa := &DFA{Root: NewTrieNode()}
+	buffSize := 0
+	for _, word := range words {
+		dfa.AddWord(word)
+		if l := len([]rune(word)); l > buffSize {
+			buffSize = l
+		}
+	}
+	return &DFAInstance{DFA: dfa, BuffSize: buffSize}
+}

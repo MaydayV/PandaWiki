@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"crypto/subtle"
+	"fmt"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo/v4"
@@ -13,12 +14,15 @@ import (
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/middleware"
+	"github.com/chaitin/panda-wiki/pkg/ratelimit"
+	storecache "github.com/chaitin/panda-wiki/store/cache"
 	"github.com/chaitin/panda-wiki/usecase"
 )
 
 type ShareAuthHandler struct {
 	*handler.BaseHandler
 	logger      *log.Logger
+	rateLimiter *ratelimit.RateLimiter
 	kbUsecase   *usecase.KnowledgeBaseUsecase
 	authUsecase *usecase.AuthUsecase
 }
@@ -27,17 +31,20 @@ func NewShareAuthHandler(
 	e *echo.Echo,
 	baseHandler *handler.BaseHandler,
 	logger *log.Logger,
+	cache *storecache.Cache,
 	kbUsecase *usecase.KnowledgeBaseUsecase,
 	authUsecase *usecase.AuthUsecase,
 ) *ShareAuthHandler {
+	handlerLogger := logger.WithModule("handler.share.auth")
 	h := &ShareAuthHandler{
 		BaseHandler: baseHandler,
-		logger:      logger.WithModule("handler.share.auth"),
+		logger:      handlerLogger,
+		rateLimiter: ratelimit.NewRateLimiter(handlerLogger, cache),
 		kbUsecase:   kbUsecase,
 		authUsecase: authUsecase,
 	}
 
-	shareAuthMiddleware := middleware.NewShareAuthMiddleware(logger, kbUsecase)
+	shareAuthMiddleware := middleware.NewShareAuthMiddleware(logger, kbUsecase, authUsecase)
 
 	share := e.Group("share/v1/auth", shareAuthMiddleware.CheckForbidden)
 	share.GET("/get", h.AuthGet)
@@ -99,6 +106,12 @@ func (h *ShareAuthHandler) AuthLoginSimple(c echo.Context) error {
 		return h.NewResponseWithError(c, "kb_id is required", nil)
 	}
 
+	// 匿名端点加 IP 锁定限速（与 /api/v1/user/login 同模式），防在线爆破共享口令
+	ip := c.RealIP()
+	if locked, remaining := h.rateLimiter.CheckIPLocked(ctx, ip); locked {
+		return h.NewResponseWithError(c, fmt.Sprintf("too many attempts, please try again in %d seconds", int(remaining.Seconds())), nil)
+	}
+
 	var req v1.AuthLoginSimpleReq
 	if err := c.Bind(&req); err != nil {
 		h.logger.Error("parse request failed", log.Error(err))
@@ -116,8 +129,10 @@ func (h *ShareAuthHandler) AuthLoginSimple(c echo.Context) error {
 
 	// 常量时间比较，避免公开端点被时序侧信道逐字节爆破共享口令
 	if subtle.ConstantTimeCompare([]byte(req.Password), []byte(kb.AccessSettings.SimpleAuth.Password)) != 1 {
+		h.rateLimiter.LockAttempt(ctx, ip)
 		return h.NewResponseWithError(c, "simple auth password is incorrect", nil)
 	}
+	_ = h.rateLimiter.ResetLoginAttempts(ctx, ip)
 
 	s := c.Get(domain.SessionCacheKey)
 	if s == nil {

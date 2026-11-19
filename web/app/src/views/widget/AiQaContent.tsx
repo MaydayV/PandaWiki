@@ -149,6 +149,9 @@ const AiQaContent: React.FC<{
   // 标记是否有活跃的 SSE 流：流结束后 unsubscribe 触发 onCancel 时直接跳过，
   // 避免给上一条已完成的回答追加 "Request canceled"
   const hasActiveStreamRef = useRef(false);
+  // 标记挂载时是否已消费 ask/chat_search_query 直接发起新提问；
+  // 为 true 时跳过按 URL cid 拉取历史会话，避免历史响应覆盖刚发起的新问题
+  const hasInitialLoadRef = useRef(false);
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState<ThinkingStatus>(4);
@@ -752,9 +755,11 @@ const AiQaContent: React.FC<{
     const searchQuery =
       sessionStorage.getItem('chat_search_query') || searchParams.get('ask');
     if (searchQuery) {
+      hasInitialLoadRef.current = true;
       sessionStorage.removeItem('chat_search_query');
       const newSearchParams = new URLSearchParams(searchParams.toString());
       newSearchParams.delete('cid');
+      newSearchParams.delete('ask');
       window.history.replaceState(null, '', newSearchParams.toString());
       onSearch(searchQuery, true);
     }
@@ -778,68 +783,74 @@ const AiQaContent: React.FC<{
     }
   }, [conversationId]);
 
-  // 仅挂载时按 URL cid 拉取历史会话；会话进行中 conversationId 会被写入 URL 使 searchParams
-  // 变化，加入依赖会在对话进行中重复拉取并覆盖当前对话
+  // 仅挂载时按 URL cid 拉取历史会话；URL 同时带 ask（或 sessionStorage 有待发起提问）时，
+  // 挂载 effect 已直接发起新提问，此处跳过，避免历史响应整体覆盖新问题；
+  // 会话进行中 conversationId 会被写入 URL 使 searchParams 变化，加入依赖会在对话进行中重复拉取并覆盖当前对话
   useEffect(() => {
+    if (hasInitialLoadRef.current) return;
     const cid = searchParams.get('cid');
     if (cid) {
       const conversation: ConversationItem[] = [];
       getShareV1ConversationDetail({
         id: cid,
-      }).then(res => {
-        if (res.messages) {
-          let current: Partial<ConversationItem> = {
-            chunk_result: [],
-          };
-          res.messages.forEach(message => {
-            if (message.role === 'user') {
-              current = {
-                image_paths: message.image_paths || [],
-                q: message.content || '',
-                chunk_result: [],
-              };
-            } else if (message.role === 'assistant') {
-              if (
-                current.q ||
-                (current.image_paths && current.image_paths.length > 0)
-              ) {
-                const { thinkingContent, answerContent } =
-                  handleThinkingContent(message.content || '');
-
-                current.a = answerContent;
-                current.update_time = message.created_at;
-                current.score = 0;
-                current.message_id = '';
-                current.thinking_content = thinkingContent;
-                current.source = 'history';
-                current.id = uuidv4();
-                conversation.push(current as ConversationItem);
-                current = {};
-              }
-            }
-          });
-
-          if (
-            current.q ||
-            (current.image_paths && current.image_paths.length > 0)
-          ) {
-            conversation.push({
-              image_paths: current.image_paths || [],
-              q: current.q || '',
-              a: '',
-              score: 0,
-              update_time: '',
-              message_id: '',
-              source: 'history',
+      })
+        .then(res => {
+          if (res.messages) {
+            let current: Partial<ConversationItem> = {
               chunk_result: [],
-              thinking_content: '',
-              id: uuidv4(),
+            };
+            res.messages.forEach(message => {
+              if (message.role === 'user') {
+                current = {
+                  image_paths: message.image_paths || [],
+                  q: message.content || '',
+                  chunk_result: [],
+                };
+              } else if (message.role === 'assistant') {
+                if (
+                  current.q ||
+                  (current.image_paths && current.image_paths.length > 0)
+                ) {
+                  const { thinkingContent, answerContent } =
+                    handleThinkingContent(message.content || '');
+
+                  current.a = answerContent;
+                  current.update_time = message.created_at;
+                  current.score = 0;
+                  current.message_id = '';
+                  current.thinking_content = thinkingContent;
+                  current.source = 'history';
+                  current.id = uuidv4();
+                  conversation.push(current as ConversationItem);
+                  current = {};
+                }
+              }
             });
+
+            if (
+              current.q ||
+              (current.image_paths && current.image_paths.length > 0)
+            ) {
+              conversation.push({
+                image_paths: current.image_paths || [],
+                q: current.q || '',
+                a: '',
+                score: 0,
+                update_time: '',
+                message_id: '',
+                source: 'history',
+                chunk_result: [],
+                thinking_content: '',
+                id: uuidv4(),
+              });
+            }
           }
-        }
-        setConversation(conversation);
-        setShouldAutoScroll(false);
-      });
+          setConversation(conversation);
+          setShouldAutoScroll(false);
+        })
+        .catch(() => {
+          // cid 失效或请求失败时静默忽略，保持空会话
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时按 URL cid 拉取历史会话；会话进行中 conversationId 会被写入 URL 使 searchParams 变化，加入依赖会在对话进行中重复拉取并覆盖当前对话
   }, []);

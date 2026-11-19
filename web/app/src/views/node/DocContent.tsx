@@ -96,10 +96,20 @@ const DocContent = ({
     return findAdjacentDocuments(tree, docId);
   }, [tree, docId, info?.type]);
 
-  const getComment = useCallback(async () => {
-    const res = await getShareV1CommentList({ id: docId });
-    setCommentList(res.data ?? []);
-  }, [docId]);
+  const getComment = useCallback(
+    async (isStale: () => boolean = () => false) => {
+      try {
+        const res = await getShareV1CommentList({ id: docId });
+        if (isStale()) return;
+        setCommentList(res.data ?? []);
+      } catch {
+        if (isStale()) return;
+        // 加载失败时清空列表，走下方空态提示
+        setCommentList([]);
+      }
+    },
+    [docId],
+  );
 
   useEffect(() => {
     if (
@@ -107,7 +117,13 @@ const DocContent = ({
       info?.kb_id &&
       appDetail?.web_app_comment_settings?.is_enable
     ) {
-      getComment();
+      // 跨文档导航不重挂载：用 cleanup 把过期请求标记为 stale，
+      // 避免旧文档的评论响应覆盖新文档的评论列表
+      let active = true;
+      getComment(() => !active);
+      return () => {
+        active = false;
+      };
     }
   }, [
     docId,
@@ -524,6 +540,11 @@ const DocContent = ({
             </Stack>
           </Box>
           <Stack gap={1} sx={{ mt: 4 }}>
+            {commentList.length === 0 && (
+              <Divider sx={{ my: 3, color: 'text.tertiary', fontSize: 14 }}>
+                {t('node.noMore')}
+              </Divider>
+            )}
             {commentList.map((item, index) => (
               <React.Fragment key={item.id}>
                 <Stack gap={1}>

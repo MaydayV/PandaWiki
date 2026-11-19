@@ -87,8 +87,11 @@ func (u *NavUsecase) Delete(ctx context.Context, req *v1.NavDeleteReq) error {
 				Action: "delete",
 			})
 		}
+		// 入队失败降级为日志：节点删除事务已提交，向用户报错只造成困惑且
+		// 无法重试（重删无 doc_ids）；向量残留由 doc_id 链路与重建索引兜底
 		if err := u.ragRepo.AsyncUpdateNodeReleaseVector(ctx, nodeVectorContentRequests); err != nil {
-			return err
+			u.logger.Error("async update node vector after nav delete failed",
+				log.Error(err), log.String("kb_id", req.KbId), log.Any("doc_ids", docIDs))
 		}
 	}
 

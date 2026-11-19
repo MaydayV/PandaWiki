@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -50,32 +49,7 @@ func NewChatUsecase(llmUsecase *LLMUsecase, kbRepo *pg.KnowledgeBaseRepository, 
 		modelkit:            modelkit,
 		llmSemaphore:        make(chan struct{}, 50),
 	}
-	if err := u.initDFA(); err != nil {
-		u.logger.Error("failed to init dfa", log.Error(err))
-		return nil, err
-	}
 	return u, nil
-}
-
-func (u *ChatUsecase) initDFA() error {
-	ctx := context.Background()
-	kbList, err := u.kbRepo.GetKnowledgeBaseList(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to get kb list: %w", err)
-	}
-	for _, kb := range kbList {
-		if kb != nil {
-			words, err := u.blockWordRepo.GetBlockWords(ctx, kb.ID)
-			if err != nil {
-				u.logger.Error("failed to get words", log.Error(err), log.String("kb_id", kb.ID))
-				return fmt.Errorf("failed to get words for kb: %w", err)
-			}
-			if len(words) > 0 {
-				utils.InitDFA(kb.ID, words)
-			}
-		}
-	}
-	return nil
 }
 
 func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan domain.SSEEvent, error) {
@@ -201,8 +175,8 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 			eventCh <- domain.SSEEvent{Type: "error", Content: "failed to get question block words"}
 			return
 		}
-		if len(blockWords) > 0 { // check --> filter
-			questionFilter := utils.GetDFA(req.KBID)
+		if len(blockWords) > 0 { // check --> filter（每次按 DB 词表即时构建，保存后即时生效）
+			questionFilter := utils.NewDFAInstance(blockWords)
 			if err := questionFilter.DFA.Check(req.Message); err != nil { // exist then return err
 				answer := "**您的问题包含敏感词, AI 无法回答您的问题。**"
 				eventCh <- domain.SSEEvent{Type: "error", Content: answer}
@@ -358,8 +332,8 @@ func (u *ChatUsecase) ChatRagOnly(ctx context.Context, req *domain.ChatRagOnlyRe
 			eventCh <- domain.SSEEvent{Type: "error", Content: "failed to get question block words"}
 			return
 		}
-		if len(blockWords) > 0 { // check --> filter
-			questionFilter := utils.GetDFA(req.KBID)
+		if len(blockWords) > 0 { // check --> filter（每次按 DB 词表即时构建，保存后即时生效）
+			questionFilter := utils.NewDFAInstance(blockWords)
 			if err := questionFilter.DFA.Check(req.Message); err != nil { // exist then return err
 				answer := "**您的问题包含敏感词, AI 无法回答您的问题。**"
 				eventCh <- domain.SSEEvent{Type: "error", Content: answer}
@@ -424,8 +398,16 @@ func (u *ChatUsecase) CreateAcOnChunk(ctx context.Context, kbID string, answer *
 		return onChunk, nil
 	}
 
-	// get filter --> exist
-	filter := utils.GetDFA(kbID)
+	// get filter（即时构建，替代启动时全局缓存）
+	kbBlockWords, err := u.blockWordRepo.GetBlockWords(ctx, kbID)
+	if err != nil {
+		u.logger.Error("failed to get question block words", log.Error(err))
+		kbBlockWords = nil
+	}
+	var filter *utils.DFAInstance
+	if len(kbBlockWords) > 0 {
+		filter = utils.NewDFAInstance(kbBlockWords)
+	}
 
 	onChunk := func(ctx context.Context, dataType, chunk string) error {
 		buffer.WriteString(chunk)
@@ -462,6 +444,20 @@ func (u *ChatUsecase) CreateAcOnChunk(ctx context.Context, kbID string, answer *
 			*answer += processedContent
 			eventCh <- domain.SSEEvent{Type: dataType, Content: processedContent}
 		}
+	}
+
+	// 无敏感词配置时 filter 为 nil：跳过过滤直接透传
+	if filter == nil {
+		onChunkPass := func(ctx context.Context, dataType, chunk string) error {
+			buffer.WriteString(chunk)
+			*answer += chunk
+			eventCh <- domain.SSEEvent{Type: dataType, Content: chunk}
+			return nil
+		}
+		flushPass := func(ctx context.Context, dataType string) {
+			buffer.Reset()
+		}
+		return onChunkPass, flushPass
 	}
 
 	return onChunk, flushBuffer

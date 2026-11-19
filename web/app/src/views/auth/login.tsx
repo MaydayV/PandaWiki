@@ -123,15 +123,13 @@ export default function Login() {
     setLoading(true);
     try {
       clearCookie();
-      postShareV1AuthLoginSimple({
+      await postShareV1AuthLoginSimple({
         password,
-      }).then(() => {
-        getShareV1NodeList().then(res => {
-          setNodeList?.((res as any) ?? []);
-          message.success(t('login.authSuccess'));
-          window.open(redirectUrl, '_self');
-        });
       });
+      const res = await getShareV1NodeList();
+      setNodeList?.((res as any) ?? []);
+      message.success(t('login.authSuccess'));
+      window.open(redirectUrl, '_self');
     } catch {
       message.error(t('login.authFail'));
     } finally {
@@ -159,18 +157,26 @@ export default function Login() {
     clearCookie();
     postShareProV1AuthDingtalk({
       redirect_url: redirectUrl,
-    }).then(res => {
-      window.location.href = res.url || '/';
-    });
+    })
+      .then(res => {
+        window.location.href = res.url || '/';
+      })
+      .catch(() => {
+        message.error(t('login.authFail'));
+      });
   };
 
   const handleFeishuLogin = () => {
     clearCookie();
     postShareProV1AuthFeishu({
       redirect_url: redirectUrl,
-    }).then(res => {
-      window.location.href = res.url || '/';
-    });
+    })
+      .then(res => {
+        window.location.href = res.url || '/';
+      })
+      .catch(() => {
+        message.error(t('login.authFail'));
+      });
   };
 
   const handleQiyeweixinLogin = () => {
@@ -178,18 +184,26 @@ export default function Login() {
     postShareProV1AuthWecom({
       redirect_url: redirectUrl,
       is_app: isWeComByUA(),
-    }).then(res => {
-      window.location.href = res.url || '/';
-    });
+    })
+      .then(res => {
+        window.location.href = res.url || '/';
+      })
+      .catch(() => {
+        message.error(t('login.authFail'));
+      });
   };
 
   const handleOAuthLogin = () => {
     clearCookie();
     postShareProV1AuthOauth({
       redirect_url: redirectUrl,
-    }).then(res => {
-      window.location.href = res.url || '/';
-    });
+    })
+      .then(res => {
+        window.location.href = res.url || '/';
+      })
+      .catch(() => {
+        message.error(t('login.authFail'));
+      });
   };
 
   const handleGitHubLogin = () => {
@@ -197,39 +211,49 @@ export default function Login() {
     if (licenseEdition === ConstsLicenseEdition.LicenseEditionFree) {
       postShareV1AuthGithub({
         redirect_url: redirectUrl,
-      }).then(res => {
-        window.location.href = res.url || '/';
-      });
+      })
+        .then(res => {
+          window.location.href = res.url || '/';
+        })
+        .catch(() => {
+          message.error(t('login.authFail'));
+        });
     } else {
       postShareProV1AuthGithub({
         redirect_url: redirectUrl,
-      }).then(res => {
-        window.location.href = res.url || '/';
-      });
+      })
+        .then(res => {
+          window.location.href = res.url || '/';
+        })
+        .catch(() => {
+          message.error(t('login.authFail'));
+        });
     }
   };
 
   const handleCASLogin = () => {
     postShareProV1AuthCas({
       redirect_url: redirectUrl,
-    }).then(res => {
-      window.location.href = res.url || '/';
-    });
+    })
+      .then(res => {
+        window.location.href = res.url || '/';
+      })
+      .catch(() => {
+        message.error(t('login.authFail'));
+      });
   };
 
-  const handleLDAPLogin = () => {
+  const handleLDAPLogin = async () => {
     setLoading(true);
     try {
-      postShareProV1AuthLdap({
+      await postShareProV1AuthLdap({
         username,
         password,
-      }).then(() => {
-        getShareV1NodeList().then(res => {
-          setNodeList?.((res as any) ?? []);
-          message.success(t('login.authSuccess'));
-          window.open(redirectUrl, '_self');
-        });
       });
+      const res = await getShareV1NodeList();
+      setNodeList?.((res as any) ?? []);
+      message.success(t('login.authSuccess'));
+      window.open(redirectUrl, '_self');
     } catch {
       message.error(t('login.authFail'));
     } finally {
@@ -238,15 +262,20 @@ export default function Login() {
   };
 
   useEffect(() => {
-    getShareV1AuthGet({}).then(res => {
-      setAuthType(res?.auth_type);
-      setSourceType(res?.source_type);
-      setLicenseEdition(res?.license_edition);
-      if (res?.auth_type === ConstsAuthType.AuthTypeNull) {
-        window.open(redirectUrl, '_self');
-      }
-    });
-  }, [redirectUrl]);
+    getShareV1AuthGet({})
+      .then(res => {
+        setAuthType(res?.auth_type);
+        setSourceType(res?.source_type);
+        setLicenseEdition(res?.license_edition);
+        if (res?.auth_type === ConstsAuthType.AuthTypeNull) {
+          window.open(redirectUrl, '_self');
+        }
+      })
+      .catch(() => {
+        // 认证配置获取失败时提示重试，页面保持未渲染表单的降级状态
+        message.error(t('login.authFail'));
+      });
+  }, [redirectUrl, t]);
 
   return (
     <>
