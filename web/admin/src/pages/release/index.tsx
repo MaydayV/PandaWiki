@@ -7,7 +7,7 @@ import { useAppSelector } from '@/store';
 import { Box, Button, Stack } from '@mui/material';
 import { Table } from '@ctzhian/ui';
 import dayjs from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import VersionInspect from './components/VersionInspect';
 import VersionPublish from './components/VersionPublish';
 import VersionReset from './components/VersionReset';
@@ -116,17 +116,21 @@ const Release = () => {
     },
   ];
 
+  const getDataSeqRef = useRef(0);
   const getData = () => {
+    // 竞态守卫：切 KB 时 setPage(1) 与旧页码请求并发，仅应用最新一次响应
+    const seq = ++getDataSeqRef.current;
     setLoading(true);
     getApiV1KnowledgeBaseReleaseList({ kb_id, page, per_page: pageSize })
       .then(res => {
+        if (seq !== getDataSeqRef.current) return;
         setData(res.data || []);
         setTotal(res.total || 0);
         if (res.data && res.data.length > 0 && page === 1)
           setCurVersionId(res.data[0].id!);
       })
       .finally(() => {
-        setLoading(false);
+        if (seq === getDataSeqRef.current) setLoading(false);
       });
   };
 

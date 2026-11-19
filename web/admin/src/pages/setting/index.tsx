@@ -146,7 +146,7 @@ const Setting = () => {
           }}
         >
           <Typography variant='body2' color='text.secondary'>
-            设置加载失败，请刷新重试
+            {!kb_id ? '请先选择知识库' : '设置加载失败，请刷新重试'}
           </Typography>
         </Box>
       </Card>
