@@ -424,7 +424,14 @@ func (u *AppUsecase) updateDingTalkBot(app *domain.App) {
 	if bot, exists := u.dingTalkBots[app.ID]; exists {
 		if bot != nil {
 			bot.Stop()
-			<-bot.Done() // wait for old goroutine to exit
+			// SDK 的 dial 不接受 ctx 且无超时（网络黑洞时 cancel 无效），
+			// 等待加超时防止锁被无限持有挂死全部后续钉钉更新
+			select {
+			case <-bot.Done():
+			case <-time.After(15 * time.Second):
+				u.logger.Warn("dingtalk bot stop timed out, proceeding anyway",
+					log.String("app_id", app.ID))
+			}
 			delete(u.dingTalkBots, app.ID)
 		}
 	}

@@ -261,7 +261,7 @@ func (r *AuthRepo) GetAuths(ctx context.Context, kbID string, sourceType consts.
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Auth{}).
 		Where("kb_id = ?", kbID).
-		Where("source_type in (?)", append(consts.BotSourceTypes, sourceType)).
+		Where("source_type in (?)", append([]consts.SourceType{sourceType}, consts.BotSourceTypes...)).
 		Order("last_login_time DESC").
 		Find(&auths).Error; err != nil {
 		return nil, err

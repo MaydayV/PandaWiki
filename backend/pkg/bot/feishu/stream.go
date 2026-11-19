@@ -53,8 +53,9 @@ type FeishuClient struct {
 	getQA        bot.GetQAFun
 	done         chan struct{}
 	// wsCli 是本地 fork 的 larkws client（third_party/larksuite-oapi-sdk-go-v3，
-	// 补丁增加 Close 优雅关闭），Stop 时主动断开连接
-	wsCli *larkws.Client
+	// 补丁增加 Close 优雅关闭），Stop 时主动断开连接。
+	// atomic：Start goroutine 写、Stop 跨 goroutine 读，避免数据竞争
+	wsCli atomic.Pointer[larkws.Client]
 	// closed 在 Stop 后置位：eventHandler 据此忽略连接关闭竞态窗口内的消息
 	closed atomic.Bool
 }
@@ -351,7 +352,7 @@ func (c *FeishuClient) Start() error {
 		larkws.WithEventHandler(eventHandler),
 		larkws.WithLogger(&FeishuBotLogger{logger: c.logger}),
 	)
-	c.wsCli = cli
+	c.wsCli.Store(cli)
 
 	// larkws.Start 成功路径永久阻塞（select{}）且不响应 ctx 取消（SDK 内部
 	// 不监听 ctx，也无公开关闭方法），无法用它驱动本 client 的生命周期：
@@ -411,8 +412,8 @@ const feishuStartTimeout = 30 * time.Second
 
 func (c *FeishuClient) Stop() {
 	c.cancel()
-	if c.wsCli != nil {
-		c.wsCli.Close()
+	if cli := c.wsCli.Load(); cli != nil {
+		cli.Close()
 	}
 }
 

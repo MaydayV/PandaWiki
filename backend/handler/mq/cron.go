@@ -2,6 +2,7 @@ package mq
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -21,7 +22,7 @@ type CronHandler struct {
 	statUseCase *usecase.StatUseCase
 	nodeUseCase *usecase.NodeUsecase
 	cron        *cron.Cron
-	started     bool
+	started     atomic.Bool
 }
 
 func NewCronHandler(config *config.Config, logger *log.Logger, statRepo *pg.StatRepository, nodeRepo *pg.NodeRepository, ragJobRepo *pg.RagJobRepository, statUseCase *usecase.StatUseCase, nodeUseCase *usecase.NodeUsecase) (*CronHandler, error) {
@@ -82,10 +83,9 @@ func NewCronHandler(config *config.Config, logger *log.Logger, statRepo *pg.Stat
 }
 
 func (h *CronHandler) Start() {
-	if h.started {
+	if !h.started.CompareAndSwap(false, true) {
 		return
 	}
-	h.started = true
 	if h.config.RAG.Provider != "pg" {
 		go func() {
 			if err := h.nodeUseCase.SyncRagNodeStatus(context.Background()); err != nil {

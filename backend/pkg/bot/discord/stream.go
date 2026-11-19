@@ -33,11 +33,12 @@ func NewDiscordClient(logger *log.Logger, BotToken string, getQA bot.GetQAFun) (
 }
 
 func (d *DiscordClient) Start() error {
+	// 先注册 handler 再 Open：Open 后到达的消息不丢失
+	d.dg.AddHandler(d.handleMessage)
 	err := d.dg.Open()
 	if err != nil {
 		return fmt.Errorf("failed to open Discord connection: %v", err)
 	}
-	d.dg.AddHandler(d.handleMessage)
 	return nil
 }
 

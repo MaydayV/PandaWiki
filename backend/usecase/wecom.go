@@ -142,13 +142,15 @@ func (u *WecomUsecase) HandleMsg(ctx context.Context, kbID, signature, timestamp
 					})
 					if err != nil {
 						u.logger.Error("failed to create chat", log.Error(err))
-						// Clean up state
+						// Clean up state（失败路径：用户通常不再轮询，
+						// 条目必须删除否则带 Buffer 永久驻留）
 						if val, ok := domain.ConversationManager.Load(conversationID); ok {
 							state := val.(*domain.ConversationState)
 							state.Mutex.Lock()
 							state.IsDone = true
 							state.Mutex.Unlock()
 							close(state.NotificationChan)
+							domain.ConversationManager.Delete(conversationID)
 						}
 						return
 					}
@@ -190,20 +192,22 @@ func (u *WecomUsecase) HandleMsg(ctx context.Context, kbID, signature, timestamp
 		}
 
 		state := val.(*domain.ConversationState)
+		// Buffer 与 IsDone 必须在同一临界区取出（IsDone 无锁裸读违反内存模型）
 		state.Mutex.Lock()
 		content := state.Buffer.String()
+		isDone := state.IsDone
 		state.Mutex.Unlock()
 
 		if content == "" {
 			content = "<think>正在思考您的问题,请稍候...</think>"
 		}
 
-		if state.IsDone {
+		if isDone {
 			domain.ConversationManager.Delete(conversationId)
 			content += "\n\n---  \n\n本回答由 [PandaWiki](https://pandawiki.docs.baizhi.cloud/) 基于 AI 生成，仅供参考。"
 		}
 
-		resp, err := wecomAIBotClient.MakeStreamResp(nonce, req.Stream.Id, content, state.IsDone)
+		resp, err := wecomAIBotClient.MakeStreamResp(nonce, req.Stream.Id, content, isDone)
 		if err != nil {
 			u.logger.Error("MakeStreamResp failed", log.Error(err))
 			return "", err

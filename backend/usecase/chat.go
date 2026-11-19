@@ -52,6 +52,9 @@ func NewChatUsecase(llmUsecase *LLMUsecase, kbRepo *pg.KnowledgeBaseRepository, 
 	return u, nil
 }
 
+// Chat 启动异步问答并返回 SSE 事件流。
+// 契约：本方法返回后生产者 goroutine 会继续改写 req 的 KBID/AppID/ModelInfo 等
+// 字段，调用方不得在返回后再读取 req（当前全部调用方均满足）。
 func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan domain.SSEEvent, error) {
 	eventCh := make(chan domain.SSEEvent, 100)
 	go func() {
