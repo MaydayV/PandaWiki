@@ -53,7 +53,7 @@ func (h *FileHandler) ensureKBPerm(c echo.Context) error {
 //	@Param			file	formData	file	true	"File"
 //	@Param			kb_id	formData	string	false	"Knowledge Base ID"
 //	@Success		200		{object}	domain.ObjectUploadResp
-//	@Router		/api/v1/file/upload [post]
+//	@Router			/api/v1/file/upload [post]
 func (h *FileHandler) Upload(c echo.Context) error {
 	if err := h.ensureKBPerm(c); err != nil {
 		return err

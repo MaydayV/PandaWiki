@@ -88,11 +88,16 @@ export default function ContributionPage() {
       nav_id: params.nav_id,
       parent_id: params.parent_id,
       status: 'approved',
-    }).then(() => {
-      getData();
-      closeDialog();
-      message.success('采纳成功');
-    });
+    })
+      .then(() => {
+        getData();
+        closeDialog();
+        message.success('采纳成功');
+      })
+      .catch(() => {
+        closeDialog();
+        message.error('采纳失败，请重试');
+      });
   };
 
   const handleAccept = () => {
@@ -103,7 +108,7 @@ export default function ContributionPage() {
         title: '采纳',
         content: '确定要采纳该修改吗？',
         okText: '采纳',
-        onOk: () => {
+        onOk: () =>
           postApiProV1ContributeAudit({
             id: previewRow!.id!,
             kb_id,
@@ -113,8 +118,7 @@ export default function ContributionPage() {
             getData();
             closeDialog();
             message.success('采纳成功');
-          });
-        },
+          }),
       });
     }
   };
@@ -123,7 +127,7 @@ export default function ContributionPage() {
       title: '拒绝',
       content: '确定要拒绝该修改吗？',
       okText: '拒绝',
-      onOk: () => {
+      onOk: () =>
         postApiProV1ContributeAudit({
           id: previewRow!.id!,
           kb_id,
@@ -133,8 +137,7 @@ export default function ContributionPage() {
           getData();
           closeDialog();
           message.success('拒绝成功');
-        });
-      },
+        }),
     });
   };
 

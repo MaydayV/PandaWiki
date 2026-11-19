@@ -605,30 +605,23 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 		return nil, fmt.Errorf("contribute has already been audited")
 	}
 
-	// 抢占式状态守卫：先原子把 contribute 从 pending 改为目标状态（带
-	// status=pending 条件，RowsAffected==0 即已被并发审批），成功后才执行
-	// 建节点/改内容等副作用——否则并发审批会重复建节点或把被拒稿内容写进正文
-	if affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, req.Status, nil); err != nil {
-		return nil, err
-	} else if affectedRows == 0 {
-		return nil, fmt.Errorf("contribute has already been audited")
-	}
 	var approvedNodeID *string
+
+	// 只读校验前置（必须在抢占状态变更之前）：校验失败时投稿仍是 pending
+	// 可重新审批；若放在 CAS 之后，任何失败都会永久"烧掉"投稿
 	if req.Status == consts.ContributeStatusApproved {
 		switch contribute.Type {
 		case consts.ContributeTypeAdd:
 			if strings.TrimSpace(req.ParentID) != "" {
 				parentNode, err := u.nodeRepo.GetNodeByID(ctx, req.ParentID)
-				if err != nil {
-					return nil, fmt.Errorf("parent node not found")
-				}
-				if parentNode.KBID != req.KBID || parentNode.Type != domain.NodeTypeFolder {
+				if err != nil || parentNode.KBID != req.KBID || parentNode.Type != domain.NodeTypeFolder {
 					return nil, fmt.Errorf("invalid parent node")
 				}
+			} else if strings.TrimSpace(req.NavID) == "" {
+				return nil, fmt.Errorf("nav_id is required when parent is empty")
 			}
 
-			docName := strings.TrimSpace(contribute.Name)
-			if docName == "" {
+			if strings.TrimSpace(contribute.Name) == "" {
 				return nil, fmt.Errorf("contribute name is required")
 			}
 			contentType := strings.TrimSpace(contribute.Meta.ContentType)
@@ -636,17 +629,31 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 				contentType = domain.ContentTypeHTML
 			}
 
+			// 抢占式状态守卫：只读校验已通过，原子把 contribute 从 pending 改为
+			// 目标状态（RowsAffected==0 即已被并发审批），成功后才执行副作用；
+			// 副作用 DB 失败时状态回写 pending 保持可重审
+			if affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, req.Status, nil); err != nil {
+				return nil, err
+			} else if affectedRows == 0 {
+				return nil, fmt.Errorf("contribute has already been audited")
+			}
+
 			nodeID, err := u.nodeRepo.Create(ctx, &domain.CreateNodeReq{
 				KBID:        req.KBID,
 				ParentID:    req.ParentID,
+				NavId:       req.NavID,
 				Type:        domain.NodeTypeDocument,
-				Name:        docName,
+				Name:        strings.TrimSpace(contribute.Name),
 				Content:     contribute.Content,
 				Emoji:       contribute.Meta.Emoji,
 				ContentType: &contentType,
 				Position:    req.Position,
 			}, auditUserID)
 			if err != nil {
+				// 副作用失败回写 pending：投稿不被"烧掉"，可修复后重审
+				if _, revertErr := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, consts.ContributeStatusPending, nil); revertErr != nil {
+					return nil, fmt.Errorf("create node failed: %w (revert status also failed: %w)", err, revertErr)
+				}
 				return nil, err
 			}
 			approvedNodeID = &nodeID
@@ -673,6 +680,13 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 			content := contribute.Content
 			emoji := contribute.Meta.Emoji
 
+			// 抢占式状态守卫（与 add 分支一致）
+			if affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, req.Status, nil); err != nil {
+				return nil, err
+			} else if affectedRows == 0 {
+				return nil, fmt.Errorf("contribute has already been audited")
+			}
+
 			if err := u.nodeRepo.UpdateNodeContent(ctx, &domain.UpdateNodeReq{
 				ID:          node.ID,
 				KBID:        req.KBID,
@@ -681,6 +695,9 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 				Emoji:       &emoji,
 				ContentType: &contentType,
 			}, auditUserID); err != nil {
+				if _, revertErr := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, consts.ContributeStatusPending, nil); revertErr != nil {
+					return nil, fmt.Errorf("update node content failed: %w (revert status also failed: %w)", err, revertErr)
+				}
 				return nil, err
 			}
 			approvedNodeID = &node.ID
