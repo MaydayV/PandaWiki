@@ -63,31 +63,36 @@
 | 轮 6.5 | P2 清尾：SSE 错误泄露、SQL 参数化、admin 存量告警、死依赖 | c8039d08 fix(hardening) | ✅ |
 | 轮 7 | 收尾：全量回归（后端 test/lint、app/admin build 全绿）、文档更新 | 本提交 | ✅ |
 
-## 遗留事项（第三轮迭代后更新，2026-11-19）
+## 遗留事项（第四轮迭代后更新，2026-11-19：清零）
 
-第三轮迭代（轮 11~12）又解决了首轮"评估后不动"清单中的 2 项：
+第四轮迭代（轮 13~14）将第三轮"评估后不动"的 3 项**全部解决**：
 
-- ~~飞书 bot Done 永久阻塞/幽灵连接~~ → **已解决**：验证 larkws SDK（含 v3.13.0）
-  无公开关闭方法且内部不监听 ctx 取消后，改用工程化规避——larkws.Start 放独立
-  goroutine（30s 内未失败视为就绪，启动失败仍上报），FeishuClient 生命周期由
-  ctx 取消驱动（done 正常 close，重启路径不再永久阻塞），幽灵连接消息由
-  eventHandler 的 closed 原子检查屏蔽。修复前更新飞书配置会导致 bot 永久失联。
-- ~~管理端 LIKE 搜索无索引~~ → **已解决**：fresh SQL 增加 pg_trgm 扩展与
-  nodes.name/content GIN trigram 索引。
-- ~~GetKbID 大 body 双倍解析~~ → **已缓解**：JSON 探测改轻量 struct 解析，
-  消除 map 分配与 interface 装箱开销（读取行为不变）。
+1. ~~API token / SimpleAuth 口令明文存储~~ → **已解决**：新增 `ENCRYPTION_KEY`
+   配置（AES-256-GCM），配置后落库加密（`enc:v1:` 前缀密文），未配置 = 明文
+   兼容既有部署、零行为变化；`api_tokens` 加 `token_index` HMAC 确定性索引列
+   支撑等值查询；repo 返回调用方前解密（校验/展示/缓存交互不变）；密钥轮换/
+   密文损坏解密 fail-closed 返回空串。附加密工具单测 4 个（往返/防二次加密/
+   确定性索引/fail-closed）。
+2. ~~用户消息原文进 Info 日志~~ → **已解决**：7 处用户消息/请求体日志降级为
+   Debug（生产默认 Info 级不输出，隐私合规；排障时 `LOG_LEVEL=-4` 可见）。
+3. ~~larkws select{} 空转 goroutine~~ → **已解决**：本地 fork 上游 SDK
+   （`third_party/larksuite-oapi-sdk-go-v3` + go.mod replace，271 个 Go 文件），
+   给 ws.Client 增加 `Close()` 优雅关闭（closedCh + 断开连接）并让 Start 响应
+   ctx 取消（原本 select{} 永久阻塞）、reconnect 循环补 ctx 检查。
+   `FeishuClient.Stop` 现在真正断开 ws 连接——空转 goroutine 与幽灵连接
+   彻底消除（closed 屏蔽保留为关闭竞态窗口的双保险）。
 
-仍保留的遗留项（最终，评估后不动）：
-
-1. **API token / SimpleAuth 口令明文存储**：加密存储需要迁移方案与密钥管理设计；
-   与"仅全新部署"策略叠加会断裂老库兼容路径，比较处已改常量时间。
-2. **用户消息原文进 Info 日志**（handler/share 多处）：涉及产品排障需求取舍，
-   建议引入日志脱敏中间件统一处理。
-3. **larkws select{} 空转 goroutine**：连接关闭仍受 SDK 限制，业务影响已通过
-   closed 屏蔽与生命周期重构消除（仅剩 SDK 内部的空转 goroutine，零 CPU）。
+**遗留项清零。** 勘察清单中的全部问题（4 P0 / 30+ P1 / 40+ P2）均已修复或闭环。
 
 ## 最终状态
 
-- 后端：golangci-lint 0 issues、go test ./... 全绿
+- 后端：golangci-lint 0 issues、go test ./... 全绿（含加密工具单测）
 - 前端：app pnpm lint 0 问题、app/admin pnpm build 成功
-- 全部改动分 14 个提交在本地 main，未推送（可用 git revert 逐轮回退）
+- 全部改动分 16 个提交在本地 main，未推送（可用 git revert 逐轮回退）
+
+## 部署提示
+
+- 生产建议配置 `ENCRYPTION_KEY`（`docs/deploy/.env.example` 有说明）：启用后
+  新写入的凭据为密文，旧明文数据仍可读取；配置后请勿更换密钥。
+- SDK fork 说明：`third_party/larksuite-oapi-sdk-go-v3` 是上游 v3.4.20 的本地
+  补丁副本（ws/client.go 的 Close 注释标明改动点），升级上游时需重新套用补丁。
