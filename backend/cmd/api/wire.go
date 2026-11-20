@@ -12,6 +12,7 @@ import (
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/server/http"
 	"github.com/chaitin/panda-wiki/telemetry"
+	"github.com/chaitin/panda-wiki/usecase"
 )
 
 func createApp() (*App, error) {
@@ -35,13 +36,14 @@ func createApp() (*App, error) {
 }
 
 type App struct {
-	HTTPServer      *http.HTTPServer
-	Handlers        *v1.APIHandlers
-	ShareHandlers   *share.ShareHandler
-	Config          *config.Config
-	Logger          *log.Logger
-	Telemetry       *telemetry.Client
-	RAGMQHandler    *mqhandler.RAGMQHandler
-	RAGJobWorker    *mqhandler.RAGJobWorker
-	StatCronHandler *mqhandler.CronHandler
+	HTTPServer        *http.HTTPServer
+	Handlers          *v1.APIHandlers
+	ShareHandlers     *share.ShareHandler
+	GitHubSyncUsecase *usecase.GitHubSyncUsecase
+	Config            *config.Config
+	Logger            *log.Logger
+	Telemetry         *telemetry.Client
+	RAGMQHandler      *mqhandler.RAGMQHandler
+	RAGJobWorker      *mqhandler.RAGJobWorker
+	StatCronHandler   *mqhandler.CronHandler
 }

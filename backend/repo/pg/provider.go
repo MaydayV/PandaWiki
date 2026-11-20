@@ -26,6 +26,7 @@ var ProviderSet = wire.NewSet(
 	NewAPITokenRepo,
 	NewAPICallAuditRepo,
 	NewSystemSettingRepo,
+	NewGitHubSyncRepo,
 	NewMCPRepository,
 	NewNavRepository,
 	NewRagJobRepository,

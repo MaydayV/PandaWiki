@@ -1772,3 +1772,18 @@ func (r *NodeRepository) RevertNodeReleases(ctx context.Context, kbID string, re
 		return nil
 	})
 }
+
+// UpdateNodeGitHubSync 更新节点的 github_sync 幂等映射（读-改-写 meta）
+func (r *NodeRepository) UpdateNodeGitHubSync(ctx context.Context, kbID, nodeID string, sync *domain.NodeGitHubSync) error {
+	node, err := r.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		return fmt.Errorf("get node for sync meta failed: %w", err)
+	}
+	if node.KBID != kbID {
+		return domain.ErrPermissionDenied
+	}
+	node.Meta.GitHubSync = sync
+	return r.db.WithContext(ctx).Model(&domain.Node{}).
+		Where("id = ? AND kb_id = ?", nodeID, kbID).
+		Update("meta", node.Meta).Error
+}

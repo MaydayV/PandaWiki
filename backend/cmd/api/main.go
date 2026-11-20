@@ -39,6 +39,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// GitHub MD 同步定时循环（每分钟检查到期配置；interval=0 时仅手动触发）
+	app.GitHubSyncUsecase.StartSyncLoop(ctx)
+	app.Logger.Info("github sync loop started")
+
 	if app.Config.RunWorker {
 		app.Logger.Info("embedded worker enabled (RUN_WORKER=1)")
 		app.StatCronHandler.Start()

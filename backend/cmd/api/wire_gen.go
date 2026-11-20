@@ -132,6 +132,9 @@ func createApp() (*App, error) {
 	authV1Handler := v1.NewAuthV1Handler(echo, baseHandler, logger, authUsecase)
 	navUsecase := usecase.NewNavUsecase(navRepository, nodeRepository, ragRepository, logger)
 	navHandler := v1.NewNavHandler(baseHandler, echo, navUsecase, authMiddleware, logger)
+	gitHubSyncRepo := pg2.NewGitHubSyncRepo(db, logger)
+	gitHubSyncUsecase := usecase.NewGitHubSyncUsecase(gitHubSyncRepo, nodeRepository, navRepository, ragRepository, fileUsecase, knowledgeBaseUsecase, cacheCache, logger)
+	gitHubSyncHandler := v1.NewGitHubSyncHandler(echo, baseHandler, logger, gitHubSyncUsecase, authMiddleware)
 	apiHandlers := &v1.APIHandlers{
 		UserHandler:          userHandler,
 		KnowledgeBaseHandler: knowledgeBaseHandler,
@@ -145,6 +148,7 @@ func createApp() (*App, error) {
 		CommentHandler:       commentHandler,
 		AuthV1Handler:        authV1Handler,
 		NavHandler:           navHandler,
+		GitHubSyncHandler:    gitHubSyncHandler,
 	}
 	shareNodeHandler := share.NewShareNodeHandler(baseHandler, echo, nodeUsecase, logger)
 	shareNavHandler := share.NewShareNavHandler(baseHandler, echo, navUsecase, logger)
@@ -197,15 +201,16 @@ func createApp() (*App, error) {
 		return nil, err
 	}
 	app := &App{
-		HTTPServer:      httpServer,
-		Handlers:        apiHandlers,
-		ShareHandlers:   shareHandler,
-		Config:          configConfig,
-		Logger:          logger,
-		Telemetry:       client,
-		RAGMQHandler:    ragmqHandler,
-		RAGJobWorker:    ragJobWorker,
-		StatCronHandler: cronHandler,
+		HTTPServer:        httpServer,
+		Handlers:          apiHandlers,
+		ShareHandlers:     shareHandler,
+		GitHubSyncUsecase: gitHubSyncUsecase,
+		Config:            configConfig,
+		Logger:            logger,
+		Telemetry:         client,
+		RAGMQHandler:      ragmqHandler,
+		RAGJobWorker:      ragJobWorker,
+		StatCronHandler:   cronHandler,
 	}
 	return app, nil
 }
@@ -213,13 +218,14 @@ func createApp() (*App, error) {
 // wire.go:
 
 type App struct {
-	HTTPServer      *http.HTTPServer
-	Handlers        *v1.APIHandlers
-	ShareHandlers   *share.ShareHandler
-	Config          *config.Config
-	Logger          *log.Logger
-	Telemetry       *telemetry.Client
-	RAGMQHandler    *mq2.RAGMQHandler
-	RAGJobWorker    *mq2.RAGJobWorker
-	StatCronHandler *mq2.CronHandler
+	HTTPServer        *http.HTTPServer
+	Handlers          *v1.APIHandlers
+	ShareHandlers     *share.ShareHandler
+	GitHubSyncUsecase *usecase.GitHubSyncUsecase
+	Config            *config.Config
+	Logger            *log.Logger
+	Telemetry         *telemetry.Client
+	RAGMQHandler      *mq2.RAGMQHandler
+	RAGJobWorker      *mq2.RAGJobWorker
+	StatCronHandler   *mq2.CronHandler
 }

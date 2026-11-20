@@ -125,11 +125,19 @@ type NodeGroupDetail struct {
 	AuthIDs     pq.Int64Array       `json:"auth_ids" gorm:"type:int[]"`
 }
 
+// NodeGitHubSync 记录节点与 GitHub 仓库文件的幂等映射（git 同步模式）
+type NodeGitHubSync struct {
+	Repo string `json:"repo,omitempty"` // owner/repo
+	Path string `json:"path,omitempty"` // 仓库内文件路径
+	SHA  string `json:"sha,omitempty"`  // 文件 blob sha，未变化时跳过重复索引
+}
+
 type NodeMeta struct {
 	Summary               string                            `json:"summary"`
 	Emoji                 string                            `json:"emoji"`
 	ContentType           string                            `json:"content_type"`
 	Translations          map[string]NodeTranslationContent `json:"translations,omitempty"`
+	GitHubSync            *NodeGitHubSync                   `json:"-"`
 	LastSummaryContentKey string                            `json:"-"`
 	LastSummaryRequestID  string                            `json:"-"`
 	LastVectorContentKey  string                            `json:"-"`
@@ -142,6 +150,7 @@ type nodeMetaFields struct {
 	Emoji                 string                            `json:"emoji"`
 	ContentType           string                            `json:"content_type"`
 	Translations          map[string]NodeTranslationContent `json:"translations,omitempty"`
+	GitHubSync            *NodeGitHubSync                   `json:"github_sync,omitempty"`
 	LastSummaryContentKey string                            `json:"last_summary_content_key,omitempty"`
 	LastSummaryRequestID  string                            `json:"last_summary_request_id,omitempty"`
 	LastVectorContentKey  string                            `json:"last_vector_content_key,omitempty"`
@@ -160,6 +169,7 @@ func (d *NodeMeta) Value() (driver.Value, error) {
 		Emoji:                 d.Emoji,
 		ContentType:           d.ContentType,
 		Translations:          d.Translations,
+		GitHubSync:            d.GitHubSync,
 		LastSummaryContentKey: d.LastSummaryContentKey,
 		LastSummaryRequestID:  d.LastSummaryRequestID,
 		LastVectorContentKey:  d.LastVectorContentKey,

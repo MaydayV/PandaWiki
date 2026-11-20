@@ -18,6 +18,7 @@ var ProviderSet = wire.NewSet(
 	s3.ProviderSet,
 
 	NewPushUsecase,
+	NewGitHubSyncUsecase,
 	NewLLMUsecase,
 	NewNodeUsecase,
 	NewAppUsecase,
