@@ -17,7 +17,7 @@ PandaWiki 乘风版（Fly Version）是基于 [PandaWiki 开源项目](https://g
 
 | 项 | 说明 |
 | --- | --- |
-| 版本号 | `FV2.6.19.2111` |
+| 版本号 | `FV2.6.20.2111` |
 | 默认分支 | `main` |
 | 运行时 | Caddy + Postgres + Redis + API + App |
 | RAG | `RAG_PROVIDER=pg`（pgvector） |

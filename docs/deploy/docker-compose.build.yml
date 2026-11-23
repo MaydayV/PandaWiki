@@ -63,7 +63,7 @@ services:
       context: ../..
       dockerfile: backend/Dockerfile.api
       args:
-        VERSION: ${PANDAWIKI_VERSION:-FV2.6.19.2111}
+        VERSION: ${PANDAWIKI_VERSION:-FV2.6.20.2111}
     container_name: panda-wiki-api
     restart: unless-stopped
     environment:

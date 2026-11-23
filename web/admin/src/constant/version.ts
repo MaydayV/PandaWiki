@@ -8,12 +8,12 @@ import enterpriseVersion from '@/assets/images/enterprise-version.png';
 /**
  * 乘风版版本号规范
  * FV{大版本}.{功能序号}.{发布序号}.{原版版本号去点}
- * 例如：FV2.6.19.2111
+ * 例如：FV2.6.20.2111
  */
 export const FLY_VERSION_META = {
   major: 2,
   feature: 6,
-  release: 19,
+  release: 20,
   /**
    * 第6个功能阶段起点：
    * 9f001318 全新部署下前台与 widget 首屏兜底

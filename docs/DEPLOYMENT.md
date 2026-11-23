@@ -246,7 +246,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ```env
 PANDAWIKI_IMAGE_REPO=docker.io/caodanv
-PANDAWIKI_IMAGE_TAG=FV2.6.19.2111
+PANDAWIKI_IMAGE_TAG=FV2.6.20.2111
 ```
 
 如镜像仓库为私有，先登录：

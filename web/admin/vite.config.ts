@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 const FLY_VERSION_RULE = {
   major: 2,
   feature: 6,
-  release: 19,
+  release: 20,
   featureStartCommit: '9f001318',
 };
 

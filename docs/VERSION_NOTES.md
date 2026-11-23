@@ -234,6 +234,14 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
 
+## 追加记录（2026-11-23，发布 FV2.6.20.2111）
+- 版本号：`FV2.6.20.2111`。
+- 调整范围：
+  - 完善前台（`web/app` 与 `@panda-wiki/ui`）中英双语适配：消除 `auto` 首屏水合差异、新增 `pw_locale` Cookie 与访客端语言切换入口、清理硬编码文案并支持遗留中文反馈标签与免责声明英文映射。
+  - 完善分享端与对话接口多语言响应：允许 `X-Lang` / `Accept-Language` 跨域请求头，按请求语言返回分享站点信息、限流提示、SSE 错误与文档详情，并为自动翻译请求增加 `source_language` 参数。
+  - 保持后台管理界面全中文，在后台文档编辑器顶部新增「AI 翻译」入口及「多语言 AI 翻译」弹窗。
+  - 同步更新 `README.md`、`docs/DEPLOYMENT.md`、`docs/CHANGELOG_FV.md`、`docs/deploy/install.sh`、`docs/deploy/docker-compose.build.yml`、`docs/deploy/native/deploy.sh`、`backend/Dockerfile.api` 与后台版本构建配置中的默认发布版本号。
+
 ## 追加记录（2026-11-23，发布 FV2.6.19.2111）
 - 版本号：`FV2.6.19.2111`。
 - 核心新功能：落地 GitHub 私有仓库 Markdown 文章同步（`pkg/githubsync` + `usecase/github_sync` + `CardGitHubSync`），支持 front-matter 分类/排序、`folder:<navID>/<dir>` 多层目录、图片按 blob SHA 转存复用 OSS、Redis 分布式锁及增量自动发布联动 RAG。

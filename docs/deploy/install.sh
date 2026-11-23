@@ -2,7 +2,7 @@
 # 乘风版一键安装：拉发布包 → 生成密钥 → 填写 OSS → 启动 5 容器
 # 用法:
 #   curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | bash
-#   PANDAWIKI_VERSION=FV2.6.19.2111 INSTALL_DIR=/opt/pandawiki ./install.sh
+#   PANDAWIKI_VERSION=FV2.6.20.2111 INSTALL_DIR=/opt/pandawiki ./install.sh
 set -euo pipefail
 
 REPO="${PANDAWIKI_REPO:-MaydayV/PandaWiki}"

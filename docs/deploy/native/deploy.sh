@@ -196,7 +196,7 @@ if [[ "${ADMIN_SKIP_BUILD:-}" != "1" || "${APP_SKIP_BUILD:-}" != "1" ]]; then
 fi
 
 build_admin() {
-  VITE_APP_VERSION="${PANDAWIKI_VERSION:-FV2.6.19.2111}" NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
+  VITE_APP_VERSION="${PANDAWIKI_VERSION:-FV2.6.20.2111}" NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
 }
 
 if [[ "${ADMIN_SKIP_BUILD:-}" == "1" ]]; then
@@ -276,7 +276,7 @@ UNIT
 
 echo ">>> 编译 API"
 cd "$REPO_ROOT/backend"
-go build -ldflags "-s -w -X github.com/chaitin/panda-wiki/telemetry.Version=${PANDAWIKI_VERSION:-FV2.6.19.2111}" -o "$INSTALL_ROOT/bin/panda-wiki-api" cmd/api/main.go cmd/api/wire_gen.go
+go build -ldflags "-s -w -X github.com/chaitin/panda-wiki/telemetry.Version=${PANDAWIKI_VERSION:-FV2.6.20.2111}" -o "$INSTALL_ROOT/bin/panda-wiki-api" cmd/api/main.go cmd/api/wire_gen.go
 $SUDO chown "$RUN_USER:$RUN_USER" "$INSTALL_ROOT/bin/panda-wiki-api"
 
 echo ">>> 配置 Nginx 反代（端口 8888）"
