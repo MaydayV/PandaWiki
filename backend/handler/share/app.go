@@ -15,6 +15,7 @@ import (
 	"github.com/chaitin/panda-wiki/handler"
 	"github.com/chaitin/panda-wiki/log"
 	"github.com/chaitin/panda-wiki/usecase"
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 type ShareAppHandler struct {
@@ -40,7 +41,7 @@ func NewShareAppHandler(
 			return func(c echo.Context) error {
 				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 				c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept")
+				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, X-Lang, Accept-Language")
 				if c.Request().Method == "OPTIONS" {
 					return c.NoContent(http.StatusOK)
 				}
@@ -73,6 +74,9 @@ func (h *ShareAppHandler) GetWebAppInfo(c echo.Context) error {
 		return h.NewResponseWithError(c, "kb_id is required", nil)
 	}
 	ctx := context.WithValue(c.Request().Context(), consts.ContextKeyEdition, consts.GetLicenseEdition(c))
+	if reqLang, explicit := extractShareRequestLanguage(c); reqLang != "" {
+		ctx = utils.WithRequestLanguageMeta(ctx, reqLang, explicit)
+	}
 	appInfo, err := h.usecase.ShareGetWebAppInfo(ctx, kbID, domain.GetAuthID(c))
 	if err != nil {
 		return h.NewResponseWithError(c, err.Error(), err)

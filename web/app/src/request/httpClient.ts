@@ -236,9 +236,11 @@ export class HttpClient<SecurityDataType = unknown> {
     const payloadFormatter = this.contentFormatters[type || ContentType.Json];
     const responseFormat = format || requestParams.format || "json";
 
-    let customHeaders = {};
+    let customHeaders: Record<string, string> = {};
     if (typeof window === "undefined") {
       customHeaders = await getServerHeader();
+    } else if (typeof document !== "undefined" && document.documentElement?.lang) {
+      customHeaders = { "X-Lang": document.documentElement.lang };
     }
 
     return this.customFetch(

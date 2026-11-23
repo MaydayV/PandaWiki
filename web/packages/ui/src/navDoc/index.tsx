@@ -31,6 +31,7 @@ interface NavDocProps {
     }[];
   }[];
   basePath?: string;
+  viewMoreLabel?: string;
 }
 
 const StyledNavDocItem = styled('div')(({ theme }) => ({
@@ -111,7 +112,8 @@ const NavDocItem: React.FC<{
   index: number;
   basePath: string;
   size: any;
-}> = React.memo(({ item, index, basePath, size }) => {
+  viewMoreLabel: string;
+}> = React.memo(({ item, index, basePath, size, viewMoreLabel }) => {
   const cardRef = useCardFadeInAnimation(0.2 + index * 0.1, 0.1);
 
   return (
@@ -155,7 +157,7 @@ const NavDocItem: React.FC<{
           variant='text'
           color='primary'
         >
-          查看更多
+          {viewMoreLabel}
         </Button>
       </StyledNavDocItem>
     </Grid>
@@ -165,7 +167,13 @@ const NavDocItem: React.FC<{
 NavDocItem.displayName = 'NavDocItem';
 
 const NavDoc: React.FC<NavDocProps> = React.memo(
-  ({ title, items = [], mobile, basePath = '' }) => {
+  ({
+    title,
+    items = [],
+    mobile,
+    basePath = '',
+    viewMoreLabel = '查看更多',
+  }) => {
     const size =
       typeof mobile === 'boolean' ? (mobile ? 12 : 4) : { xs: 12, md: 4 };
 
@@ -183,6 +191,7 @@ const NavDoc: React.FC<NavDocProps> = React.memo(
               index={index}
               basePath={basePath}
               size={size}
+              viewMoreLabel={viewMoreLabel}
             />
           ))}
         </Grid>

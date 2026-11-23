@@ -16,6 +16,7 @@ import { IconJinsousuo, IconZhinengwenda } from '@panda-wiki/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AiQaContent from './AiQaContent';
 import SearchDocContent from './SearchDocContent';
+import LanguageSwitch from '@/components/header/LanguageSwitch';
 import { useI18n } from '@/i18n/useI18n';
 
 const LEGACY_DEFAULT_COPYRIGHT = '本网站由 PandaWiki 提供技术支持';
@@ -175,23 +176,26 @@ const Widget = () => {
         ) : (
           <Box></Box>
         )}
-        <Button
-          variant='outlined'
-          color='primary'
-          size='small'
-          sx={theme => ({
-            minWidth: 'auto',
-            px: 1,
-            py: '1px',
-            fontSize: 12,
-            fontWeight: 500,
-            textTransform: 'none',
-            color: 'text.secondary',
-            borderColor: alpha(theme.palette.text.primary, 0.1),
-          })}
-        >
-          Esc
-        </Button>
+        <Stack direction='row' alignItems='center' gap={1}>
+          <LanguageSwitch compact />
+          <Button
+            variant='outlined'
+            color='primary'
+            size='small'
+            sx={theme => ({
+              minWidth: 'auto',
+              px: 1,
+              py: '1px',
+              fontSize: 12,
+              fontWeight: 500,
+              textTransform: 'none',
+              color: 'text.secondary',
+              borderColor: alpha(theme.palette.text.primary, 0.1),
+            })}
+          >
+            Esc
+          </Button>
+        </Stack>
       </Box>
       <Box
         sx={{

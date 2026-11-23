@@ -3,19 +3,29 @@ import Cascader from '@/components/Cascader';
 import { VersionCanUse } from '@/components/VersionMask';
 import { BUSINESS_VERSION_PERMISSION } from '@/constant/version';
 import VersionPublish from '@/pages/release/components/VersionPublish';
-import { postApiV1Node } from '@/request';
+import { getApiV1NodeDetail, postApiV1Node } from '@/request';
+import { postApiProV1NodeTranslationAuto } from '@/request/NodeTranslation';
 import { V1NodeDetailResp } from '@/request/types';
 import { useAppSelector } from '@/store';
 import { addOpacityToColor, getShortcutKeyText } from '@/utils';
-import { Ellipsis, message } from '@ctzhian/ui';
+import { Ellipsis, message, Modal } from '@ctzhian/ui';
+import TranslateIcon from '@mui/icons-material/Translate';
 import {
+  Alert,
   Box,
   Button,
+  Checkbox,
+  Chip,
+  FormControlLabel,
   IconButton,
+  MenuItem,
+  Select,
   Skeleton,
   Stack,
   styled,
+  Switch,
   Tooltip,
+  Typography,
   useTheme,
 } from '@mui/material';
 import {
@@ -75,8 +85,83 @@ const Header = ({
   const [renameOpen, setRenameOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [sourceLanguage, setSourceLanguage] = useState('zh-CN');
+  const [targetLanguages, setTargetLanguages] = useState<string[]>(['en-US']);
+  const [overwriteTranslation, setOverwriteTranslation] = useState(true);
+  const [publishAfterTranslate, setPublishAfterTranslate] = useState(true);
 
   const [showSaveTip, setShowSaveTip] = useState(false);
+
+  const existingTranslations = useMemo(() => {
+    const translations = (
+      detail.meta as
+        | (NonNullable<V1NodeDetailResp['meta']> & {
+            translations?: Record<
+              string,
+              { name?: string; content?: string; summary?: string }
+            >;
+          })
+        | undefined
+    )?.translations;
+    if (!translations) return [];
+    return Object.keys(translations).filter(key => {
+      const item = translations[key];
+      return Boolean(
+        item &&
+          (item.name?.trim() || item.content?.trim() || item.summary?.trim()),
+      );
+    });
+  }, [detail.meta]);
+
+  const toggleTargetLanguage = (lang: string) => {
+    setTargetLanguages(prev =>
+      prev.includes(lang)
+        ? prev.filter(item => item !== lang)
+        : [...prev, lang],
+    );
+  };
+
+  const handleAutoTranslate = async () => {
+    if (!kb_id || !detail.id) return;
+    if (targetLanguages.length === 0) {
+      message.warning('请至少选择一个目标语言');
+      return;
+    }
+    setTranslating(true);
+    try {
+      const res = await postApiProV1NodeTranslationAuto({
+        kb_id,
+        node_id: detail.id,
+        source_language: sourceLanguage,
+        target_languages: targetLanguages,
+        overwrite: overwriteTranslation,
+        publish_to_latest_release: publishAfterTranslate,
+      });
+      if (res?.translated_languages && res.translated_languages.length > 0) {
+        const latest = await getApiV1NodeDetail({ id: detail.id, kb_id });
+        if (latest) {
+          updateDetail({
+            ...latest,
+            ...(res.published ? { status: 2 } : {}),
+          });
+        } else if (res.published) {
+          updateDetail({ status: 2 });
+        }
+        message.success(
+          res.published
+            ? `翻译完成并已发布（${res.translated_languages.join(', ')}）`
+            : `翻译完成（${res.translated_languages.join(', ')}）`,
+        );
+      } else {
+        message.info('目标语言已有译文或与源语言相同，未重新生成');
+      }
+      setTranslateOpen(false);
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   const isBusiness = useMemo(() => {
     return BUSINESS_VERSION_PERMISSION.includes(license.edition!);
@@ -338,6 +423,15 @@ const Header = ({
               </IconButton>
             }
           />
+          <Button
+            size='small'
+            variant='outlined'
+            disabled={!detail.id || !detail.name}
+            startIcon={<TranslateIcon sx={{ fontSize: 14 }} />}
+            onClick={() => setTranslateOpen(true)}
+          >
+            AI 翻译
+          </Button>
           <Cascader
             list={[
               {
@@ -522,6 +616,116 @@ const Header = ({
           },
         ]}
       />
+      <Modal
+        open={translateOpen}
+        onCancel={() => {
+          if (!translating) setTranslateOpen(false);
+        }}
+        title='多语言 AI 翻译'
+        okText={translating ? '翻译中...' : '开始翻译'}
+        okButtonProps={{
+          loading: translating,
+          disabled: translating || targetLanguages.length === 0,
+        }}
+        cancelButtonProps={{ disabled: translating }}
+        onOk={handleAutoTranslate}
+      >
+        <Stack spacing={2}>
+          {edit && (
+            <Alert severity='warning'>
+              当前存在未保存的编辑内容，建议先点击“保存”后再执行 AI 翻译。
+            </Alert>
+          )}
+          <Stack
+            direction='row'
+            spacing={1}
+            alignItems='center'
+            flexWrap='wrap'
+          >
+            <Typography variant='body2' color='text.secondary'>
+              已有译文：
+            </Typography>
+            {existingTranslations.length > 0 ? (
+              existingTranslations.map(lang => (
+                <Chip key={lang} label={lang} size='small' variant='outlined' />
+              ))
+            ) : (
+              <Typography variant='body2' color='text.secondary'>
+                暂无
+              </Typography>
+            )}
+          </Stack>
+          <Box>
+            <Typography variant='body2' sx={{ mb: 0.75, fontWeight: 500 }}>
+              文档源语言
+            </Typography>
+            <Select
+              size='small'
+              fullWidth
+              value={sourceLanguage}
+              disabled={translating}
+              onChange={e => setSourceLanguage(e.target.value)}
+            >
+              <MenuItem value='zh-CN'>简体中文 (zh-CN)</MenuItem>
+              <MenuItem value='en-US'>English (en-US)</MenuItem>
+              <MenuItem value='auto'>自动识别 (auto)</MenuItem>
+            </Select>
+          </Box>
+          <Box>
+            <Typography variant='body2' sx={{ mb: 0.5, fontWeight: 500 }}>
+              目标翻译语言
+            </Typography>
+            <Stack direction='row' spacing={2}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size='small'
+                    disabled={translating}
+                    checked={targetLanguages.includes('en-US')}
+                    onChange={() => toggleTargetLanguage('en-US')}
+                  />
+                }
+                label='英文 (en-US)'
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size='small'
+                    disabled={translating}
+                    checked={targetLanguages.includes('zh-CN')}
+                    onChange={() => toggleTargetLanguage('zh-CN')}
+                  />
+                }
+                label='简体中文 (zh-CN)'
+              />
+            </Stack>
+          </Box>
+          <Stack>
+            <FormControlLabel
+              control={
+                <Switch
+                  size='small'
+                  disabled={translating}
+                  checked={overwriteTranslation}
+                  onChange={e => setOverwriteTranslation(e.target.checked)}
+                />
+              }
+              label='覆盖已有译文'
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size='small'
+                  disabled={translating}
+                  checked={publishAfterTranslate}
+                  onChange={e => setPublishAfterTranslate(e.target.checked)}
+                />
+              }
+              label='翻译完成后自动发布'
+            />
+          </Stack>
+        </Stack>
+      </Modal>
     </Box>
   );
 };

@@ -19,6 +19,7 @@ import (
 	pgrepo "github.com/chaitin/panda-wiki/repo/pg"
 	storecache "github.com/chaitin/panda-wiki/store/cache"
 	"github.com/chaitin/panda-wiki/usecase"
+	"github.com/chaitin/panda-wiki/utils"
 )
 
 const openAICompletionsEndpoint = "/share/v1/chat/completions"
@@ -76,7 +77,7 @@ func NewShareChatHandler(
 			return func(c echo.Context) error {
 				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 				c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept")
+				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, X-Lang, Accept-Language")
 				if c.Request().Method == "OPTIONS" {
 					return c.NoContent(http.StatusOK)
 				}
@@ -128,7 +129,9 @@ func (h *ShareChatHandler) ChatMessage(c echo.Context) error {
 	if req.AppType != domain.AppTypeWeb {
 		return h.sendErrMsg(c, "invalid app type")
 	}
-	ctx := c.Request().Context()
+	locale := resolveShareLocale(c, domain.SettingDefaultLanguage)
+	req.Language = locale
+	ctx := utils.WithRequestLanguage(c.Request().Context(), locale)
 	// validate captcha token
 	if !h.Captcha.ValidateToken(ctx, req.CaptchaToken) {
 		return h.sendErrMsg(c, "failed to validate captcha")
@@ -234,11 +237,15 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 		return h.sendErrMsg(c, "widget image upload is disabled")
 	}
 
-	if err := h.enforceWidgetRateLimit(c.Request().Context(), c.RealIP()); err != nil {
-		return h.sendErrMsg(c, "请求过于频繁，请稍后再试")
+	locale := resolveShareLocale(c, widgetAppInfo.Settings.Language)
+	req.Language = locale
+	ctx := utils.WithRequestLanguage(c.Request().Context(), locale)
+
+	if err := h.enforceWidgetRateLimit(ctx, c.RealIP()); err != nil {
+		return h.sendErrMsg(c, shareMsg(locale, "请求过于频繁，请稍后再试", "Too many requests, please try again later"))
 	}
 	req.RemoteIP = c.RealIP()
-	if err := h.enforceConversationAskInterval(c.Request().Context(), &req); err != nil {
+	if err := h.enforceConversationAskInterval(ctx, &req); err != nil {
 		return h.sendErrMsg(c, err.Error())
 	}
 
@@ -247,7 +254,7 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 	c.Response().Header().Set("Connection", "keep-alive")
 	c.Response().Header().Set("Transfer-Encoding", "chunked")
 
-	eventCh, err := h.chatUsecase.Chat(c.Request().Context(), &req)
+	eventCh, err := h.chatUsecase.Chat(ctx, &req)
 	if err != nil {
 		return h.sendErrMsg(c, err.Error())
 	}
@@ -336,7 +343,10 @@ func (h *ShareChatHandler) enforceConversationAskInterval(ctx context.Context, r
 	if remaining <= 0 {
 		return nil
 	}
-	return fmt.Errorf("提问过于频繁，请 %d 秒后再试", remaining)
+	if utils.IsChineseLocale(req.Language) {
+		return fmt.Errorf("提问过于频繁，请 %d 秒后再试", remaining)
+	}
+	return fmt.Errorf("asking too frequently, please try again in %d seconds", remaining)
 }
 
 func calculateAskIntervalRemainingSeconds(lastAskedAt, now time.Time, intervalSeconds int) int {
@@ -1025,10 +1035,11 @@ func (h *ShareChatHandler) WidgetSearch(c echo.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return h.NewResponseWithError(c, "validate request failed", err)
 	}
-	ctx := c.Request().Context()
+	locale := resolveShareLocale(c, domain.SettingDefaultLanguage)
+	ctx := utils.WithRequestLanguage(c.Request().Context(), locale)
 
 	if err := h.enforceWidgetRateLimit(ctx, c.RealIP()); err != nil {
-		return h.NewResponseWithError(c, "请求过于频繁，请稍后再试", nil)
+		return h.NewResponseWithError(c, shareMsg(locale, "请求过于频繁，请稍后再试", "Too many requests, please try again later"), nil)
 	}
 
 	// validate widget info

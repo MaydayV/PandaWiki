@@ -9,7 +9,7 @@ import { message } from '@ctzhian/ui';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useI18n } from '@/i18n/useI18n';
+import { localizeFeedbackTag, useI18n } from '@/i18n/useI18n';
 
 const Feedback = () => {
   const searchParams = useSearchParams();
@@ -25,7 +25,7 @@ const Feedback = () => {
   const [type, setType] = useState<string>('');
   const [content, setContent] = useState('');
   const [success, setSuccess] = useState(score === 1);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const handleSubmit = async () => {
     const data: DomainFeedbackRequest = {
@@ -127,7 +127,7 @@ const Feedback = () => {
                     setType(tag);
                   }}
                 >
-                  {tag}
+                  {localizeFeedbackTag(tag, locale, t)}
                 </Box>
               ))}
             </Stack>

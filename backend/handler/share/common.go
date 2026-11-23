@@ -42,7 +42,7 @@ func NewShareCommonHandler(
 			return func(c echo.Context) error {
 				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 				c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept")
+				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, X-Lang, Accept-Language")
 				if c.Request().Method == "OPTIONS" {
 					return c.NoContent(http.StatusOK)
 				}
@@ -92,7 +92,8 @@ func (h *ShareCommonHandler) FileUpload(c echo.Context) error {
 	}
 
 	if !utils.IsImageFile(file.Filename) {
-		return h.NewResponseWithError(c, "只支持图片文件上传", fmt.Errorf("unsupported file type: %s", file.Filename))
+		locale := resolveShareLocale(c, domain.SettingDefaultLanguage)
+		return h.NewResponseWithError(c, shareMsg(locale, "只支持图片文件上传", "Only image files are supported"), fmt.Errorf("unsupported file type: %s", file.Filename))
 	}
 
 	// validate captcha token

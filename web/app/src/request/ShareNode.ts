@@ -31,7 +31,7 @@ import {
  */
 
 export const getShareV1NodeDetail = (
-  query: GetShareV1NodeDetailParams,
+  query: GetShareV1NodeDetailParams & { lang?: string; language?: string; format?: string },
   params: RequestParams = {},
 ) =>
   httpRequest<

@@ -17,15 +17,15 @@ export const BASE_SCROLL_OFFSET = 80;
 
 export const DocWidth = {
   full: {
-    label: '全屏',
+    label: 'Full',
     value: 0,
   },
   wide: {
-    label: '超宽',
+    label: 'Wide',
     value: 960,
   },
   normal: {
-    label: '常规',
+    label: 'Normal',
     value: 720,
   },
 };

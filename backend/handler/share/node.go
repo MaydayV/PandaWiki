@@ -41,7 +41,7 @@ func NewShareNodeHandler(
 			return func(c echo.Context) error {
 				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 				c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept")
+				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, X-Lang, Accept-Language")
 				if c.Request().Method == "OPTIONS" {
 					return c.NoContent(http.StatusOK)
 				}
@@ -111,12 +111,19 @@ func (h *ShareNodeHandler) GetNodeDetail(c echo.Context) error {
 		return h.NewResponseWithErrCode(c, *errCode)
 	}
 
+	reqLang := req.Lang
+	if reqLang == "" && req.Language == "" {
+		if explicitLang, explicit := extractShareRequestLanguage(c); explicit {
+			reqLang = explicitLang
+		}
+	}
+
 	node, err := h.usecase.GetNodeReleaseDetailByKBIDAndIDWithLanguage(
 		c.Request().Context(),
 		kbID,
 		req.ID,
 		req.Format,
-		req.Lang,
+		reqLang,
 		req.Language,
 		c.Request().Header.Get("Accept-Language"),
 	)

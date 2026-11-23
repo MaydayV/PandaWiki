@@ -1,3 +1,4 @@
+import { LOCALE_COOKIE_NAME, parseLocaleCookie } from '@/i18n/locale';
 import { getBasePath } from './getBasePath';
 export async function getServerHeader(): Promise<Record<string, string>> {
   const { headers, cookies } = await import('next/headers');
@@ -5,6 +6,9 @@ export async function getServerHeader(): Promise<Record<string, string>> {
   const kb_id = headersList.get('x-kb-id') || process.env.DEV_KB_ID || '';
   const acceptLanguage = headersList.get('accept-language') || '';
   const cookieStore = await cookies();
+  const cookieLocale = parseLocaleCookie(
+    cookieStore.get(LOCALE_COOKIE_NAME)?.value,
+  );
 
   // 手动构建 cookie header，避免转义问题
   const allCookies = cookieStore.getAll();
@@ -19,7 +23,10 @@ export async function getServerHeader(): Promise<Record<string, string>> {
     'x-kb-id': kb_id,
     cookie: cookieHeader,
   };
-  if (acceptLanguage) {
+  if (cookieLocale) {
+    result['x-lang'] = cookieLocale;
+    result['accept-language'] = cookieLocale;
+  } else if (acceptLanguage) {
     result['accept-language'] = acceptLanguage;
   }
   return result;

@@ -16,7 +16,12 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/en';
 import 'dayjs/locale/zh-cn';
 
-import { resolveLanguage, toDayjsLocale } from '@/i18n/locale';
+import {
+  LOCALE_COOKIE_NAME,
+  Locale,
+  resolveEffectiveLocale,
+  toDayjsLocale,
+} from '@/i18n/locale';
 import { GithubComChaitinPandaWikiProApiShareV1AuthInfoResp } from '@/request/pro/types';
 
 interface StoreContextType {
@@ -27,6 +32,8 @@ interface StoreContextType {
   tree?: ITreeItem[];
   themeMode?: 'light' | 'dark';
   mobile?: boolean;
+  locale?: Locale;
+  setLocale?: (locale: Locale) => void;
   nodeList?: NodeListItem[];
   setNodeList?: (list: NodeListItem[]) => void;
   setTree?: Dispatch<SetStateAction<ITreeItem[] | undefined>>;
@@ -83,13 +90,33 @@ export default function StoreProvider({
   const [qaModalOpen, setQaModalOpen] = useState(false);
   const configuredLanguage =
     kbDetail?.settings?.language || widget?.settings?.language;
-  const locale = resolveLanguage(
-    configuredLanguage === 'auto'
-      ? typeof navigator !== 'undefined'
-        ? navigator.language
-        : undefined
-      : configuredLanguage,
-  );
+  const [localLocale, setLocalLocale] = useState<Locale>(() => {
+    if (props.locale) return props.locale;
+    if (context.locale) return context.locale;
+    return resolveEffectiveLocale({ configuredLanguage });
+  });
+
+  useEffect(() => {
+    if (props.locale) {
+      setLocalLocale(props.locale);
+    }
+  }, [props.locale]);
+
+  const activeLocale =
+    props.locale === undefined && context.locale ? context.locale : localLocale;
+
+  const handleSetLocale = (nextLocale: Locale) => {
+    if (context.setLocale && props.locale === undefined) {
+      context.setLocale(nextLocale);
+      return;
+    }
+    setLocalLocale(nextLocale);
+    if (typeof document !== 'undefined') {
+      document.cookie = `${LOCALE_COOKIE_NAME}=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
+      document.documentElement.lang = nextLocale;
+    }
+    dayjs.locale(toDayjsLocale(nextLocale));
+  };
 
   const [catalogShow, setCatalogShow] = useState(
     catalogSettings?.catalog_visible !== 2,
@@ -107,8 +134,11 @@ export default function StoreProvider({
   }, [kbDetail, catalogSettings?.catalog_visible]);
 
   useEffect(() => {
-    dayjs.locale(toDayjsLocale(locale));
-  }, [locale]);
+    dayjs.locale(toDayjsLocale(activeLocale));
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = activeLocale;
+    }
+  }, [activeLocale]);
 
   useEffect(() => {
     const savedWidth = window.localStorage.getItem('CATALOG_WIDTH');
@@ -131,6 +161,11 @@ export default function StoreProvider({
         catalogShow,
         setCatalogShow,
         mobile: isMobile,
+        locale: activeLocale,
+        setLocale:
+          context.setLocale && props.locale === undefined
+            ? context.setLocale
+            : handleSetLocale,
         authInfo,
         setNodeList,
         catalogWidth,

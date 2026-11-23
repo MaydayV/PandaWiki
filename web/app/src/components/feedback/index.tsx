@@ -3,7 +3,7 @@ import { useStore } from '@/provider';
 import { Box, Stack, TextField } from '@mui/material';
 import { Modal } from '@ctzhian/ui';
 import { useState } from 'react';
-import { useI18n } from '@/i18n/useI18n';
+import { localizeFeedbackTag, useI18n } from '@/i18n/useI18n';
 
 interface FeedbackProps {
   open: boolean;
@@ -26,7 +26,7 @@ const Feedback = ({
   tags: propsTags,
 }: FeedbackProps) => {
   const { themeMode, kbDetail } = useStore();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [type, setType] = useState<string>('');
   const [content, setContent] = useState('');
 
@@ -90,7 +90,7 @@ const Feedback = ({
               setType(tag);
             }}
           >
-            {tag}
+            {localizeFeedbackTag(tag, locale, t)}
           </Box>
         ))}
       </Stack>

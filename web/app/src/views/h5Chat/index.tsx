@@ -18,7 +18,7 @@ import { useStore } from '@/provider';
 import Feedback from '@/components/feedback';
 import { ConstsSourceType, V1WechatAppInfoResp } from '@/request/types';
 import { useBasePath } from '@/hooks';
-import { useI18n } from '@/i18n/useI18n';
+import { localizeDisclaimer, useI18n } from '@/i18n/useI18n';
 import {
   IconADiancaiWeixuanzhong2,
   IconDiancaiWeixuanzhong,
@@ -238,16 +238,14 @@ const H5Chat = () => {
   );
   // 初始仅在 URL 带 id（即将开始回答）时进入打字态；无 id 时保持空闲，
   // 避免在 effect 内同步 setState 进入打字态后永久卡住
-  const [loading, setLoading] = useState(() =>
-    Boolean(searchParams.get('id')),
-  );
+  const [loading, setLoading] = useState(() => Boolean(searchParams.get('id')));
   const [answer, setAnswer] = useState('');
   const [score, setScore] = useState(0);
   const [message_id, setMessageId] = useState('');
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const { kbDetail } = useStore();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const basePath = useBasePath();
 
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -257,12 +255,12 @@ const H5Chat = () => {
   }, [appSetting]);
 
   const disclaimerContent = useMemo(() => {
-    return (
+    const raw =
       appSetting?.disclaimer_content ??
       kbDetail?.settings?.disclaimer_settings?.content ??
-      ''
-    );
-  }, [appSetting, kbDetail]);
+      '';
+    return localizeDisclaimer(raw, locale, t);
+  }, [appSetting, kbDetail, locale, t]);
 
   useEffect(() => {
     messagesContainerRef.current?.scrollTo({

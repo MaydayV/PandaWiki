@@ -126,6 +126,10 @@ const AiQaContent: React.FC<{
 }> = ({ hotSearch, placeholder, inputRef }) => {
   const { widget } = useStore();
   const { t } = useI18n();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const statusText = useMemo<Record<ThinkingStatus, string>>(
     () => ({
       1: t('chat.searching'),
@@ -638,7 +642,10 @@ const AiQaContent: React.FC<{
               if (lastConversation) {
                 newConversation[newConversation.length - 1] = {
                   ...lastConversation,
-                  chunk_result: [...lastConversation.chunk_result, chunk_result],
+                  chunk_result: [
+                    ...lastConversation.chunk_result,
+                    chunk_result,
+                  ],
                 };
               }
               return newConversation;
@@ -729,7 +736,7 @@ const AiQaContent: React.FC<{
         hasActiveStreamRef.current = false;
         setLoading(false);
         setThinking(4);
-        message.error(t('common.requestFailed'));
+        message.error(tRef.current('common.requestFailed'));
       },
       onCancel: () => {
         // 流已结束（非活跃）时不追加取消标记，避免污染上一条已完成的回答
@@ -743,7 +750,9 @@ const AiQaContent: React.FC<{
           if (lastConversation) {
             newConversation[newConversation.length - 1] = {
               ...lastConversation,
-              a: lastConversation.a + '\n\n<error>Request canceled</error>',
+              a:
+                lastConversation.a +
+                `\n\n<error>${tRef.current('chat.requestCanceled')}</error>`,
               update_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
               message_id: messageIdRef.current,
             };

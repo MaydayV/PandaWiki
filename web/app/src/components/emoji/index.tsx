@@ -3,6 +3,7 @@ import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { Box, IconButton, Popover, SxProps } from '@mui/material';
 import React, { useCallback } from 'react';
+import { useI18n } from '@/i18n/useI18n';
 import zh from './emoji-data/zh.json';
 import {
   IconWenjianjia,
@@ -29,6 +30,7 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({
   sx,
   iconSx,
 }) => {
+  const { locale } = useI18n();
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(
     null,
   );
@@ -100,8 +102,8 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({
           data={data}
           set='native'
           theme='light'
-          locale='zh'
-          i18n={zh}
+          locale={locale === 'zh-CN' ? 'zh' : 'en'}
+          i18n={locale === 'zh-CN' ? zh : undefined}
           onEmojiSelect={handleSelect}
           previewPosition='none'
           searchPosition='sticky'

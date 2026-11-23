@@ -194,17 +194,34 @@ func TestWidgetRateLimitStopsRequestAndPreservesJSON(t *testing.T) {
 
 	// WidgetSearch 超过上限时必须直接返回干净的 JSON 错误响应，
 	// 既不继续执行搜索（appUsecase 为 nil 也不会 panic），也不混入 SSE 帧。
-	req := httptest.NewRequest(http.MethodPost, "/share/v1/chat/widget/search", bytes.NewBufferString(`{"message":"hello"}`))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	req.Header.Set("X-KB-ID", "kb-1")
-	req.RemoteAddr = "10.0.0.1:12345"
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
+	// 默认/英文请求必须返回英文限频文案，中文请求必须返回中文限频文案。
+	reqEN := httptest.NewRequest(http.MethodPost, "/share/v1/chat/widget/search", bytes.NewBufferString(`{"message":"hello"}`))
+	reqEN.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	reqEN.Header.Set("X-KB-ID", "kb-1")
+	reqEN.Header.Set("X-Lang", "en-US")
+	reqEN.RemoteAddr = "10.0.0.1:12345"
+	recEN := httptest.NewRecorder()
+	e.ServeHTTP(recEN, reqEN)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	require.NotContains(t, rec.Body.String(), "data: ")
-	var resp domain.PWResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.False(t, resp.Success)
-	require.Contains(t, resp.Message, "请求过于频繁")
+	require.Equal(t, http.StatusOK, recEN.Code)
+	require.NotContains(t, recEN.Body.String(), "data: ")
+	var respEN domain.PWResponse
+	require.NoError(t, json.Unmarshal(recEN.Body.Bytes(), &respEN))
+	require.False(t, respEN.Success)
+	require.Contains(t, respEN.Message, "Too many requests")
+
+	reqZH := httptest.NewRequest(http.MethodPost, "/share/v1/chat/widget/search", bytes.NewBufferString(`{"message":"hello"}`))
+	reqZH.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	reqZH.Header.Set("X-KB-ID", "kb-1")
+	reqZH.Header.Set("X-Lang", "zh-CN")
+	reqZH.RemoteAddr = "10.0.0.1:12345"
+	recZH := httptest.NewRecorder()
+	e.ServeHTTP(recZH, reqZH)
+
+	require.Equal(t, http.StatusOK, recZH.Code)
+	require.NotContains(t, recZH.Body.String(), "data: ")
+	var respZH domain.PWResponse
+	require.NoError(t, json.Unmarshal(recZH.Body.Bytes(), &respZH))
+	require.False(t, respZH.Success)
+	require.Contains(t, respZH.Message, "请求过于频繁")
 }

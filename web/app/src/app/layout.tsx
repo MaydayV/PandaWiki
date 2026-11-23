@@ -10,7 +10,7 @@ import localFont from 'next/font/local';
 import { headers, cookies } from 'next/headers';
 import { getSelectorsByUserAgent } from 'react-device-detect';
 import { getBasePath, getImagePath } from '@/utils';
-import { resolveLanguage } from '@/i18n/locale';
+import { LOCALE_COOKIE_NAME, resolveEffectiveLocale } from '@/i18n/locale';
 import './globals.css';
 
 const gilory = localFont({
@@ -102,7 +102,10 @@ const resolveSiteBase = ({
   );
 };
 
-const resolveCanonicalUrl = (canonicalUrl: string | undefined, siteBase: string) => {
+const resolveCanonicalUrl = (
+  canonicalUrl: string | undefined,
+  siteBase: string,
+) => {
   const canonicalValue = canonicalUrl?.trim();
   if (!canonicalValue) {
     return siteBase ? `${siteBase}/` : undefined;
@@ -179,7 +182,10 @@ export async function generateMetadata(): Promise<Metadata> {
     parseUrl(siteBase ? `${siteBase}/` : undefined) ||
     parseUrl(process.env.TARGET || '');
   const robots = parseRobots(seoSettings?.robots);
-  const twitterCard = resolveTwitterCard(seoSettings?.twitter_card, !!shareImage);
+  const twitterCard = resolveTwitterCard(
+    seoSettings?.twitter_card,
+    !!shareImage,
+  );
 
   return {
     metadataBase,
@@ -237,11 +243,12 @@ const Layout = async ({
 
   const basePath = getBasePath(kbDetail?.base_url || '');
   const acceptLanguage = headersList.get('accept-language') || '';
-  const locale = resolveLanguage(
-    kbDetail?.settings?.language === 'auto'
-      ? acceptLanguage
-      : kbDetail?.settings?.language,
-  );
+  const cookieLocale = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
+  const locale = resolveEffectiveLocale({
+    cookieLocale,
+    configuredLanguage: kbDetail?.settings?.language,
+    acceptLanguage,
+  });
   const jsonLd = parseJsonLd(kbDetail?.settings?.seo_settings?.json_ld);
 
   return (
@@ -271,6 +278,7 @@ const Layout = async ({
               themeMode={themeMode || 'light'}
               mobile={isMobile}
               authInfo={authInfo}
+              locale={locale}
             >
               <Box
                 sx={{

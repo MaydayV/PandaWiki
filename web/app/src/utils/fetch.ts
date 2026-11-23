@@ -68,11 +68,15 @@ class SSEClient<T> {
       body !== undefined &&
       body !== null;
 
+    const docLang =
+      typeof document !== 'undefined' ? document.documentElement?.lang : '';
+
     fetch(url, {
       method,
       headers: {
         Accept: 'text/event-stream',
         ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+        ...(docLang ? { 'X-Lang': docLang, 'Accept-Language': docLang } : {}),
         ...headers,
       },
       body: hasBody ? body : undefined,

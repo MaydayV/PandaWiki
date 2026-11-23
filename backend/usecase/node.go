@@ -1185,10 +1185,26 @@ func (u *NodeUsecase) AutoTranslateNode(ctx context.Context, req *v1.NodeAutoTra
 		normalizedTranslations[normalized] = translated
 	}
 
+	rawSource := strings.TrimSpace(req.SourceLanguage)
+	explicitSource := utils.NormalizeLanguageCode(rawSource)
+	llmSourceLanguage := explicitSource
+	if llmSourceLanguage == "" {
+		if strings.EqualFold(rawSource, "auto") {
+			llmSourceLanguage = "auto"
+		} else {
+			llmSourceLanguage = defaultLanguage
+		}
+	}
+
 	translatedLanguages := make([]string, 0, len(targetLanguages))
 	skippedLanguages := make([]string, 0)
 	for _, targetLanguage := range targetLanguages {
-		if targetLanguage == defaultLanguage {
+		if explicitSource != "" {
+			if targetLanguage == explicitSource {
+				skippedLanguages = append(skippedLanguages, targetLanguage)
+				continue
+			}
+		} else if rawSource == "" && targetLanguage == defaultLanguage && !req.Overwrite {
 			skippedLanguages = append(skippedLanguages, targetLanguage)
 			continue
 		}
@@ -1198,10 +1214,15 @@ func (u *NodeUsecase) AutoTranslateNode(ctx context.Context, req *v1.NodeAutoTra
 			continue
 		}
 
+		srcForTarget := llmSourceLanguage
+		if srcForTarget == "" || srcForTarget == targetLanguage {
+			srcForTarget = "auto"
+		}
+
 		translated, err := u.llmUsecase.TranslateNode(
 			ctx,
 			model,
-			defaultLanguage,
+			srcForTarget,
 			targetLanguage,
 			node.Name,
 			node.Content,

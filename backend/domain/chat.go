@@ -23,6 +23,7 @@ type ChatRequest struct {
 	RemoteIP string           `json:"-"`
 	Info     ConversationInfo `json:"-"`
 	Prompt   string           `json:"-"`
+	Language string           `json:"-"`
 }
 
 type ChatRagOnlyRequest struct {
@@ -32,6 +33,7 @@ type ChatRagOnlyRequest struct {
 
 	UserInfo UserInfo `json:"user_info"`
 	AppType  AppType  `json:"app_type" validate:"required,oneof=1 2"`
+	Language string   `json:"-"`
 }
 
 type ConversationInfo struct {

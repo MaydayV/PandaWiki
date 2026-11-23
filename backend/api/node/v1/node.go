@@ -69,6 +69,7 @@ type NodeRestudyResp struct {
 type NodeAutoTranslateReq struct {
 	KBID                   string   `json:"kb_id" validate:"required"`
 	NodeID                 string   `json:"node_id" validate:"required"`
+	SourceLanguage         string   `json:"source_language"`
 	TargetLanguages        []string `json:"target_languages" validate:"required,min=1,dive,required"`
 	PublishToLatestRelease bool     `json:"publish_to_latest_release"`
 	Overwrite              bool     `json:"overwrite"`

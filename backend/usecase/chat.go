@@ -55,6 +55,20 @@ func NewChatUsecase(llmUsecase *LLMUsecase, kbRepo *pg.KnowledgeBaseRepository, 
 // Chat 启动异步问答并返回 SSE 事件流。
 // 契约：本方法返回后生产者 goroutine 会继续改写 req 的 KBID/AppID/ModelInfo 等
 // 字段，调用方不得在返回后再读取 req（当前全部调用方均满足）。
+func chatLocaleMsg(ctx context.Context, reqLang string, appType domain.AppType, zh, en string) string {
+	lang := strings.TrimSpace(reqLang)
+	if lang == "" {
+		lang = utils.RequestLanguageFromContext(ctx)
+	}
+	if lang == "" && (appType == domain.AppTypeWechatServiceBot || appType == domain.AppTypeWechatBot || appType == domain.AppTypeWecomAIBot) {
+		return zh
+	}
+	if utils.IsChineseLocale(lang) {
+		return zh
+	}
+	return en
+}
+
 func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan domain.SSEEvent, error) {
 	eventCh := make(chan domain.SSEEvent, 100)
 	go func() {
@@ -87,9 +101,17 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 		model, err := u.modelUsecase.GetChatModel(ctx)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-				eventCh <- domain.SSEEvent{Type: "error", Content: "请前往管理后台，点击右上角的“系统设置”配置推理大模型。"}
+				eventCh <- domain.SSEEvent{
+					Type: "error",
+					Content: chatLocaleMsg(ctx, req.Language, req.AppType,
+						"请前往管理后台，点击右上角的“系统设置”配置推理大模型。",
+						"Please configure a chat LLM model in Admin Console -> System Settings."),
+				}
 			} else {
-				eventCh <- domain.SSEEvent{Type: "error", Content: "模型获取失败"}
+				eventCh <- domain.SSEEvent{
+					Type:    "error",
+					Content: chatLocaleMsg(ctx, req.Language, req.AppType, "模型获取失败", "Failed to load chat model"),
+				}
 			}
 			return
 		}
@@ -181,7 +203,9 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 		if len(blockWords) > 0 { // check --> filter（每次按 DB 词表即时构建，保存后即时生效）
 			questionFilter := utils.NewDFAInstance(blockWords)
 			if err := questionFilter.DFA.Check(req.Message); err != nil { // exist then return err
-				answer := "**您的问题包含敏感词, AI 无法回答您的问题。**"
+				answer := chatLocaleMsg(ctx, req.Language, req.AppType,
+					"**您的问题包含敏感词, AI 无法回答您的问题。**",
+					"**Your question contains restricted words and cannot be answered by AI.**")
 				eventCh <- domain.SSEEvent{Type: "error", Content: answer}
 				// save ai answer and set it err
 				if err := u.conversationUsecase.CreateChatConversationMessage(context.Background(), req.KBID, &domain.ConversationMessage{
@@ -292,7 +316,10 @@ func (u *ChatUsecase) Chat(ctx context.Context, req *domain.ChatRequest) (<-chan
 
 		if chatErr != nil {
 			u.logger.Error("对话失败", log.Error(chatErr))
-			eventCh <- domain.SSEEvent{Type: "error", Content: "对话失败，请稍后再试"}
+			eventCh <- domain.SSEEvent{
+				Type:    "error",
+				Content: chatLocaleMsg(ctx, req.Language, req.AppType, "对话失败，请稍后再试", "Chat failed, please try again later"),
+			}
 			return
 		}
 		eventCh <- domain.SSEEvent{
@@ -338,7 +365,9 @@ func (u *ChatUsecase) ChatRagOnly(ctx context.Context, req *domain.ChatRagOnlyRe
 		if len(blockWords) > 0 { // check --> filter（每次按 DB 词表即时构建，保存后即时生效）
 			questionFilter := utils.NewDFAInstance(blockWords)
 			if err := questionFilter.DFA.Check(req.Message); err != nil { // exist then return err
-				answer := "**您的问题包含敏感词, AI 无法回答您的问题。**"
+				answer := chatLocaleMsg(ctx, req.Language, req.AppType,
+					"**您的问题包含敏感词, AI 无法回答您的问题。**",
+					"**Your question contains restricted words and cannot be answered by AI.**")
 				eventCh <- domain.SSEEvent{Type: "error", Content: answer}
 				return
 			}

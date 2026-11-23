@@ -13,6 +13,7 @@ import {
   WelcomeHeader as WelcomeHeaderComponent,
 } from '@panda-wiki/ui';
 import QaModal from '../QaModal';
+import LanguageSwitch from './LanguageSwitch';
 import ThemeSwitch from './themeSwitch';
 import { getImagePath } from '@/utils/getImagePath';
 import { useBasePath } from '@/hooks';
@@ -119,6 +120,7 @@ const Header = ({ isDocPage = false, isWelcomePage = false }: HeaderProps) => {
       onQaClick={() => setQaModalOpen?.(true)}
     >
       <Stack sx={{ ml: 2 }} direction='row' alignItems='center' gap={1}>
+        <LanguageSwitch />
         <ThemeSwitch />
         {!!authInfo && <LogoutButton />}
       </Stack>
@@ -176,11 +178,10 @@ export const WelcomeHeader = ({
       onSearch={handleSearch}
       onQaClick={() => setQaModalOpen?.(true)}
     >
-      {!!authInfo && (
-        <Box sx={{ ml: 2 }}>
-          <LogoutButton />
-        </Box>
-      )}
+      <Stack sx={{ ml: 2 }} direction='row' alignItems='center' gap={1}>
+        <LanguageSwitch />
+        {!!authInfo && <LogoutButton />}
+      </Stack>
       <QaModal />
     </WelcomeHeaderComponent>
   );
