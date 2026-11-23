@@ -67,6 +67,23 @@ func (cache *Cache) ReleaseLock(ctx context.Context, key string) bool {
 	return err == nil
 }
 
+var releaseLockScript = redis.NewScript(`
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+	return redis.call("DEL", KEYS[1])
+end
+return 0
+`)
+
+// AcquireLockWithTTL 获取带随机持有者 token 与 TTL 的分布式锁。
+func (cache *Cache) AcquireLockWithTTL(ctx context.Context, key, token string, ttl time.Duration) (bool, error) {
+	return cache.SetNX(ctx, key, token, ttl).Result()
+}
+
+// ReleaseLockWithToken 仅在锁持有者 token 匹配时释放分布式锁。
+func (cache *Cache) ReleaseLockWithToken(ctx context.Context, key, token string) error {
+	return releaseLockScript.Run(ctx, cache.Client, []string{key}, token).Err()
+}
+
 // IncrWindow 原子递增并按首次写入设定窗口过期，用于简单滑动窗口限频
 func (cache *Cache) IncrWindow(ctx context.Context, key string, window time.Duration) (int64, error) {
 	pipe := cache.TxPipeline()

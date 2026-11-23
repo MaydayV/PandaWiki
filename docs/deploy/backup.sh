@@ -9,8 +9,8 @@
 #   30 3 * * * cd /path/to/pandawiki && ./docs/deploy/backup.sh >> ./data/backups/backup.log 2>&1
 #
 # 恢复：
-#   cat ./data/backups/pandawiki-YYYYmmdd-HHMMSS.sql.gz | \
-#     docker compose -f docs/deploy/docker-compose.image.yml exec -T postgres \
+#   gzip -dc ./data/backups/pandawiki-YYYYmmdd-HHMMSS.sql.gz | \
+#     docker compose -f docs/deploy/docker-compose.image.yml exec -T panda-wiki-postgres \
 #     psql -U panda-wiki -d panda-wiki
 #   （恢复到全新库前先 DROP/重建或清空数据卷）
 set -euo pipefail
@@ -24,7 +24,7 @@ TARGET="$BACKUP_DIR/pandawiki-$STAMP.sql.gz"
 mkdir -p "$BACKUP_DIR"
 
 echo "[$(date '+%F %T')] dumping database..."
-docker compose -f "$COMPOSE_FILE" exec -T postgres \
+docker compose -f "$COMPOSE_FILE" exec -T panda-wiki-postgres \
   pg_dump -U panda-wiki -d panda-wiki --no-owner --no-privileges \
   | gzip > "$TARGET"
 

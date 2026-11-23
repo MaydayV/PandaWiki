@@ -39,6 +39,66 @@ function serializeNode(node: Node): string | null {
 }
 
 /**
+ * 当新块中包含尚在加载中的空 `.image-container` 占位符时，
+ * 克隆旧 DOM 块并清空对应占位符的子树再做 outerHTML 对比，
+ * 避免图片加载完成前每轮节流渲染误判不相等而销毁 React root。
+ */
+function serializeOldNodeForComparison(
+  oldNode: Node,
+  newNode: Node,
+  newSerialized: string,
+): string | null {
+  const rawOld = serializeNode(oldNode);
+  if (rawOld === null || rawOld === newSerialized) {
+    return rawOld;
+  }
+  if (
+    oldNode.nodeType !== Node.ELEMENT_NODE ||
+    newNode.nodeType !== Node.ELEMENT_NODE
+  ) {
+    return rawOld;
+  }
+
+  const oldEl = oldNode as Element;
+  const newEl = newNode as Element;
+  if (oldEl.tagName !== newEl.tagName) {
+    return rawOld;
+  }
+
+  const pendingSelectors: string[] = [];
+  const collectIfPendingImage = (el: Element) => {
+    if (el.classList.contains('image-container') && el.innerHTML === '') {
+      const idxClass = Array.from(el.classList).find(cls =>
+        cls.startsWith('image-container-'),
+      );
+      if (idxClass) {
+        pendingSelectors.push(`.${idxClass}`);
+      }
+    }
+  };
+
+  collectIfPendingImage(newEl);
+  newEl.querySelectorAll('.image-container').forEach(collectIfPendingImage);
+  if (pendingSelectors.length === 0) {
+    return rawOld;
+  }
+
+  const clone = oldEl.cloneNode(true) as Element;
+  let cleared = false;
+  for (const selector of pendingSelectors) {
+    if (clone.matches(selector)) {
+      clone.innerHTML = '';
+      cleared = true;
+    }
+    clone.querySelectorAll(selector).forEach(el => {
+      el.innerHTML = '';
+      cleared = true;
+    });
+  }
+  return cleared ? clone.outerHTML : rawOld;
+}
+
+/**
  * 主要的增量渲染函数
  */
 export function incrementalRender(
@@ -53,8 +113,19 @@ export function incrementalRender(
     parser.innerHTML = newHtml;
 
     const newNodes = Array.from(parser.childNodes);
+    const oldNodes = Array.from(container.childNodes);
     const newSerialized = newNodes.map(serializeNode);
-    const oldSerialized = Array.from(container.childNodes).map(serializeNode);
+    const minLength = Math.min(oldNodes.length, newNodes.length);
+    const oldSerialized = oldNodes.map((node, index) => {
+      if (index < minLength && newSerialized[index] !== null) {
+        return serializeOldNodeForComparison(
+          node,
+          newNodes[index],
+          newSerialized[index] as string,
+        );
+      }
+      return serializeNode(node);
+    });
 
     // 含无法安全比较的节点类型时退回全量重建（与旧行为一致）
     if (
@@ -66,7 +137,6 @@ export function incrementalRender(
     }
 
     // 找到最长的相同顶层块前缀
-    const minLength = Math.min(oldSerialized.length, newSerialized.length);
     let commonCount = 0;
     while (
       commonCount < minLength &&

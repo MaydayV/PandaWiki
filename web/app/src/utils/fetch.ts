@@ -41,6 +41,8 @@ class SSEClient<T> {
   public subscribe(body: BodyInit, onMessage: SSECallback<T>) {
     this.controller.abort();
     this.controller = new AbortController();
+    this.buffer = '';
+    this.textDecoder = new TextDecoder();
     const {
       url,
       headers,

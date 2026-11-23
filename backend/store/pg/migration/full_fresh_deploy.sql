@@ -841,8 +841,6 @@ CREATE INDEX IF NOT EXISTS node_release_backup_deleted_at_idx ON node_release_ba
 
 -- >>> BEGIN pgvector_rag (stack-slim)
 CREATE EXTENSION IF NOT EXISTS vector;
--- 管理端文档搜索 name/content LIKE '%kw%' 的 GIN trigram 索引
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS rag_chunks (
     id          TEXT PRIMARY KEY,

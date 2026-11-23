@@ -54,6 +54,7 @@ func NewKnowledgeBaseHandler(
 	// user management
 	userGroup := group.Group("/user", h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 	userGroup.GET("/list", h.KBUserList)
+	userGroup.GET("/candidates", h.KBUserCandidates)
 	userGroup.POST("/invite", h.KBUserInvite)
 	userGroup.PATCH("/update", h.KBUserUpdate)
 	userGroup.DELETE("/delete", h.KBUserDelete)

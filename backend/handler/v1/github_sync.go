@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"strings"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/chaitin/panda-wiki/consts"
@@ -32,7 +34,7 @@ func NewGitHubSyncHandler(
 		auth:        auth,
 	}
 
-	group := e.Group("/api/v1/github_sync", h.auth.Authorize, h.auth.ValidateUserRole(consts.UserRoleAdmin))
+	group := e.Group("/api/v1/github_sync", h.auth.Authorize, h.auth.ValidateKBUserPerm(consts.UserKBPermissionFullControl))
 	group.GET("/config", h.GetConfig)
 	group.PUT("/config", h.SaveConfig)
 	group.POST("/sync", h.TriggerSync)
@@ -45,7 +47,7 @@ func NewGitHubSyncHandler(
 //	@Description	Get GitHub sync config for the KB
 //	@Tags			github_sync
 //	@Produce		json
-//	@Param			kb_id	query		string	true	"Knowledge Base ID"
+//	@Param			kb_id	query	string	true	"Knowledge Base ID"
 //	@Security		bearerAuth
 //	@Success		200	{object}	domain.PWResponse{data=domain.GitHubSyncSetting}
 //	@Router			/api/v1/github_sync/config [get]
@@ -68,18 +70,22 @@ func (h *GitHubSyncHandler) GetConfig(c echo.Context) error {
 //	@Tags			github_sync
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		domain.GitHubSyncSetting	true	"GitHub sync config"
+//	@Param			kb_id	query	string						false	"Knowledge Base ID"
+//	@Param			request	body	domain.GitHubSyncSetting	true	"GitHub sync config"
 //	@Security		bearerAuth
 //	@Success		200	{object}	domain.PWResponse
 //	@Router			/api/v1/github_sync/config [put]
 func (h *GitHubSyncHandler) SaveConfig(c echo.Context) error {
-	kbID := c.QueryParam("kb_id")
-	if kbID == "" {
-		return h.NewResponseWithError(c, "kb_id is required", nil)
-	}
 	req := domain.GitHubSyncSetting{}
 	if err := c.Bind(&req); err != nil {
 		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	kbID := strings.TrimSpace(req.KBID)
+	if kbID == "" {
+		kbID = strings.TrimSpace(c.QueryParam("kb_id"))
+	}
+	if kbID == "" {
+		return h.NewResponseWithError(c, "kb_id is required", nil)
 	}
 	if err := h.usecase.SaveConfig(c.Request().Context(), kbID, &req); err != nil {
 		return h.NewResponseWithError(c, "save github sync config failed", err)
@@ -94,13 +100,16 @@ func (h *GitHubSyncHandler) SaveConfig(c echo.Context) error {
 //	@Tags			github_sync
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		domain.GitHubSyncTriggerReq	true	"trigger request"
+//	@Param			request	body	domain.GitHubSyncTriggerReq	true	"trigger request"
 //	@Security		bearerAuth
 //	@Success		200	{object}	domain.PWResponse{data=domain.GitHubSyncResult}
 //	@Router			/api/v1/github_sync/sync [post]
 func (h *GitHubSyncHandler) TriggerSync(c echo.Context) error {
 	req := domain.GitHubSyncTriggerReq{}
 	if err := c.Bind(&req); err != nil {
+		return h.NewResponseWithError(c, "invalid request", err)
+	}
+	if err := c.Validate(&req); err != nil {
 		return h.NewResponseWithError(c, "invalid request", err)
 	}
 	userID := ""

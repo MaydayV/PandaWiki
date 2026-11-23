@@ -69,7 +69,7 @@ WITH picked AS (
     FROM rag_jobs
     WHERE status = 'pending'
       AND (
-        attempts <= 1
+        attempts = 0
         OR locked_at IS NULL
         OR locked_at <= NOW() - (LEAST(attempts * attempts * 10, 300) || ' seconds')::interval
       )
@@ -127,10 +127,24 @@ func (r *RagJobRepository) PurgeDone(ctx context.Context, before time.Time) (int
 	return result.RowsAffected, nil
 }
 
-// RequeueStale 将 processing 超过 timeout 的僵尸任务重回 pending：
-// worker 在 Claim 后、MarkDone/MarkFailed 前崩溃/重启时会留下此类任务，
-// locked_at/locked_by 只有靠这里才能恢复
+// RequeueStale 将 processing 超过 timeout 的僵尸任务重回 pending（仅限未耗尽
+// max_attempts 的任务）；已耗尽重试次数的超时任务标记为 failed，避免毒丸任务无限循环。
 func (r *RagJobRepository) RequeueStale(ctx context.Context, timeout time.Duration) (int64, error) {
+	intervalArg := fmt.Sprintf("%d seconds", int(timeout.Seconds()))
+	if err := r.db.WithContext(ctx).Exec(`
+UPDATE rag_jobs
+SET status = 'failed',
+    last_error = 'worker timed out after max attempts',
+    locked_at = NULL,
+    locked_by = '',
+    updated_at = NOW()
+WHERE status = 'processing'
+  AND attempts >= max_attempts
+  AND locked_at <= NOW() - ?::interval
+`, intervalArg).Error; err != nil {
+		return 0, fmt.Errorf("fail stale exhausted rag jobs: %w", err)
+	}
+
 	result := r.db.WithContext(ctx).Exec(`
 UPDATE rag_jobs
 SET status = 'pending',
@@ -138,8 +152,9 @@ SET status = 'pending',
     locked_by = '',
     updated_at = NOW()
 WHERE status = 'processing'
+  AND attempts < max_attempts
   AND locked_at <= NOW() - ?::interval
-`, fmt.Sprintf("%d seconds", int(timeout.Seconds())))
+`, intervalArg)
 	if result.Error != nil {
 		return 0, fmt.Errorf("requeue stale rag jobs: %w", result.Error)
 	}

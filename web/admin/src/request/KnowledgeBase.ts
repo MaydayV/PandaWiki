@@ -29,6 +29,7 @@ import {
   V1KBUserInviteReq,
   V1KBUserListItemResp,
   V1KBUserUpdateReq,
+  V1UserListResp,
 } from "./types";
 
 export interface GetApiV1KnowledgeBaseReleaseDocsParams {
@@ -375,6 +376,20 @@ export const getApiV1KnowledgeBaseUserList = (
     }
   >({
     path: `/api/v1/knowledge_base/user/list`,
+    method: "GET",
+    query: query,
+    secure: true,
+    type: ContentType.Json,
+    format: "json",
+    ...params,
+  });
+
+export const getApiV1KnowledgeBaseUserCandidates = (
+  query: GetApiV1KnowledgeBaseUserListParams,
+  params: RequestParams = {},
+) =>
+  httpRequest<V1UserListResp>({
+    path: `/api/v1/knowledge_base/user/candidates`,
     method: "GET",
     query: query,
     secure: true,

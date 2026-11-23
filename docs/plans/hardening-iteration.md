@@ -188,3 +188,22 @@ repo 层/web/packages/收尾角落）持续闭环，修复 **2 个新 P0**（跨
 - 幂等：节点 meta 记录 blob sha，未变跳过（省 embedding 成本）
 - 设置卡片：开关/repo/分支/PAT（加密）/间隔/自动发布/孤儿删除 + 立即同步
 - 发布联动：一次同步一个 KB release，RAG 走异步队列
+
+## 深度复审与全面修复（2026-11-23）
+
+对本地 40 个提交（加固迭代 + GitHub 同步新功能）进行独立深度复审后，发现并修复以下 P0/P1/P2 缺陷：
+
+### P0 阻塞修复
+- **GitHub MD 同步主链路 3 处致命问题**：修复 `GetRaw` URL 双 `branch` 拼接并补路径段转义；创建/更新节点补全 `content_type="md"`；`AutoPublish` 改为仅对本次实际新建/更新的 `changedNodeIDs`（含新建文件夹）及孤儿删除场景触发 `CreateKBRelease`（不再每轮全量重发整个仓库）。
+- **Docker 构建修复**：`backend/Dockerfile.api` 补拷贝 `web/pnpm-lock.yaml`；3 个后端 Dockerfile（`Dockerfile.api` / `Dockerfile.api.pro` / `Dockerfile.consumer.pro`）在 `go mod download` 前拷贝 `third_party/` 满足 `go.mod replace`。
+- **投稿审批 3 处回退修复**：`AuditContribute` 补全 `rejected` 状态落库分支；去掉 `ContributeAuditReq.NavID` 无条件 `validate:"required"` 改由 usecase 仅在新增采纳且 `parent_id` 为空时校验；新增 `RevertContributeStatusToPending` 解决失败回退 `pending` 空操作问题；前端编辑/拒绝审核传 `nav_id || ''`。
+- **文件上传与 Widget 限频拦截修复**：`/api/v1/file/upload(+url)` 改为路由级 `requireKBPermIfPresent` 中间件拦截（解决手调 `ValidateKBUserPerm` 写 403 返回 `nil` 不中止，以及 `UploadByUrl` `c.Bind` 后读空 Body 的问题）；`enforceWidgetRateLimit` 改为返回 `errWidgetRateLimited` 由 `ChatWidget`（SSE）与 `WidgetSearch`（JSON）分别按各自协议格式拦截退出。
+- **pgvector 低版本降级事务中止修复**：`PGRAG.searchVector` 内用 `SAVEPOINT sp_hnsw_tuning` 包裹每条 `SET LOCAL hnsw.*`，避免 pgvector < 0.8 触发事务 `25P02 aborted` 并保留可用的 `hnsw.ef_search`。
+- **存量库平滑升级与解密 panic 防护**：`store/pg/pg.go` 新增 `ensureUpgradedColumns` 自动为存量 `api_tokens` 补 `token_index` 列、回填明文索引并建唯一索引；`DecryptSecret` 在 `gcm.Open` 前校验 `len(raw) < gcm.NonceSize()` 防短密文 panic。
+
+### P1 / P2 修复与能力补全
+- **安全 MIME 判定**：`usecase/file.go` 新增 `resolveSafeUploadContentType`，高危 HTML/JS 载荷一律降级为 `application/octet-stream`（防伪装扩展名 XSS），同时保留 `.svg` 与 Office 文档精确 MIME。
+- **协作者邀请成员 403 回归**：保留 `/api/v1/user/list` 仅限 Admin，新增 KB 级端点 `GET /api/v1/knowledge_base/user/candidates`（过滤 Admin 后返回候选用户），`AddRole.tsx` 改调新端点并按角色控制“新建用户”按钮。
+- **GitHub 同步完善**：`ValidateRepoName` 与 `VerifyRepoAndBranch` 严格校验仓库和分支；支持 front-matter `order`、更新时同步 `nav_id`/`parent_id`/`position`、跨栏目文件夹键隔离（`folder:<navID>/<dir>`）、图片按 blob SHA 复用防 OSS 泄漏、`UpdateSyncStatus` 事务更新状态防覆盖配置、Redis 分布式锁防多副本并发、`StartSyncLoop` 迁入 `RUN_WORKER=1` 并受 `LastSyncAt` 约束、前端 `CardGitHubSync` 加竞态守卫与未保存态控制、重生成 Swagger 与 Wire。
+- **运维脚本与技术债清理**：修正 `docs/deploy/backup.sh` 容器服务名（`panda-wiki-postgres`）及恢复解压命令；`native/deploy.sh` 补 `ENCRYPTION_KEY`/`TRUST_PROXY`、`generate-env.sh` 补 `TRUST_PROXY=1`；完善 `larkws` 补丁优雅退出（`pingLoop`/`reconnect` 响应取消）与 `feishu/stream.go` 启动期取消；`incrementalRenderer.tsx` 规范化 pending `.image-container` 对比、`fetch.ts` `subscribe()` 重置缓冲、`vite.config.ts` 修复 Windows 分包正则；`rag_job.go` 修复首次重试退避（`attempts=0`）与耗尽 `max_attempts` 毒丸任务标失败；`DeleteKnowledgeBase` 补清理 `conversation_references` 与 `rag_jobs`；移除 `full_fresh_deploy.sql` 重复 `pg_trgm` 扩展声明。
+- **回归测试补全与验证**：新增 `githubsync_test.go`、`file_test.go`、`chat_ratelimit_test.go`，并扩充 `crypt_test.go` 与 `file_remote_test.go`。后端 `golangci-lint run`（0 issues）、`go test -race ./...`、`cmd/api` & `cmd/migrate` 本地及 `golang:1.26` 容器静态构建、`web/admin` 构建与 `web/app` lint/build、`docs/deploy/*.sh` `bash -n` 均通过（注：完整 `docker build -f backend/Dockerfile.api` 因当前环境访问 `registry-1.docker.io` 返回 EOF 未拉取远程基础镜像，已由 `COPY` 路径核对、`go 1.26.0` 版本核查及 `golang:1.26` 容器离线构建替代验证）。

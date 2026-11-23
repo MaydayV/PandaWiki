@@ -127,9 +127,10 @@ type NodeGroupDetail struct {
 
 // NodeGitHubSync 记录节点与 GitHub 仓库文件的幂等映射（git 同步模式）
 type NodeGitHubSync struct {
-	Repo string `json:"repo,omitempty"` // owner/repo
-	Path string `json:"path,omitempty"` // 仓库内文件路径
-	SHA  string `json:"sha,omitempty"`  // 文件 blob sha，未变化时跳过重复索引
+	Repo   string            `json:"repo,omitempty"`   // owner/repo
+	Path   string            `json:"path,omitempty"`   // 仓库内文件路径
+	SHA    string            `json:"sha,omitempty"`    // 文件 blob sha，未变化时跳过重复索引
+	Images map[string]string `json:"images,omitempty"` // repoImagePath:blobSHA -> /static-file/...
 }
 
 type NodeMeta struct {
@@ -300,6 +301,7 @@ type UpdateNodeReq struct {
 	Position    *float64 `json:"position"`
 	ContentType *string  `json:"content_type"`
 	NavId       *string  `json:"nav_id"`
+	ParentID    *string  `json:"parent_id,omitempty"`
 }
 
 type ShareNodeListItemResp struct {

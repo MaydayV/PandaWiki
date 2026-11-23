@@ -30,7 +30,7 @@ export const putApiV1GithubSyncConfig = (
     path: '/api/v1/github_sync/config',
     method: 'PUT',
     query,
-    body,
+    body: { ...body, kb_id: query.kb_id || body.kb_id },
   });
 
 export const postApiV1GithubSyncSync = (body: { kb_id: string }) =>

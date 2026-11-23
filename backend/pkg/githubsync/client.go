@@ -9,25 +9,75 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
 
+const (
+	defaultAPIBase = "https://api.github.com"
+	defaultRawBase = "https://raw.githubusercontent.com"
+)
+
+var repoNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$`)
+
 // Client 是 GitHub REST API 客户端（github.com 固定域名，无需 SSRF 校验；
 // Token 为用户配置的 PAT，仅要求 repo 只读权限即可）。
 type Client struct {
-	token string
-	http  *http.Client
+	token   string
+	apiBase string
+	rawBase string
+	http    *http.Client
 }
 
 func NewClient(token string) *Client {
+	return NewClientWithBase(token, defaultAPIBase, defaultRawBase)
+}
+
+// NewClientWithBase 允许指定自定义 API/Raw Base URL（用于单元测试）。
+func NewClientWithBase(token, apiBase, rawBase string) *Client {
+	if apiBase == "" {
+		apiBase = defaultAPIBase
+	}
+	if rawBase == "" {
+		rawBase = defaultRawBase
+	}
 	return &Client{
-		token: strings.TrimSpace(token),
-		http:  &http.Client{Timeout: 30 * time.Second},
+		token:   strings.TrimSpace(token),
+		apiBase: strings.TrimRight(apiBase, "/"),
+		rawBase: strings.TrimRight(rawBase, "/"),
+		http:    &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
-const apiBase = "https://api.github.com"
+// ValidateRepoName 校验仓库标识是否符合合法的 owner/repo 格式，防止路径穿越或查询注入。
+func ValidateRepoName(repo string) error {
+	repo = strings.TrimSpace(repo)
+	if !repoNamePattern.MatchString(repo) {
+		return fmt.Errorf("repo must be in valid owner/repo format")
+	}
+	parts := strings.Split(repo, "/")
+	for _, seg := range parts {
+		if seg == "." || seg == ".." {
+			return fmt.Errorf("repo must be in valid owner/repo format")
+		}
+	}
+	return nil
+}
+
+// escapeGitHubPath 按路径段转义分支名或文件路径（保留斜杠分隔符）。
+func escapeGitHubPath(p string) string {
+	p = strings.TrimPrefix(p, "/")
+	if p == "" {
+		return ""
+	}
+	segs := strings.Split(p, "/")
+	for i, seg := range segs {
+		segs[i] = url.PathEscape(seg)
+	}
+	return strings.Join(segs, "/")
+}
 
 // TreeEntry 是仓库文件树中的一项
 type TreeEntry struct {
@@ -45,7 +95,7 @@ type treeResponse struct {
 
 // GetTree 拉取指定分支的完整文件树（recursive）
 func (c *Client) GetTree(ctx context.Context, repo, branch string) ([]TreeEntry, error) {
-	data, err := c.get(ctx, fmt.Sprintf("%s/repos/%s/git/trees/%s?recursive=1", apiBase, repo, branch))
+	data, err := c.get(ctx, fmt.Sprintf("%s/repos/%s/git/trees/%s?recursive=1", c.apiBase, repo, escapeGitHubPath(branch)))
 	if err != nil {
 		return nil, err
 	}
@@ -62,14 +112,13 @@ func (c *Client) GetTree(ctx context.Context, repo, branch string) ([]TreeEntry,
 // GetRaw 拉取指定路径的原始文件内容（blob）
 func (c *Client) GetRaw(ctx context.Context, repo, branch, path string, maxSize int64) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", repo, branch, branch, path), nil)
+		fmt.Sprintf("%s/%s/%s/%s", c.rawBase, repo, escapeGitHubPath(branch), escapeGitHubPath(path)), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create raw request failed: %w", err)
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
-	req.Header.Set("Accept", "application/vnd.github.raw")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -130,6 +179,24 @@ func (c *Client) get(ctx context.Context, url string) ([]byte, error) {
 
 // VerifyRepo 校验仓库可达（保存配置前调用，提前暴露 token/权限问题）
 func (c *Client) VerifyRepo(ctx context.Context, repo string) error {
-	_, err := c.get(ctx, fmt.Sprintf("%s/repos/%s", apiBase, repo))
+	if err := ValidateRepoName(repo); err != nil {
+		return err
+	}
+	_, err := c.get(ctx, fmt.Sprintf("%s/repos/%s", c.apiBase, repo))
 	return err
+}
+
+// VerifyRepoAndBranch 校验仓库及目标分支均可达。
+func (c *Client) VerifyRepoAndBranch(ctx context.Context, repo, branch string) error {
+	if err := c.VerifyRepo(ctx, repo); err != nil {
+		return err
+	}
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return fmt.Errorf("branch is required")
+	}
+	if _, err := c.get(ctx, fmt.Sprintf("%s/repos/%s/branches/%s", c.apiBase, repo, escapeGitHubPath(branch))); err != nil {
+		return fmt.Errorf("verify branch %q failed: %w", branch, err)
+	}
+	return nil
 }

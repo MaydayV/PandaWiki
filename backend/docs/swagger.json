@@ -1372,6 +1372,146 @@
                 }
             }
         },
+        "/api/v1/github_sync/config": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Get GitHub sync config for the KB",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "github_sync"
+                ],
+                "summary": "Get GitHub sync config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Knowledge Base ID",
+                        "name": "kb_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/domain.PWResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/domain.GitHubSyncSetting"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Save GitHub sync config for the KB",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "github_sync"
+                ],
+                "summary": "Save GitHub sync config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Knowledge Base ID",
+                        "name": "kb_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "GitHub sync config",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.GitHubSyncSetting"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.PWResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/github_sync/sync": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Trigger a manual GitHub sync (runs synchronously)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "github_sync"
+                ],
+                "summary": "Trigger GitHub sync",
+                "parameters": [
+                    {
+                        "description": "trigger request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.GitHubSyncTriggerReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/domain.PWResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/domain.GitHubSyncResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/knowledge_base": {
             "post": {
                 "description": "CreateKnowledgeBase",
@@ -1767,6 +1907,55 @@
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/domain.RollbackKBReleaseResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/knowledge_base/user/candidates": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "List candidate users that can be invited to the knowledge base",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "knowledge_base"
+                ],
+                "summary": "KBUserCandidates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Knowledge Base ID",
+                        "name": "kb_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/domain.PWResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UserListResp"
                                         }
                                     }
                                 }
@@ -7546,6 +7735,91 @@
                 }
             }
         },
+        "domain.GitHubSyncResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer"
+                },
+                "deleted": {
+                    "type": "integer"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.GitHubSyncSetting": {
+            "type": "object",
+            "properties": {
+                "auto_publish": {
+                    "description": "同步后自动发布（触发 RAG 向量更新）",
+                    "type": "boolean"
+                },
+                "branch": {
+                    "description": "默认 main",
+                    "type": "string"
+                },
+                "delete_orphans": {
+                    "description": "仓库删除的文件是否同步删除节点（默认 false）",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "has_token": {
+                    "type": "boolean"
+                },
+                "interval_minutes": {
+                    "description": "0 = 仅手动同步",
+                    "type": "integer"
+                },
+                "kb_id": {
+                    "type": "string"
+                },
+                "last_sync_at": {
+                    "type": "string"
+                },
+                "last_sync_result": {
+                    "description": "最近一次同步摘要/错误",
+                    "type": "string"
+                },
+                "repo": {
+                    "description": "owner/repo",
+                    "type": "string"
+                },
+                "token": {
+                    "description": "Token 加密存储，API 响应不回传明文；HasToken 告知前端是否已配置",
+                    "type": "string"
+                }
+            }
+        },
+        "domain.GitHubSyncTriggerReq": {
+            "type": "object",
+            "required": [
+                "kb_id"
+            ],
+            "properties": {
+                "kb_id": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.HotBrowser": {
             "type": "object",
             "properties": {
@@ -9366,6 +9640,9 @@
                     "type": "string"
                 },
                 "nav_id": {
+                    "type": "string"
+                },
+                "parent_id": {
                     "type": "string"
                 },
                 "position": {

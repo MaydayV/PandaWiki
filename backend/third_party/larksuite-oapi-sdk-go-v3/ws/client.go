@@ -192,45 +192,70 @@ func (c *Client) connect(ctx context.Context) (err error) {
 	return
 }
 
+func (c *Client) isClosed(ctx context.Context) bool {
+	select {
+	case <-c.closedCh:
+		return true
+	case <-ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) sleepWithCancel(ctx context.Context, d time.Duration) bool {
+	if d <= 0 {
+		return !c.isClosed(ctx)
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-c.closedCh:
+		return false
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
 func (c *Client) reconnect(ctx context.Context) (err error) {
 	// 首次重连随机抖动
 	if c.reconnectNonce > 0 {
 		rand.Seed(time.Now().UnixNano())
 		num := rand.Intn(c.reconnectNonce * 1000)
-		time.Sleep(time.Duration(num) * time.Millisecond)
+		if !c.sleepWithCancel(ctx, time.Duration(num)*time.Millisecond) {
+			return nil
+		}
 	}
 
 	if c.reconnectCount >= 0 {
 		for i := 0; i < c.reconnectCount; i++ {
-			select {
-			case <-c.closedCh:
+			if c.isClosed(ctx) {
 				return nil
-			case <-ctx.Done():
-				return nil
-			default:
 			}
 			success, err := c.tryConnect(ctx, i)
 			if success || err != nil {
 				return err
 			}
-			time.Sleep(c.reconnectInterval)
+			if !c.sleepWithCancel(ctx, c.reconnectInterval) {
+				return nil
+			}
 		}
 		return fmt.Errorf("unable to connect to server after %d retries", c.reconnectCount)
 	} else {
 		i := 0
 		for {
-			select {
-			case <-c.closedCh:
+			if c.isClosed(ctx) {
 				return nil
-			case <-ctx.Done():
-				return nil
-			default:
 			}
 			success, err := c.tryConnect(ctx, i)
 			if success || err != nil {
 				return err
 			}
-			time.Sleep(c.reconnectInterval)
+			if !c.sleepWithCancel(ctx, c.reconnectInterval) {
+				return nil
+			}
 			i += 1
 		}
 	}
@@ -336,10 +361,16 @@ func (c *Client) pingLoop(ctx context.Context) {
 		if err := recover(); err != nil {
 			c.logger.Warn(ctx, c.fmtLog("ping loop panic, err: %v, stack: %s", err, string(debug.Stack()))...)
 		}
+		if c.isClosed(ctx) {
+			return
+		}
 		go c.pingLoop(ctx)
 	}()
 
 	for {
+		if c.isClosed(ctx) {
+			return
+		}
 		if c.conn != nil {
 			i, _ := strconv.ParseInt(c.serviceID, 10, 32)
 			frame := NewPingFrame(int32(i))
@@ -352,7 +383,9 @@ func (c *Client) pingLoop(ctx context.Context) {
 				c.logger.Debug(ctx, c.fmtLog("ping success")...)
 			}
 		}
-		time.Sleep(c.pingInterval)
+		if !c.sleepWithCancel(ctx, c.pingInterval) {
+			return
+		}
 	}
 }
 
@@ -362,7 +395,7 @@ func (c *Client) receiveMessageLoop(ctx context.Context) {
 			c.logger.Error(ctx, c.fmtLog("receive message loop panic, err: %v, stack: %s", err, string(debug.Stack()))...)
 		}
 		c.disconnect(ctx)
-		if c.autoReconnect {
+		if !c.isClosed(ctx) && c.autoReconnect {
 			if err := c.reconnect(ctx); err != nil {
 				c.logger.Error(ctx, err)
 			}
@@ -370,6 +403,9 @@ func (c *Client) receiveMessageLoop(ctx context.Context) {
 	}()
 
 	for {
+		if c.isClosed(ctx) {
+			return
+		}
 		if c.conn == nil {
 			c.logger.Error(ctx, c.fmtLog("connection is closed, receive message loop exit")...)
 			return

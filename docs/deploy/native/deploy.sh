@@ -164,6 +164,8 @@ ADMIN_DIST_DIR=${REPO_ROOT}/web/admin/dist
 RAG_PROVIDER=pg
 RAG_PG_EMBEDDING_DIM=${RAG_PG_EMBEDDING_DIM:-1024}
 CADDY_API=disabled
+ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+TRUST_PROXY=${TRUST_PROXY:-1}
 ENV
 
 write_as_root /etc/systemd/system/pandawiki-api.service <<UNIT

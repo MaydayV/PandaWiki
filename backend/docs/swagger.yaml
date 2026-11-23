@@ -1587,6 +1587,64 @@ definitions:
           $ref: '#/definitions/domain.ProviderModelListItem'
         type: array
     type: object
+  domain.GitHubSyncResult:
+    properties:
+      created:
+        type: integer
+      deleted:
+        type: integer
+      duration:
+        type: string
+      errors:
+        items:
+          type: string
+        type: array
+      failed:
+        type: integer
+      skipped:
+        type: integer
+      updated:
+        type: integer
+    type: object
+  domain.GitHubSyncSetting:
+    properties:
+      auto_publish:
+        description: 同步后自动发布（触发 RAG 向量更新）
+        type: boolean
+      branch:
+        description: 默认 main
+        type: string
+      delete_orphans:
+        description: 仓库删除的文件是否同步删除节点（默认 false）
+        type: boolean
+      enabled:
+        type: boolean
+      has_token:
+        type: boolean
+      interval_minutes:
+        description: 0 = 仅手动同步
+        type: integer
+      kb_id:
+        type: string
+      last_sync_at:
+        type: string
+      last_sync_result:
+        description: 最近一次同步摘要/错误
+        type: string
+      repo:
+        description: owner/repo
+        type: string
+      token:
+        description: Token 加密存储，API 响应不回传明文；HasToken 告知前端是否已配置
+        type: string
+    type: object
+  domain.GitHubSyncTriggerReq:
+    properties:
+      kb_id:
+        type: string
+    required:
+    - kb_id
+    type: object
   domain.HotBrowser:
     properties:
       browser:
@@ -2777,6 +2835,8 @@ definitions:
       name:
         type: string
       nav_id:
+        type: string
+      parent_id:
         type: string
       position:
         type: number
@@ -4594,6 +4654,88 @@ paths:
       summary: Upload File By Url
       tags:
       - file
+  /api/v1/github_sync/config:
+    get:
+      description: Get GitHub sync config for the KB
+      parameters:
+      - description: Knowledge Base ID
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.GitHubSyncSetting'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: Get GitHub sync config
+      tags:
+      - github_sync
+    put:
+      consumes:
+      - application/json
+      description: Save GitHub sync config for the KB
+      parameters:
+      - description: Knowledge Base ID
+        in: query
+        name: kb_id
+        type: string
+      - description: GitHub sync config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.GitHubSyncSetting'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.PWResponse'
+      security:
+      - bearerAuth: []
+      summary: Save GitHub sync config
+      tags:
+      - github_sync
+  /api/v1/github_sync/sync:
+    post:
+      consumes:
+      - application/json
+      description: Trigger a manual GitHub sync (runs synchronously)
+      parameters:
+      - description: trigger request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.GitHubSyncTriggerReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.GitHubSyncResult'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: Trigger GitHub sync
+      tags:
+      - github_sync
   /api/v1/knowledge_base:
     post:
       consumes:
@@ -4838,6 +4980,34 @@ paths:
                   $ref: '#/definitions/domain.RollbackKBReleaseResp'
               type: object
       summary: RollbackKBRelease
+      tags:
+      - knowledge_base
+  /api/v1/knowledge_base/user/candidates:
+    get:
+      consumes:
+      - application/json
+      description: List candidate users that can be invited to the knowledge base
+      parameters:
+      - description: Knowledge Base ID
+        in: query
+        name: kb_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/domain.PWResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UserListResp'
+              type: object
+      security:
+      - bearerAuth: []
+      summary: KBUserCandidates
       tags:
       - knowledge_base
   /api/v1/knowledge_base/user/delete:

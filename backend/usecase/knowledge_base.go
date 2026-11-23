@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	v1 "github.com/chaitin/panda-wiki/api/kb/v1"
+	userv1 "github.com/chaitin/panda-wiki/api/user/v1"
 	"github.com/chaitin/panda-wiki/config"
 	"github.com/chaitin/panda-wiki/consts"
 	"github.com/chaitin/panda-wiki/domain"
@@ -357,6 +358,23 @@ func (u *KnowledgeBaseUsecase) GetKBUserList(ctx context.Context, req v1.KBUserL
 	return users, nil
 }
 
+// GetKBUserCandidates 返回可邀请为知识库协作者的候选用户列表（过滤掉管理员账号，
+// 供具备 KB full_control 权限的协作者在邀请成员弹窗中选择用户）。
+func (u *KnowledgeBaseUsecase) GetKBUserCandidates(ctx context.Context) (*userv1.UserListResp, error) {
+	users, err := u.userRepo.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	candidates := make([]userv1.UserListItemResp, 0, len(users))
+	for _, user := range users {
+		if user.Role == consts.UserRoleAdmin {
+			continue
+		}
+		candidates = append(candidates, user)
+	}
+	return &userv1.UserListResp{Users: candidates}, nil
+}
+
 func (u *KnowledgeBaseUsecase) KBUserInvite(ctx context.Context, req v1.KBUserInviteReq) error {
 	user, err := u.userRepo.GetUser(ctx, req.UserId)
 	if err != nil {
@@ -607,17 +625,35 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 
 	var approvedNodeID *string
 
+	if req.Status == consts.ContributeStatusRejected {
+		if affectedRows, err := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, consts.ContributeStatusRejected, nil); err != nil {
+			return nil, err
+		} else if affectedRows == 0 {
+			return nil, fmt.Errorf("contribute has already been audited")
+		}
+		return &domain.ContributeAuditResp{
+			Message: "success",
+		}, nil
+	}
+
 	// 只读校验前置（必须在抢占状态变更之前）：校验失败时投稿仍是 pending
 	// 可重新审批；若放在 CAS 之后，任何失败都会永久"烧掉"投稿
 	if req.Status == consts.ContributeStatusApproved {
 		switch contribute.Type {
 		case consts.ContributeTypeAdd:
+			navID := strings.TrimSpace(req.NavID)
 			if strings.TrimSpace(req.ParentID) != "" {
 				parentNode, err := u.nodeRepo.GetNodeByID(ctx, req.ParentID)
 				if err != nil || parentNode.KBID != req.KBID || parentNode.Type != domain.NodeTypeFolder {
 					return nil, fmt.Errorf("invalid parent node")
 				}
-			} else if strings.TrimSpace(req.NavID) == "" {
+				if navID == "" {
+					navID = parentNode.NavId
+				} else if parentNode.NavId != "" && parentNode.NavId != navID {
+					return nil, fmt.Errorf("parent node does not belong to target nav")
+				}
+			}
+			if navID == "" {
 				return nil, fmt.Errorf("nav_id is required when parent is empty")
 			}
 
@@ -641,7 +677,7 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 			nodeID, err := u.nodeRepo.Create(ctx, &domain.CreateNodeReq{
 				KBID:        req.KBID,
 				ParentID:    req.ParentID,
-				NavId:       req.NavID,
+				NavId:       navID,
 				Type:        domain.NodeTypeDocument,
 				Name:        strings.TrimSpace(contribute.Name),
 				Content:     contribute.Content,
@@ -651,7 +687,7 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 			}, auditUserID)
 			if err != nil {
 				// 副作用失败回写 pending：投稿不被"烧掉"，可修复后重审
-				if _, revertErr := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, consts.ContributeStatusPending, nil); revertErr != nil {
+				if revertErr := u.nodeRepo.RevertContributeStatusToPending(ctx, req.KBID, req.ID); revertErr != nil {
 					return nil, fmt.Errorf("create node failed: %w (revert status also failed: %w)", err, revertErr)
 				}
 				return nil, err
@@ -695,7 +731,7 @@ func (u *KnowledgeBaseUsecase) AuditContribute(ctx context.Context, req *domain.
 				Emoji:       &emoji,
 				ContentType: &contentType,
 			}, auditUserID); err != nil {
-				if _, revertErr := u.nodeRepo.UpdateContributeAudit(ctx, req.KBID, req.ID, auditUserID, consts.ContributeStatusPending, nil); revertErr != nil {
+				if revertErr := u.nodeRepo.RevertContributeStatusToPending(ctx, req.KBID, req.ID); revertErr != nil {
 					return nil, fmt.Errorf("update node content failed: %w (revert status also failed: %w)", err, revertErr)
 				}
 				return nil, err

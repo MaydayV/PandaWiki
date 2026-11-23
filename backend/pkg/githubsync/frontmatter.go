@@ -103,8 +103,13 @@ func TitleFromPath(path string) string {
 	if idx >= 0 {
 		name = path[idx+1:]
 	}
-	name = strings.TrimSuffix(name, ".md")
-	name = strings.TrimSuffix(name, ".markdown")
+	lower := strings.ToLower(name)
+	switch {
+	case strings.HasSuffix(lower, ".markdown"):
+		name = name[:len(name)-len(".markdown")]
+	case strings.HasSuffix(lower, ".md"):
+		name = name[:len(name)-len(".md")]
+	}
 	return name
 }
 

@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io"
+	"strings"
 	"sync"
 )
 
@@ -96,6 +97,9 @@ func DecryptSecret(value string) string {
 	if err != nil {
 		return ""
 	}
+	if len(raw) < gcm.NonceSize() {
+		return ""
+	}
 	plain, err := gcm.Open(nil, raw[:gcm.NonceSize()], raw[gcm.NonceSize():], nil)
 	if err != nil {
 		return ""
@@ -121,5 +125,5 @@ func CryptoEnabled() bool {
 }
 
 func hasSecretPrefix(s string) bool {
-	return len(s) > len(secretEncPrefix) && s[:len(secretEncPrefix)] == secretEncPrefix
+	return strings.HasPrefix(s, secretEncPrefix)
 }

@@ -109,44 +109,40 @@ export default defineConfig(({ command, mode }) => {
             groups: [
               {
                 name: 'vendor-react',
-                test:
-                  /node_modules[\\/](?:react\/|react-dom\/|react-router\/|react-redux\/|@reduxjs\/toolkit\/)/,
+                test: /node_modules[\\/](?:react[\\/]|react-dom[\\/]|react-router[\\/]|react-redux[\\/]|@reduxjs[\\/]toolkit[\\/])/,
               },
-              { name: 'vendor-mui', test: /node_modules[\\/]@mui\// },
+              { name: 'vendor-mui', test: /node_modules[\\/]@mui[\\/]/ },
               {
                 name: 'vendor-editor',
-                test:
-                  /node_modules[\\/](?:highlight\.js\/|lowlight\/|katex\/|prosemirror-state\/)/,
+                test: /node_modules[\\/](?:highlight\.js[\\/]|lowlight[\\/]|katex[\\/]|prosemirror-state[\\/])/,
               },
               {
                 name: 'vendor-markdown',
-                test:
-                  /node_modules[\\/](?:react-markdown\/|remark-gfm\/|remark-math\/|remark-breaks\/|rehype-katex\/|rehype-raw\/|rehype-sanitize\/)/,
+                test: /node_modules[\\/](?:react-markdown[\\/]|remark-gfm[\\/]|remark-math[\\/]|remark-breaks[\\/]|rehype-katex[\\/]|rehype-raw[\\/]|rehype-sanitize[\\/])/,
               },
               {
                 name: 'vendor-yjs',
-                test: /node_modules[\\/](?:yjs\/|y-websocket\/)/,
+                test: /node_modules[\\/](?:yjs[\\/]|y-websocket[\\/])/,
               },
               {
                 name: 'vendor-echarts',
-                test: /node_modules[\\/](?:echarts\/|zrender\/)/,
+                test: /node_modules[\\/](?:echarts[\\/]|zrender[\\/])/,
               },
               {
                 name: 'vendor-modelkit',
-                test: /node_modules[\\/]@ctzhian\/modelkit\//,
+                test: /node_modules[\\/]@ctzhian[\\/]modelkit[\\/]/,
                 includeDependenciesRecursively: false,
               },
               {
                 name: 'vendor-emoji',
-                test: /node_modules[\\/](?:emoji-mart\/|@emoji-mart\/)/,
+                test: /node_modules[\\/](?:emoji-mart[\\/]|@emoji-mart[\\/])/,
                 includeDependenciesRecursively: false,
               },
               {
                 name: 'vendor-cytoscape',
-                test:
-                  /node_modules[\\/](?:cytoscape\/|cytoscape-cose-bilkent\/|cytoscape-fcose\/)/,
+                test: /node_modules[\\/](?:cytoscape[\\/]|cytoscape-cose-bilkent[\\/]|cytoscape-fcose[\\/])/,
               },
-              { name: 'vendor-elkjs', test: /node_modules[\\/]elkjs\// },
+              { name: 'vendor-elkjs', test: /node_modules[\\/]elkjs[\\/]/ },
             ],
           },
         },

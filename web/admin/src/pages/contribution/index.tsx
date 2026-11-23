@@ -112,7 +112,7 @@ export default function ContributionPage() {
           postApiProV1ContributeAudit({
             id: previewRow!.id!,
             kb_id,
-            nav_id,
+            nav_id: nav_id || '',
             status: 'approved',
           }).then(() => {
             getData();
@@ -131,7 +131,7 @@ export default function ContributionPage() {
         postApiProV1ContributeAudit({
           id: previewRow!.id!,
           kb_id,
-          nav_id,
+          nav_id: nav_id || '',
           status: 'rejected',
         }).then(() => {
           getData();

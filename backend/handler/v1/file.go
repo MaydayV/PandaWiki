@@ -27,21 +27,27 @@ func NewFileHandler(echo *echo.Echo, baseHandler *handler.BaseHandler, logger *l
 		auth:        auth,
 		fileUsecase: fileUsecase,
 	}
-	group := echo.Group("/api/v1/file")
-	group.POST("/upload", h.Upload, h.auth.Authorize)
-	group.POST("/upload/url", h.UploadByUrl, h.auth.Authorize)
+	group := echo.Group("/api/v1/file", h.auth.Authorize, h.requireKBPermIfPresent)
+	group.POST("/upload", h.Upload)
+	group.POST("/upload/url", h.UploadByUrl)
 	return h
 }
 
-// ensureKBPerm 对显式指定 kb_id 的上传校验 KB 文档管理权限。
+// requireKBPermIfPresent 对显式指定 kb_id 的上传校验 KB 文档管理权限。
 // 未指定 kb_id 的上传写入随机 uuid 前缀（与任何 KB 无关），放行——
 // 编辑器插图等场景依赖该路径，而显式 kb_id 若不校验则任何登录用户可向任意 KB 前缀写文件。
-func (h *FileHandler) ensureKBPerm(c echo.Context) error {
-	if c.FormValue("kb_id") == "" {
-		return nil
+func (h *FileHandler) requireKBPermIfPresent(next echo.HandlerFunc) echo.HandlerFunc {
+	check := h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage)(next)
+	return func(c echo.Context) error {
+		kbID, err := middleware.GetKbID(c)
+		if err != nil {
+			return h.NewResponseWithError(c, "invalid request parameters", err)
+		}
+		if kbID == "" {
+			return next(c)
+		}
+		return check(c)
 	}
-	mw := h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage)
-	return mw(func(c echo.Context) error { return nil })(c)
 }
 
 // Upload
@@ -55,9 +61,6 @@ func (h *FileHandler) ensureKBPerm(c echo.Context) error {
 //	@Success		200		{object}	domain.ObjectUploadResp
 //	@Router			/api/v1/file/upload [post]
 func (h *FileHandler) Upload(c echo.Context) error {
-	if err := h.ensureKBPerm(c); err != nil {
-		return err
-	}
 	cxt := c.Request().Context()
 	kbID := c.FormValue("kb_id")
 	if kbID == "" {
@@ -98,14 +101,6 @@ func (h *FileHandler) UploadByUrl(c echo.Context) error {
 
 	if err := c.Validate(req); err != nil {
 		return h.NewResponseWithError(c, "validate request body failed", err)
-	}
-
-	// 与 Upload 同规则：显式 kb_id 需要文档管理权限
-	if req.KbId != "" {
-		mw := h.auth.ValidateKBUserPerm(consts.UserKBPermissionDocManage)
-		if err := mw(func(c echo.Context) error { return nil })(c); err != nil {
-			return err
-		}
 	}
 
 	kbID := req.KbId

@@ -617,6 +617,12 @@ func (r *KnowledgeBaseRepository) DeleteKnowledgeBase(ctx context.Context, kbID 
 			{&domain.APICallAudit{}, "kb_id"},
 			{&domain.NodeReleaseAudit{}, "kb_id"},
 		}
+		if err := tx.Exec(`DELETE FROM conversation_references WHERE conversation_id IN (SELECT id FROM conversations WHERE kb_id = ?)`, kbID).Error; err != nil {
+			return fmt.Errorf("delete conversation_references failed: %w", err)
+		}
+		if err := tx.Exec(`DELETE FROM rag_jobs WHERE payload->>'kb_id' = ?`, kbID).Error; err != nil {
+			return fmt.Errorf("delete rag_jobs failed: %w", err)
+		}
 		for _, c := range cascades {
 			if err := tx.Where(c.column+" = ?", kbID).Delete(c.model).Error; err != nil {
 				return fmt.Errorf("delete %T failed: %w", c.model, err)

@@ -8,8 +8,11 @@ import {
   Button,
   TextField,
 } from '@mui/material';
-import { getApiV1UserList, postApiV1UserCreate } from '@/request/User';
-import { postApiV1KnowledgeBaseUserInvite } from '@/request/KnowledgeBase';
+import { postApiV1UserCreate } from '@/request/User';
+import {
+  getApiV1KnowledgeBaseUserCandidates,
+  postApiV1KnowledgeBaseUserInvite,
+} from '@/request/KnowledgeBase';
 import {
   ConstsUserKBPermission,
   ConstsUserRole,
@@ -36,8 +39,8 @@ interface AddRoleProps {
 }
 
 const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
-  const { kb_id } = useAppSelector(state => state.config);
-  const { license } = useAppSelector(state => state.config);
+  const { kb_id, license, user } = useAppSelector(state => state.config);
+  const isSystemAdmin = user?.role === ConstsUserRole.UserRoleAdmin;
   const [list, setList] = useState<V1UserListItemResp[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string>('');
@@ -98,8 +101,9 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
     },
   ];
   const getData = () => {
+    if (!kb_id) return;
     setLoading(true);
-    getApiV1UserList()
+    getApiV1KnowledgeBaseUserCandidates({ kb_id })
       .then(res => {
         setList(res.users || []);
       })
@@ -203,15 +207,17 @@ const AddRole = ({ open, onCancel, onOk, selectedIds }: AddRoleProps) => {
           sx={{ px: 2, pb: 1 }}
         >
           <Box sx={{ fontSize: 13, color: 'text.secondary' }}>选择已有用户</Box>
-          <Button
-            size='small'
-            variant='outlined'
-            onClick={() => {
-              setCreateOpen(true);
-            }}
-          >
-            新建用户
-          </Button>
+          {isSystemAdmin && (
+            <Button
+              size='small'
+              variant='outlined'
+              onClick={() => {
+                setCreateOpen(true);
+              }}
+            >
+              新建用户
+            </Button>
+          )}
         </Stack>
         <Table
           columns={columns}

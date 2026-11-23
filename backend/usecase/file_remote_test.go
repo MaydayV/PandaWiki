@@ -25,3 +25,28 @@ func TestSafeRemoteContentTypeAcceptsPNG(t *testing.T) {
 		t.Fatalf("unexpected stored type: %s %s", contentType, ext)
 	}
 }
+
+func TestResolveSafeUploadContentType(t *testing.T) {
+	pngHeader := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	htmlPayload := []byte("<html><script>alert(1)</script></html>")
+	svgPayload := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>`)
+
+	if got := resolveSafeUploadContentType(".png", htmlPayload); got != "application/octet-stream" {
+		t.Fatalf("HTML disguised as .png must downgrade to octet-stream, got %q", got)
+	}
+	if got := resolveSafeUploadContentType(".html", []byte("hello")); got != "application/octet-stream" {
+		t.Fatalf(".html must downgrade to octet-stream, got %q", got)
+	}
+	if got := resolveSafeUploadContentType(".js", []byte("console.log(1)")); got != "application/octet-stream" {
+		t.Fatalf(".js must downgrade to octet-stream, got %q", got)
+	}
+	if got := resolveSafeUploadContentType(".svg", svgPayload); got != "image/svg+xml" {
+		t.Fatalf(".svg must preserve image/svg+xml, got %q", got)
+	}
+	if got := resolveSafeUploadContentType(".png", pngHeader); got != "image/png" {
+		t.Fatalf(".png must resolve image/png, got %q", got)
+	}
+	if got := resolveSafeUploadContentType(".unknownext", pngHeader); got != "image/png" {
+		t.Fatalf("unknown extension should fallback to sniffed image/png, got %q", got)
+	}
+}

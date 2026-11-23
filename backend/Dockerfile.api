@@ -5,7 +5,7 @@ WORKDIR /src/web
 RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 
 # 先只拷依赖清单与补丁，让 pnpm install 层不被业务源码改动击穿缓存
-COPY web/package.json web/pnpm-workspace.yaml ./
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 COPY web/patches ./patches
 COPY web/admin/package.json ./admin/package.json
 COPY web/app/package.json ./app/package.json
@@ -25,6 +25,7 @@ WORKDIR /src/backend
 ENV CGO_ENABLED=0
 
 COPY backend/go.mod backend/go.sum ./
+COPY backend/third_party ./third_party
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 

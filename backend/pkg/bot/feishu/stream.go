@@ -364,23 +364,45 @@ func (c *FeishuClient) Start() error {
 	go func() {
 		// larkws.Start（本地 fork）在 Close/ctx 取消后返回 nil（优雅关闭），
 		// 仅失败路径返回非 nil err 上报
-		if err := cli.Start(c.ctx); err != nil {
-			started <- err
-		}
+		started <- cli.Start(c.ctx)
 	}()
+
+	startTimer := time.NewTimer(feishuStartTimeout)
+	defer startTimer.Stop()
 
 	select {
 	case err := <-started:
-		return fmt.Errorf("failed to start feishu client: %w", err)
-	case <-time.After(feishuStartTimeout):
-		// 未在超时内失败视为连接成功（成功路径永不返回）
+		if err != nil {
+			return fmt.Errorf("failed to start feishu client: %w", err)
+		}
+		c.closed.Store(true)
+		return fmt.Errorf("feishu client stopped: context canceled")
+	case <-c.ctx.Done():
+		c.closed.Store(true)
+		cli.Close()
+		select {
+		case startErr := <-started:
+			if startErr != nil {
+				c.logger.Debug("feishu client start exited during cancel", log.Error(startErr))
+			}
+		case <-time.After(2 * time.Second):
+		}
+		return fmt.Errorf("feishu client stopped: context canceled")
+	case <-startTimer.C:
+		// 未在超时内失败视为连接就绪
 	}
 
 	<-c.ctx.Done()
 	c.closed.Store(true)
-	// 本地 fork 的 Close 已主动断开连接并让 Start 返回，
-	// 这里等待内部 pingLoop/读循环完成退出
-	time.Sleep(time.Second)
+	cli.Close()
+	// 等待本地 fork 的 larkws 读/心跳循环退出（限时防卡死）
+	select {
+	case startErr := <-started:
+		if startErr != nil {
+			c.logger.Debug("feishu client exited after close", log.Error(startErr))
+		}
+	case <-time.After(2 * time.Second):
+	}
 	return fmt.Errorf("feishu client stopped: context canceled")
 }
 

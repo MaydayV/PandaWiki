@@ -367,14 +367,24 @@ func (s *PGRAG) searchVector(ctx context.Context, datasetID string, queryVec pgv
 		// dataset/group 过滤条件无法下推 HNSW 索引（pgvector 后过滤），
 		// 默认 ef_search=40 在多知识库混存时会"欠返回"甚至返回 0 条。
 		// iterative_scan=relaxed_order 允许索引扫描补足 LIMIT；参数在
-		// pgvector <0.8 不存在，失败时维持默认行为。
+		// pgvector <0.8 不存在，用 SAVEPOINT 隔离失败防止污染整个 PG 事务。
 		for _, stmt := range []string{
 			`SET LOCAL hnsw.iterative_scan = 'relaxed_order'`,
 			`SET LOCAL hnsw.ef_search = 100`,
 		} {
+			if err := tx.Exec(`SAVEPOINT sp_hnsw_tuning`).Error; err != nil {
+				return err
+			}
 			if err := tx.Exec(stmt).Error; err != nil {
+				if rbErr := tx.Exec(`ROLLBACK TO SAVEPOINT sp_hnsw_tuning`).Error; rbErr != nil {
+					return rbErr
+				}
+				_ = tx.Exec(`RELEASE SAVEPOINT sp_hnsw_tuning`).Error
 				s.logger.Warn("pgvector hnsw tuning unavailable, using defaults", log.Error(err))
-				break
+				continue
+			}
+			if err := tx.Exec(`RELEASE SAVEPOINT sp_hnsw_tuning`).Error; err != nil {
+				return err
 			}
 		}
 

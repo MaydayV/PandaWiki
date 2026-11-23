@@ -75,3 +75,20 @@ func TestDecryptSecretFailsClosed(t *testing.T) {
 		t.Fatalf("decryption with encryption disabled must return empty string, got %q", got)
 	}
 }
+
+// 短密文或畸形密文不得触发切片越界 panic，必须 fail-closed 返回空串
+func TestDecryptSecretShortOrMalformedInputs(t *testing.T) {
+	SetEncryptionKey("unit-test-key")
+	defer SetEncryptionKey("")
+
+	cases := []string{
+		secretEncPrefix,
+		secretEncPrefix + "AAAA",
+		secretEncPrefix + "!!!invalid-base64!!!",
+	}
+	for _, tc := range cases {
+		if got := DecryptSecret(tc); got != "" {
+			t.Fatalf("malformed ciphertext %q must return empty string, got %q", tc, got)
+		}
+	}
+}

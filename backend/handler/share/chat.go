@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -28,6 +29,8 @@ const sseKeepaliveInterval = 15 * time.Second
 // widgetRateLimitPerMin 是 widget 公开端点按真实 IP 的提问频率上限，
 // 为未配置 captcha/限频的嵌入场景提供基础防刷兜底
 const widgetRateLimitPerMin = 12
+
+var errWidgetRateLimited = errors.New("widget rate limited")
 
 type ShareChatHandler struct {
 	*handler.BaseHandler
@@ -231,8 +234,8 @@ func (h *ShareChatHandler) ChatWidget(c echo.Context) error {
 		return h.sendErrMsg(c, "widget image upload is disabled")
 	}
 
-	if err := h.enforceWidgetRateLimit(c); err != nil {
-		return err
+	if err := h.enforceWidgetRateLimit(c.Request().Context(), c.RealIP()); err != nil {
+		return h.sendErrMsg(c, "请求过于频繁，请稍后再试")
 	}
 	req.RemoteIP = c.RealIP()
 	if err := h.enforceConversationAskInterval(c.Request().Context(), &req); err != nil {
@@ -294,20 +297,19 @@ func (h *ShareChatHandler) writeSSEKeepalive(c echo.Context) error {
 
 // enforceWidgetRateLimit 按"真实 IP + 1 分钟窗口"限制 widget 公开端点提问频率。
 // widget 为嵌入第三方网站的公开入口，通常无 captcha/登录态，这是基础防刷兜底；
-// redis 故障时放行（不阻断正常对话）。
-func (h *ShareChatHandler) enforceWidgetRateLimit(c echo.Context) error {
-	ip := c.RealIP()
-	if ip == "" {
+// redis 故障时放行（不阻断正常对话），超限返回 errWidgetRateLimited 由调用方按协议格式响应并中止。
+func (h *ShareChatHandler) enforceWidgetRateLimit(ctx context.Context, ip string) error {
+	if ip == "" || h.cache == nil {
 		return nil
 	}
 	key := fmt.Sprintf("widget_rl:%s:%d", ip, time.Now().Unix()/60)
-	n, err := h.cache.IncrWindow(c.Request().Context(), key, time.Minute)
+	n, err := h.cache.IncrWindow(ctx, key, time.Minute)
 	if err != nil {
 		h.logger.Warn("widget rate limit check failed", log.Error(err))
 		return nil
 	}
 	if n > widgetRateLimitPerMin {
-		return h.sendErrMsg(c, "请求过于频繁，请稍后再试")
+		return errWidgetRateLimited
 	}
 	return nil
 }
@@ -1025,8 +1027,8 @@ func (h *ShareChatHandler) WidgetSearch(c echo.Context) error {
 	}
 	ctx := c.Request().Context()
 
-	if err := h.enforceWidgetRateLimit(c); err != nil {
-		return err
+	if err := h.enforceWidgetRateLimit(ctx, c.RealIP()); err != nil {
+		return h.NewResponseWithError(c, "请求过于频繁，请稍后再试", nil)
 	}
 
 	// validate widget info

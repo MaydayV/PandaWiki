@@ -224,3 +224,15 @@ func (r *NodeRepository) UpdateContributeNodeID(ctx context.Context, kbID, id st
 		Where("id = ? AND kb_id = ?", id, kbID).
 		Update("node_id", *approvedNodeID).Error
 }
+
+// RevertContributeStatusToPending 在审核通过后的节点写入失败时，将已抢占改为
+// approved 的投稿状态回退为 pending，保证投稿不会被永久锁死。
+func (r *NodeRepository) RevertContributeStatusToPending(ctx context.Context, kbID, id string) error {
+	return r.db.WithContext(ctx).Model(&domain.Contribute{}).
+		Where("id = ? AND kb_id = ? AND status = ?", id, kbID, consts.ContributeStatusApproved).
+		Updates(map[string]any{
+			"status":        consts.ContributeStatusPending,
+			"audit_user_id": "",
+			"audit_time":    nil,
+		}).Error
+}

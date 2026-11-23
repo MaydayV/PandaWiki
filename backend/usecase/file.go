@@ -80,21 +80,15 @@ func (u *FileUsecase) UploadFile(ctx context.Context, kbID string, file *multipa
 
 	size := file.Size
 
-	// Content-Type 服务端嗅探：客户端可伪造 text/html（桶域名下 stored XSS），
-	// 以实际字节为准，嗅探失败再退回扩展名推断
+	// 安全 MIME 判定：阻止伪装成图片等扩展名的 HTML/JS 载荷在桶域名触发存储型 XSS，
+	// 同时保留正常 .svg / Office 文档等的精确 MIME 类型。
 	headSrc := io.NewSectionReader(src, 0, 512)
 	buf := make([]byte, 512)
 	n, _ := io.ReadFull(headSrc, buf)
-	sniffed := http.DetectContentType(buf[:n])
 	if _, err := src.Seek(0, io.SeekStart); err != nil {
 		return "", fmt.Errorf("rewind upload stream failed: %w", err)
 	}
-	var contentType string
-	if sniffed != "" {
-		contentType = sniffed
-	} else {
-		contentType = mime.TypeByExtension(ext)
-	}
+	contentType := resolveSafeUploadContentType(ext, buf[:n])
 
 	resp, err := u.s3Client.PutObject(
 		ctx,
@@ -131,11 +125,8 @@ func (u *FileUsecase) UploadFileFromBytes(ctx context.Context, kbID string, file
 
 	size := int64(len(fileBytes))
 
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		// Fallback content type if extension not recognized
-		contentType = "application/octet-stream"
-	}
+	headLen := min(len(fileBytes), 512)
+	contentType := resolveSafeUploadContentType(ext, fileBytes[:headLen])
 
 	resp, err := u.s3Client.PutObject(
 		ctx,
@@ -174,18 +165,20 @@ func (u *FileUsecase) UploadFileFromReader(
 
 	s3Filename := fmt.Sprintf("%s/%s%s", kbID, uuid.New().String(), ext)
 
-	// 获取内容类型
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		contentType = "application/octet-stream" // 默认类型
+	head := make([]byte, 512)
+	n, err := io.ReadFull(reader, head)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return "", fmt.Errorf("read upload header failed: %w", err)
 	}
+	contentType := resolveSafeUploadContentType(ext, head[:n])
+	uploadReader := io.MultiReader(bytes.NewReader(head[:n]), reader)
 
 	// 上传到 S3
-	_, err := u.s3Client.PutObject(
+	_, err = u.s3Client.PutObject(
 		ctx,
 		u.s3Client.Bucket(),
 		s3Filename,
-		reader,
+		uploadReader,
 		size, // 必须提供对象大小
 		minio.PutObjectOptions{
 			ContentType: contentType,
@@ -293,6 +286,44 @@ func safeRemoteContentType(data []byte) (string, string, error) {
 	default:
 		return "", "", fmt.Errorf("unsupported remote file type: %s", mediaType)
 	}
+}
+
+func isActiveScriptOrHTMLMime(rawMime string) bool {
+	if rawMime == "" {
+		return false
+	}
+	mediaType, _, err := mime.ParseMediaType(rawMime)
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.SplitN(rawMime, ";", 2)[0])
+	}
+	switch strings.ToLower(mediaType) {
+	case "text/html",
+		"application/xhtml+xml",
+		"text/javascript",
+		"application/javascript",
+		"application/x-javascript":
+		return true
+	default:
+		return false
+	}
+}
+
+// resolveSafeUploadContentType 结合字节嗅探与扩展名 MIME 推断安全 Content-Type：
+// 1. 若字节嗅探或扩展名命中 HTML/JS 等可执行高危类型，一律降级为 application/octet-stream；
+// 2. 否则优先取扩展名 MIME（保证 .svg / Office 文档不退化），未知扩展名回退字节嗅探。
+func resolveSafeUploadContentType(ext string, head []byte) string {
+	sniffed := http.DetectContentType(head)
+	extMime := mime.TypeByExtension(ext)
+	if isActiveScriptOrHTMLMime(sniffed) || isActiveScriptOrHTMLMime(extMime) {
+		return "application/octet-stream"
+	}
+	if extMime != "" {
+		return extMime
+	}
+	if sniffed != "" {
+		return sniffed
+	}
+	return "application/octet-stream"
 }
 
 func (u *FileUsecase) httpClientForIPs(ips []net.IP) *http.Client {

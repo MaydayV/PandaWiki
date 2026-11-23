@@ -231,6 +231,11 @@ func (r *NodeRepository) UpdateNodeContent(ctx context.Context, req *domain.Upda
 			updateStatus = true
 		}
 
+		if req.ParentID != nil && *req.ParentID != currentNode.ParentID {
+			updateMap["parent_id"] = *req.ParentID
+			updateStatus = true
+		}
+
 		if req.Position != nil && *req.Position != currentNode.Position { // user specify position
 			updateMap["position"] = *req.Position
 			if *req.Position > domain.MaxPosition || *req.Position < 0 {

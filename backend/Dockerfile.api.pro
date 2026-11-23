@@ -5,6 +5,7 @@ WORKDIR /src/backend
 ENV CGO_ENABLED=0
 
 COPY backend/go.mod backend/go.sum ./
+COPY backend/third_party ./third_party
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 

@@ -76,7 +76,7 @@ type ContributeAuditReq struct {
 	ID       string                  `json:"id" validate:"required"`
 	KBID     string                  `json:"kb_id" validate:"required"`
 	ParentID string                  `json:"parent_id"`
-	NavID    string                  `json:"nav_id" validate:"required"`
+	NavID    string                  `json:"nav_id"`
 	Position *float64                `json:"position"`
 	Status   consts.ContributeStatus `json:"status" validate:"required,oneof=approved rejected"`
 }

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/chaitin/panda-wiki/domain"
 	"github.com/chaitin/panda-wiki/log"
@@ -75,21 +77,55 @@ func (r *GitHubSyncRepo) SaveSetting(ctx context.Context, kbID string, cfg *doma
 	})
 }
 
+// UpdateSyncStatus 在事务中基于最新配置记录仅回写同步时间与结果，
+// 避免并发保存的新配置被同步前的旧快照覆盖。
+func (r *GitHubSyncRepo) UpdateSyncStatus(ctx context.Context, kbID string, lastSyncAt time.Time, lastSyncResult string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var setting domain.Setting
+		err := tx.Table("settings").
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("kb_id = ? AND key = ?", kbID, domain.SettingGitHubSync).
+			First(&setting).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil
+			}
+			return fmt.Errorf("load github sync setting for status update failed: %w", err)
+		}
+		var cfg domain.GitHubSyncSetting
+		if err := json.Unmarshal(setting.Value, &cfg); err != nil {
+			return fmt.Errorf("unmarshal github sync setting failed: %w", err)
+		}
+		cfg.KBID = kbID
+		cfg.LastSyncAt = &lastSyncAt
+		cfg.LastSyncResult = lastSyncResult
+		value, err := json.Marshal(&cfg)
+		if err != nil {
+			return fmt.Errorf("marshal github sync setting failed: %w", err)
+		}
+		return tx.Table("settings").
+			Where("id = ?", setting.ID).
+			Update("value", value).Error
+	})
+}
+
 // GitHubSyncedNode 是已建立同步映射的节点摘要
 type GitHubSyncedNode struct {
-	ID    string `gorm:"column:id"`
-	Name  string `gorm:"column:name"`
-	NavId string `gorm:"column:nav_id"`
-	Path  string `gorm:"column:path"`
-	SHA   string `gorm:"column:sha"`
-	Type  int    `gorm:"column:type"`
+	ID         string `gorm:"column:id"`
+	Name       string `gorm:"column:name"`
+	NavId      string `gorm:"column:nav_id"`
+	ParentID   string `gorm:"column:parent_id"`
+	Path       string `gorm:"column:path"`
+	SHA        string `gorm:"column:sha"`
+	Type       int    `gorm:"column:type"`
+	ImagesJSON []byte `gorm:"column:images_json"`
 }
 
 // GetSyncedNodes 返回该 KB 下全部建立了 github_sync 映射的节点（文档与目录）
 func (r *GitHubSyncRepo) GetSyncedNodes(ctx context.Context, kbID, repoFullName string) ([]GitHubSyncedNode, error) {
 	var nodes []GitHubSyncedNode
 	err := r.db.WithContext(ctx).Model(&domain.Node{}).
-		Select("id, name, nav_id, type, meta->'github_sync'->>'path' as path, meta->'github_sync'->>'sha' as sha").
+		Select("id, name, nav_id, parent_id, type, meta->'github_sync'->>'path' as path, meta->'github_sync'->>'sha' as sha, meta->'github_sync'->'images' as images_json").
 		Where("kb_id = ? AND meta->'github_sync'->>'repo' = ?", kbID, repoFullName).
 		Find(&nodes).Error
 	if err != nil {

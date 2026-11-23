@@ -56,8 +56,54 @@ func NewDB(config *config.Config) (*DB, error) {
 	if err := ensureSchemaInitialized(db); err != nil {
 		return nil, err
 	}
+	if err := ensureUpgradedColumns(db); err != nil {
+		return nil, err
+	}
 
 	return &DB{DB: db}, nil
+}
+
+// ensureUpgradedColumns 为不走增量迁移脚本的存量库幂等补齐新增关键列与索引，
+// 避免升级后接口因缺列报错。
+func ensureUpgradedColumns(db *gorm.DB) error {
+	var hasAPITokens bool
+	if err := db.Raw(`
+SELECT EXISTS (
+	SELECT 1 FROM information_schema.tables
+	WHERE table_schema = 'public' AND table_name = 'api_tokens'
+)`).Scan(&hasAPITokens).Error; err != nil {
+		return fmt.Errorf("check api_tokens table failed: %w", err)
+	}
+	if !hasAPITokens {
+		return nil
+	}
+
+	var hasTokenIndex bool
+	if err := db.Raw(`
+SELECT EXISTS (
+	SELECT 1 FROM information_schema.columns
+	WHERE table_schema = 'public' AND table_name = 'api_tokens' AND column_name = 'token_index'
+)`).Scan(&hasTokenIndex).Error; err != nil {
+		return fmt.Errorf("check api_tokens.token_index column failed: %w", err)
+	}
+	if hasTokenIndex {
+		return nil
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS token_index TEXT NOT NULL DEFAULT ''`).Error; err != nil {
+			return fmt.Errorf("add api_tokens.token_index column failed: %w", err)
+		}
+		// 存量行 token 均为明文且唯一，回填后建唯一索引不冲突；
+		// 若配置了 ENCRYPTION_KEY，后续 ap_token.go 懒迁移会将其升级为 HMAC 索引+密文。
+		if err := tx.Exec(`UPDATE api_tokens SET token_index = token WHERE token_index = ''`).Error; err != nil {
+			return fmt.Errorf("backfill api_tokens.token_index failed: %w", err)
+		}
+		if err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_api_tokens_token_index ON api_tokens(token_index)`).Error; err != nil {
+			return fmt.Errorf("create uniq_api_tokens_token_index failed: %w", err)
+		}
+		return nil
+	})
 }
 
 func ensureSchemaInitialized(db *gorm.DB) error {
