@@ -1,5 +1,29 @@
 # 乘风版更新日志
 
+## 版本 FV2.6.19 — 全栈稳定性与安全加固 + GitHub 私有仓库 MD 同步 + 发布包完善
+
+### 一、新功能：GitHub 私有仓库 Markdown 同步
+- 支持以 Git 仓库作为知识库唯一内容真源，定期轮询与手动触发全链路同步：
+  - 按 `front-matter category` 与目录层级自动识别/创建栏目及多层目录，支持 `order` 排序。
+  - 仓库相对路径图片按 blob SHA 复用并自动转存 OSS，彻底解决私有仓库图片前台不可访问问题。
+  - 按文件 SHA 跳过未变更文章节省 embedding 成本，仅对本次新建/更新节点及孤儿删除自动发布 KB Release 并触发 RAG 向量更新。
+  - 新增后台「GitHub MD 同步」设置卡片（仓库/分支格式与连通性校验、加密存储 PAT、手动立即同步、状态摘要回写）及 Redis 分布式锁防重入。
+
+### 二、全栈稳定性与安全深度加固
+- **安全与权限边界**：
+  - 凭据落库支持 `ENCRYPTION_KEY`（AES-256-GCM）加密存储（涵盖 API Token、SimpleAuth 访问口令、GitHub 同步 PAT），旧明文数据懒迁移兼容，并自动幂等补齐存量数据库 `api_tokens.token_index`。
+  - 收紧 `/api/v1/file/upload(+url)` KB 级权限校验与高危 HTML/JS MIME 降级防御，扩展 SSRF 保留 IPv6 网段拦截、常量时间比对及 `TRUST_PROXY` 可信代理链路防伪造限频头。
+  - 保留 `/api/v1/user/list` 仅限系统管理员，新增 KB 协作者候选用户接口 `GET /api/v1/knowledge_base/user/candidates` 修复非管理员邀请协作者 403 问题。
+- **核心链路与并发可靠性**：
+  - 全链路补齐 SSE 心跳保活、断连排干防 goroutine 泄漏、飞书/钉钉/企微/Discord bot 优雅退出及上游 `larkws` 补丁、HTTP 客户端超时、数据库连接池与 `rag_jobs` 指数退避/僵尸回收及耗尽失败收敛。
+  - 修复投稿审批回退 `pending`、pgvector 低版本 `SAVEPOINT` 降级保护（保留 `ef_search`）、知识库删除级联清理 `conversation_references`/`rag_jobs`、前台增量 Markdown 渲染占位图抖动与 admin 跨平台分包构建正则。
+  - 前台 Next.js 升级至 `16.4.6` 并清零依赖已知高危/中危漏洞；补齐并发与单元测试覆盖。
+
+### 三、部署体系、版本号与发布包完善
+- 修复 `Dockerfile.api`（补充 `pnpm-lock.yaml` 与 `third_party/`）、`Dockerfile.api.pro` / `Dockerfile.consumer.pro` 构建上下文缺失。
+- 统一管理端构建版本号注入逻辑为 `FV2.6.19.2111`；Compose 的 `TRUST_PROXY` 改为读取 `.env` 配置。
+- GitHub Release 发布包正式纳入 `backup.sh` 定时备份脚本（支持发布包根目录与源码仓库直接运行），同步更新部署说明与 CI/CD 构建工作流。
+
 ## 版本 FV2.6.18 — 上游安全防御合入 + OSV 漏洞修复 + 系统配置 React #130 修复
 
 ### 一、安全加固与上游合并

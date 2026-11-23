@@ -63,7 +63,7 @@ services:
       context: ../..
       dockerfile: backend/Dockerfile.api
       args:
-        VERSION: local
+        VERSION: ${PANDAWIKI_VERSION:-FV2.6.19.2111}
     container_name: panda-wiki-api
     restart: unless-stopped
     environment:
@@ -88,8 +88,9 @@ services:
       ADMIN_PORT: "2443"
       RAG_PROVIDER: ${RAG_PROVIDER:-pg}
       RAG_PG_EMBEDDING_DIM: ${RAG_PG_EMBEDDING_DIM:-1024}
-      # 经 caddy 反代部署：X-Real-IP 由 caddy 强制覆盖，限频/限速按真实客户端 IP
-      TRUST_PROXY: "true"
+      # 经 caddy 反代部署：X-Real-IP 由 caddy 强制覆盖，限频/限速按真实客户端 IP；
+      # 若 API 8000 端口直接暴露公网，必须在 .env 设置 TRUST_PROXY=0
+      TRUST_PROXY: ${TRUST_PROXY:-1}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     volumes:
       - ./data/caddy/run:/app/run
@@ -123,7 +124,7 @@ services:
     environment:
       TARGET: http://panda-wiki-api:8000
       STATIC_FILE_TARGET: http://panda-wiki-api:8000
-      DEV_KB_ID: ${DEV_KB_ID}
+      DEV_KB_ID: ${DEV_KB_ID:-}
     # 镜像基于 node:22-alpine（无 curl）；用 node fetch 探测 public 静态资源 /favicon.png，
     # 该路径不经过 proxy.ts 中间件、不依赖 API/知识库状态，仅验证 Next 服务本身可用
     healthcheck:

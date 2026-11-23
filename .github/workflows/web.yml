@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
+      is_fv: ${{ steps.get_version.outputs.IS_FV }}
 
     steps:
       - name: Get version
@@ -41,6 +42,11 @@ jobs:
           else
             echo "VERSION=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           fi
+          if [[ $GITHUB_REF == refs/tags/FV* ]]; then
+            echo "IS_FV=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "IS_FV=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     runs-on: ubuntu-latest
@@ -53,7 +59,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
@@ -137,6 +143,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Prepare tags
+        id: tags
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          REPO="docker.io/${DOCKERHUB_USERNAME:-caodanv}/pandawiki-${{ matrix.project }}"
+          {
+            echo "TAGS<<EOF"
+            echo "${REPO}:${{ needs.version.outputs.version }}"
+            if [[ "${{ needs.version.outputs.is_fv }}" == "true" ]]; then
+              echo "${REPO}:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Package and push
         uses: docker/build-push-action@v5
         with:
@@ -144,7 +165,6 @@ jobs:
           file: ./web/${{ matrix.project }}/Dockerfile
           push: true
           platforms: linux/amd64, linux/arm64
-          tags: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/pandawiki-${{ matrix.project }}:${{ needs.version.outputs.version }}
+          tags: ${{ steps.tags.outputs.TAGS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

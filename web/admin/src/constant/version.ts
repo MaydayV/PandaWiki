@@ -7,22 +7,22 @@ import enterpriseVersion from '@/assets/images/enterprise-version.png';
 
 /**
  * 乘风版版本号规范
- * FV{大版本}.{功能序号}.{提交序号}.{原版版本号去点}
- * 例如：FV2.6.16.2111
+ * FV{大版本}.{功能序号}.{发布序号}.{原版版本号去点}
+ * 例如：FV2.6.19.2111
  */
 export const FLY_VERSION_META = {
   major: 2,
   feature: 6,
+  release: 19,
   /**
    * 第6个功能阶段起点：
    * 9f001318 全新部署下前台与 widget 首屏兜底
-   * 提交序号由构建阶段基于 git rev-list --count <start>..HEAD 自动计算
    */
   featureStartCommit: '9f001318',
   upstreamVersion: '2.11.1',
 };
 
-export const FLY_VERSION_FALLBACK = `FV${FLY_VERSION_META.major}.${FLY_VERSION_META.feature}.1.${FLY_VERSION_META.upstreamVersion.replace(/\./g, '')}`;
+export const FLY_VERSION_FALLBACK = `FV${FLY_VERSION_META.major}.${FLY_VERSION_META.feature}.${FLY_VERSION_META.release}.${FLY_VERSION_META.upstreamVersion.replace(/\./g, '')}`;
 
 export const FLY_VERSION =
   import.meta.env.VITE_APP_VERSION || FLY_VERSION_FALLBACK;

@@ -6,7 +6,7 @@
 2. 方案 B：预构建镜像部署（Image 模式，推荐生产）
 3. 外层 Nginx + 内层 Caddy（推荐公网生产）
 
-本文描述 Docker 部署的三种方式。**乘风版默认编排**（`feat/stack-slim`）为 **5 容器**：Caddy + Postgres + Redis + API（含 Worker/Admin）+ App；向量检索在 Postgres pgvector，附件走 OSS。详见 [STACK_SLIM.md](./STACK_SLIM.md)。
+本文描述 Docker 部署的三种方式。**乘风版默认编排**（`main`）为 **5 容器**：Caddy + Postgres + Redis + API（含 Worker/Admin）+ App；向量检索在 Postgres pgvector，附件走 OSS。详见 [STACK_SLIM.md](./STACK_SLIM.md)。
 
 ## 1. 方式对比
 
@@ -48,7 +48,7 @@
 curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | bash
 ```
 
-发布包内含：`install.sh`、`docker-compose.image.yml`、`generate-env.sh`、`quickstart.sh`、`full_fresh_deploy.sql`。安装目录默认 `./pandawiki`，可用 `INSTALL_DIR` 覆盖。
+发布包内含：`install.sh`、`docker-compose.image.yml`、`generate-env.sh`、`quickstart.sh`、`backup.sh`、`.env.example`、`full_fresh_deploy.sql`、`VERSION`。安装目录默认 `./pandawiki`，可用 `INSTALL_DIR` 覆盖。
 
 ## 3. 通用准备
 
@@ -92,6 +92,8 @@ cp .env.example .env
 - `RUN_WORKER` — 默认 `1`，API 内嵌 MQ 消费者与定时任务
 - `ADMIN_ENABLED` — 默认 `1`，API 内嵌 HTTPS 管理端（2443）
 - `RAG_PG_EMBEDDING_DIM` — pgvector 嵌入维度，默认 `1024`（须与 embedding 模型一致）
+- `ENCRYPTION_KEY` — 凭据落库加密密钥（API Token / SimpleAuth 口令 / GitHub 同步 PAT，AES-256-GCM）。`generate-env.sh` 会自动生成随机值；启用后请妥善备份 `.env`，切勿随意更换，否则已加密凭据将无法解密
+- `TRUST_PROXY` — 是否信任反代传递的 `X-Real-IP`：Compose 经 Caddy 部署或外层 Nginx 反代时设为 `1`；若 API `8000` 端口直接暴露公网，必须设为 `0` 防止伪造头绕过限频/限速
 
 仅 Image 模式额外需要：
 
@@ -244,7 +246,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ```env
 PANDAWIKI_IMAGE_REPO=docker.io/caodanv
-PANDAWIKI_IMAGE_TAG=FV2.6.14.2111
+PANDAWIKI_IMAGE_TAG=FV2.6.19.2111
 ```
 
 如镜像仓库为私有，先登录：
@@ -282,13 +284,15 @@ docker compose -f docker-compose.image.yml up -d
 
 ### 5.3 升级发布
 
-1. 修改 `.env` 中 `PANDAWIKI_IMAGE_TAG` 为新版本。
+1. 修改 `.env` 中 `PANDAWIKI_IMAGE_TAG` 为新版本（切勿改动原有 `POSTGRES_PASSWORD`、`JWT_SECRET`、`ENCRYPTION_KEY`）。
 2. 执行：
 
 ```bash
 docker compose -f docker-compose.image.yml pull
 docker compose -f docker-compose.image.yml up -d
 ```
+
+> 升级兼容：API 启动时会自动幂等检查并补齐存量库的新增关键列与唯一索引（例如 `api_tokens.token_index`），无需手工重建数据库。
 
 ### 5.4 回滚
 
@@ -304,7 +308,7 @@ docker compose -f docker-compose.image.yml up -d
 
 当前仓库 CI 自动推送 **`api`** 与 **`app`** 镜像到 Docker Hub（admin 静态资源已内嵌 API 镜像）。
 
-先在 GitHub 仓库设置 Secrets：
+先在 GitHub 仓库设置 Secrets（并确保 Token 未过期）：
 
 - `DOCKERHUB_USERNAME`：Docker Hub 用户名（例如 `caodanv`）
 - `DOCKERHUB_TOKEN`：Docker Hub Access Token（不要用明文密码）
@@ -318,10 +322,11 @@ git tag <发布标签>
 git push origin <发布标签>
 ```
 
-推送完成后会自动发布：
+推送 `FV*` 标签完成后会自动发布：
 
-- `docker.io/caodanv/pandawiki-api:<发布标签>`
-- `docker.io/caodanv/pandawiki-app:<发布标签>`
+- GitHub Release 部署包：`install.sh`、`pandawiki-deploy.tar.gz`、`pandawiki-deploy-<发布标签>.tar.gz`、`SHA256SUMS`
+- `docker.io/caodanv/pandawiki-api:<发布标签>` 与 `:latest`
+- `docker.io/caodanv/pandawiki-app:<发布标签>` 与 `:latest`
 
 ## 6. 方式三：外层 Nginx + 内层 Caddy（推荐公网生产）
 
@@ -396,9 +401,7 @@ server {
 1. `.env` 中全部密码改为高强度随机值，禁止使用示例密码。
 2. 外层 Nginx 模式下，建议只对公网开放 `80/443`，限制 `8000/2443/3010` 仅本机或内网访问。
 3. 为对外域名配置真实 TLS 证书，不使用自签证书直接暴露公网。
-4. 定期备份：PostgreSQL 数据卷、OSS 桶数据、`docs/deploy/.env`。PostgreSQL 可用
-   `docs/deploy/backup.sh` 定时备份（脚本头部含 cron 配置与恢复命令）；注意 API 的
-   8000 端口直连暴露时必须设置 `TRUST_PROXY=0`，否则限频/限速可被伪造请求头绕过。
+4. 定期备份：PostgreSQL 数据卷、OSS 桶数据、`.env`（尤其是 `ENCRYPTION_KEY`）。PostgreSQL 可用 `backup.sh` 定时备份（在发布包根目录直接执行 `./backup.sh`，或在源码仓库执行 `./docs/deploy/backup.sh`，脚本头部含 cron 配置与恢复命令）；注意 API 的 8000 端口直连暴露时必须在 `.env` 设置 `TRUST_PROXY=0`，否则限频/限速可被伪造请求头绕过。
 5. 按 AGPL-3.0 要求提供当前运行版本对应源码链接。
 
 ## 9. 相关文件

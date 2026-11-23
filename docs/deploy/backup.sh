@@ -2,29 +2,38 @@
 # PandaWiki PostgreSQL 数据备份脚本（stack-slim / compose 部署）
 #
 # 用法：
-#   ./backup.sh                    # 备份到 ./data/backups/
+#   ./backup.sh                    # 发布包根目录执行（备份到 ./data/backups/）
+#   ./docs/deploy/backup.sh        # 源码仓库根目录执行（备份到 ./docs/deploy/data/backups/）
 #   ./backup.sh 14                 # 保留最近 14 份（默认 7）
 #
-# 定时备份（每天 3:30）：
-#   30 3 * * * cd /path/to/pandawiki && ./docs/deploy/backup.sh >> ./data/backups/backup.log 2>&1
+# 定时备份（每天 3:30，发布包安装目录示例）：
+#   30 3 * * * /opt/pandawiki/backup.sh >> /opt/pandawiki/data/backups/backup.log 2>&1
 #
 # 恢复：
 #   gzip -dc ./data/backups/pandawiki-YYYYmmdd-HHMMSS.sql.gz | \
-#     docker compose -f docs/deploy/docker-compose.image.yml exec -T panda-wiki-postgres \
+#     docker compose -f docker-compose.image.yml exec -T panda-wiki-postgres \
 #     psql -U panda-wiki -d panda-wiki
 #   （恢复到全新库前先 DROP/重建或清空数据卷）
 set -euo pipefail
 
-COMPOSE_FILE="docs/deploy/docker-compose.image.yml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="${COMPOSE_FILE:-${SCRIPT_DIR}/docker-compose.image.yml}"
+ENV_FILE="${ENV_FILE:-${SCRIPT_DIR}/.env}"
 KEEP="${1:-7}"
-BACKUP_DIR="data/backups"
+BACKUP_DIR="${BACKUP_DIR:-${SCRIPT_DIR}/data/backups}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 TARGET="$BACKUP_DIR/pandawiki-$STAMP.sql.gz"
+
+COMPOSE_ARGS=()
+if [[ -f "$ENV_FILE" ]]; then
+  COMPOSE_ARGS+=(--env-file "$ENV_FILE")
+fi
+COMPOSE_ARGS+=(-f "$COMPOSE_FILE")
 
 mkdir -p "$BACKUP_DIR"
 
 echo "[$(date '+%F %T')] dumping database..."
-docker compose -f "$COMPOSE_FILE" exec -T panda-wiki-postgres \
+docker compose "${COMPOSE_ARGS[@]}" exec -T panda-wiki-postgres \
   pg_dump -U panda-wiki -d panda-wiki --no-owner --no-privileges \
   | gzip > "$TARGET"
 

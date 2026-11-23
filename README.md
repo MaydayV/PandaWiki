@@ -11,25 +11,28 @@
 
 PandaWiki 乘风版（Fly Version）是基于 [PandaWiki 开源项目](https://github.com/chaitin/PandaWiki) 二次开发的 AI 知识库系统，用于搭建产品文档、技术文档、FAQ 等内容站点，并提供 AI 创作、问答与搜索能力。
 
-当前主线分支 **`feat/stack-slim`** 已完成部署栈精简：默认 **5 容器**、向量检索使用 **Postgres pgvector**、附件存储默认 **阿里云 OSS**（S3 兼容 API）。
+当前主线分支 **`main`** 已完成部署栈精简：默认 **5 容器**、向量检索使用 **Postgres pgvector**、附件存储默认 **阿里云 OSS**（S3 兼容 API）。
 
 ## 版本
 
 | 项 | 说明 |
 | --- | --- |
-| 版本号 | `FV2.6.18.2111` |
-| 默认分支 | `feat/stack-slim` |
+| 版本号 | `FV2.6.19.2111` |
+| 默认分支 | `main` |
 | 运行时 | Caddy + Postgres + Redis + API + App |
 | RAG | `RAG_PROVIDER=pg`（pgvector） |
 | 对象存储 | OSS / S3 兼容端点 |
 
-详细变更见 [`docs/VERSION_NOTES.md`](docs/VERSION_NOTES.md)。
+详细变更见 [`docs/CHANGELOG_FV.md`](docs/CHANGELOG_FV.md) 与 [`docs/VERSION_NOTES.md`](docs/VERSION_NOTES.md)。
 
 ## 功能
 
-- AI 辅助创作、问答、搜索
+- AI 辅助创作、问答、搜索（Postgres `pgvector` + 全文检索）
 - 富文本 / Markdown 编辑，支持多种导出格式
+- GitHub 私有仓库 MD 文章同步：以 Git 为唯一内容真源，自动按目录与 front-matter 识别分类、图片转存 OSS、增量自动发布并触发 RAG 更新
+- 知识库更新群聊推送（支持飞书、钉钉 Webhook 通知模板）
 - 网页挂件、钉钉 / 飞书 / 企业微信等机器人集成
+- 安全与凭据加密：支持 `ENCRYPTION_KEY` 加密落库 API Token / 访问口令 / GitHub PAT，以及 `TRUST_PROXY` 可信代理限频防护
 
 ## 部署
 
@@ -41,7 +44,7 @@ Linux 服务器，已安装 Docker Compose v2。准备好阿里云 OSS（或其�
 curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install.sh | bash
 ```
 
-脚本会下载发布包、生成数据库/JWT/管理员密码，并询问 OSS 凭证，然后拉起 5 个容器。
+脚本会下载发布包（含 `backup.sh` 备份脚本）、生成数据库/JWT/管理员密码及 `ENCRYPTION_KEY`，并询问 OSS 凭证，然后拉起 5 个容器。部署完成后请妥善备份安装目录下的 `.env`（尤其是 `ENCRYPTION_KEY`），可使用目录内的 `./backup.sh` 定时备份数据库。
 
 指定版本与目录：
 
@@ -65,7 +68,6 @@ curl -fsSL https://github.com/MaydayV/PandaWiki/releases/latest/download/install
 ```bash
 git clone https://github.com/MaydayV/PandaWiki.git
 cd PandaWiki
-git checkout feat/stack-slim
 cd docs/deploy
 ./generate-env.sh
 ./quickstart.sh
@@ -95,6 +97,8 @@ bash native/deploy.sh
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/CHANGELOG_FV.md](docs/CHANGELOG_FV.md) | 乘风版各版本更新日志 |
+| [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md) | 详细改造与迭代记录 |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker 三种部署方式 |
 | [docs/STACK_SLIM.md](docs/STACK_SLIM.md) | 栈精简架构与 RAG 方案 |
 | [docs/FEATURE_COMPARISON.md](docs/FEATURE_COMPARISON.md) | 开源版与乘风版功能对比 |

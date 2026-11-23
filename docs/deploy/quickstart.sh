@@ -82,6 +82,7 @@ for i in $(seq 1 90); do
     echo "  API:  http://127.0.0.1:8000/health"
     echo ""
     echo "管理员密码见 .env 中 ADMIN_PASSWORD"
+    echo "请妥善备份 .env（尤其是 ENCRYPTION_KEY）；数据库备份可使用 ./backup.sh"
     exit 0
   fi
   sleep 2

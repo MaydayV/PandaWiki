@@ -34,6 +34,7 @@ jobs:
           cp docs/deploy/install.sh dist/pandawiki-deploy/
           cp docs/deploy/generate-env.sh dist/pandawiki-deploy/
           cp docs/deploy/quickstart.sh dist/pandawiki-deploy/
+          cp docs/deploy/backup.sh dist/pandawiki-deploy/
           cp docs/deploy/docker-compose.image.yml dist/pandawiki-deploy/
           cp docs/deploy/.env.example dist/pandawiki-deploy/
           cp backend/store/pg/migration/full_fresh_deploy.sql dist/pandawiki-deploy/
@@ -82,6 +83,7 @@ jobs:
 
             安装前请准备阿里云 OSS（或其它 S3 兼容存储）的 AccessKey、Bucket 与公网访问地址。
             默认 5 容器：Caddy + Postgres + Redis + API + App。
+            安装目录内含 `backup.sh` 定时备份脚本；请妥善备份 `.env`（尤其是 `ENCRYPTION_KEY`）；若 API `8000` 端口直接对外暴露（不经反代），请在 `.env` 中设置 `TRUST_PROXY=0`。
 
             后台：`https://<服务器IP>:2443`  
             前台：`http://<服务器IP>:3010`

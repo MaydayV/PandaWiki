@@ -17,7 +17,8 @@ RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm install --frozen-lockfile
 
 COPY web/ ./
 
-RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
+ARG VERSION=FV2.6.19.2111
+RUN VITE_APP_VERSION=${VERSION} NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter panda-wiki-admin build
 
 FROM --platform=$BUILDPLATFORM golang:1.26.4-alpine AS builder
 
@@ -31,7 +32,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY backend/ .
 
-ARG TARGETOS TARGETARCH VERSION
+ARG TARGETOS TARGETARCH VERSION=FV2.6.19.2111
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static' -X github.com/chaitin/panda-wiki/telemetry.Version=${VERSION}" -o /build/panda-wiki-api cmd/api/main.go cmd/api/wire_gen.go \

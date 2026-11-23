@@ -234,6 +234,12 @@ sudo docker compose up -d --force-recreate panda-wiki-api panda-wiki-consumer pa
 - 说明：
   - 乘风版坚持“借风而起，向远而行”，在功能迭代中优先保证线上稳定与可维护性。
 
+## 追加记录（2026-11-23，发布 FV2.6.19.2111）
+- 版本号：`FV2.6.19.2111`。
+- 核心新功能：落地 GitHub 私有仓库 Markdown 文章同步（`pkg/githubsync` + `usecase/github_sync` + `CardGitHubSync`），支持 front-matter 分类/排序、`folder:<navID>/<dir>` 多层目录、图片按 blob SHA 转存复用 OSS、Redis 分布式锁及增量自动发布联动 RAG。
+- 全栈 8 轮系统加固与独立深度复审闭环：覆盖凭据加密存储（`ENCRYPTION_KEY`）与 `api_tokens.token_index` 存量库自动升级、文件上传路由权限与 MIME 降级、SSE 保活与断连排干、飞书 WS 本地 fork 补丁优雅关闭、Widget 限频与 `TRUST_PROXY` 可信代理、`rag_jobs` 退避与僵尸回收、pgvector < 0.8 `SAVEPOINT` 降级、投稿审批原子守卫与回退、前台增量 Markdown 渲染稳定性以及 Next.js `16.4.6` 依赖安全升级（详细清单见 `docs/plans/hardening-iteration.md`）。
+- 文档、部署与发布链路更新：统一默认分支说明为 `main` 与版本 `FV2.6.19.2111`，修复 `Dockerfile` 构建与 `TRUST_PROXY` 变量透传，`backup.sh` 纳入 GitHub Release 发布包（`release.yml`），升级 CI Go `1.26` / Node `22` 并随 `FV*` tag 自动推送 `:latest` 镜像标签。
+
 ## 追加记录（2026-11-10，发布 FV2.6.18.2111）
 - 版本号：`FV2.6.18.2111`。
 - 上游同步与安全加固：

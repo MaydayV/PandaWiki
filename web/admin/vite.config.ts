@@ -8,6 +8,7 @@ import { execSync } from 'child_process';
 const FLY_VERSION_RULE = {
   major: 2,
   feature: 6,
+  release: 19,
   featureStartCommit: '9f001318',
 };
 
@@ -23,28 +24,13 @@ function readUpstreamVersion() {
   }
 }
 
-function readFeatureCommitCount() {
-  try {
-    const output = execSync(
-      `git rev-list --count ${FLY_VERSION_RULE.featureStartCommit}..HEAD`,
-      {
-        cwd: __dirname,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      },
-    )
-      .toString()
-      .trim();
-    const count = Number(output);
-    return Number.isFinite(count) && count > 0 ? count : 1;
-  } catch {
-    return 1;
+function buildFlyVersion(explicitVersion?: string) {
+  const trimmed = explicitVersion?.trim();
+  if (trimmed && trimmed !== 'local' && trimmed !== 'dev') {
+    return trimmed;
   }
-}
-
-function buildFlyVersion() {
   const upstreamVersion = readUpstreamVersion();
-  const commit = readFeatureCommitCount();
-  return `FV${FLY_VERSION_RULE.major}.${FLY_VERSION_RULE.feature}.${commit}.${upstreamVersion.replace(/\./g, '')}`;
+  return `FV${FLY_VERSION_RULE.major}.${FLY_VERSION_RULE.feature}.${FLY_VERSION_RULE.release}.${upstreamVersion.replace(/\./g, '')}`;
 }
 
 // 创建路由生成插件
@@ -90,7 +76,9 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const shouldAnalyze =
     process.argv.includes('--analyze') || env.ANALYZE === 'true';
-  const flyVersion = buildFlyVersion();
+  const flyVersion = buildFlyVersion(
+    process.env.VITE_APP_VERSION || env.VITE_APP_VERSION,
+  );
 
   return {
     define: {
